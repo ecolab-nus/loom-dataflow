@@ -15,6 +15,8 @@ namespace passes {
 #include "Passes.h.inc"
 
 std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
+std::unique_ptr<mlir::Pass>
+createConvertZeroFillLinalgMatmulToLoomPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Passes.h.inc"

@@ -12,6 +12,7 @@
 // (which re-includes GEN_PASS_REGISTRATION and causes redefinition conflicts).
 // TODO: distinguish per-backend pass sets when multiple backends are supported.
 namespace loom::passes {
+std::unique_ptr<mlir::Pass> createConvertZeroFillLinalgMatmulToLoomPass();
 std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
 } // namespace loom::passes
 
@@ -223,10 +224,11 @@ runMaterializationCore(const char *input_mlir_text,
   pm.addPass(mlir::createCSEPass());
   pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
 
-  // Stage 6: Backend-specific tensor-level optimizations
-  // (matches fold_zero_fill_linalg single-stage driver).
+  // Stage 6: Backend-specific TT optimizations
+  // (matches tt-opt single-stage driver).
   // TODO: gate these passes on a backend enum once multiple backends are
   //       supported (e.g. TT-Metal vs. others).
+  pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
   pm.addPass(mlir::createCanonicalizerPass());
 

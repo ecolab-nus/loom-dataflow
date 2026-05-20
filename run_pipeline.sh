@@ -119,7 +119,7 @@ fi
 
 if should_run 9; then
     echo "9) tt-opt..."
-    if ! build/tool/tt-opt/single_stage/fold_zero_fill_linalg \
+    if ! build/tool/tt-opt/single_stage/tt-opt \
       --input test/Passes/$TEST_CASE/IR/07_after_osb.mlir \
       > test/Passes/$TEST_CASE/IR/08_tt-opt.mlir; then
         echo "Error: Step 9 failed."

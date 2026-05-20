@@ -794,38 +794,38 @@ def BindMemOp : Loom_Op<"bind_mem", []> {
   }];
 }
 
-// DEPRECATED: `loom.matmul` is removed. Use `linalg.matmul` directly.
-// def MatmulOp : Loom_Op<"matmul", [
-//   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
-// ]> {
-//   let summary = "Loom implementation of matmul";
-//   let description = [{
-//     The `loom.matmul` operation performs matrix multiplication on memrefs.
-//     It is equivalent to `linalg.matmul` but specifically used for the TT platform.
-//     It currently only supports static shapes.
-//
-//     TODO: This op should be moved to a specific TT dialect in the future.
-//
-//     Example:
-//     ```mlir
-//     loom.matmul ins(%a, %b : memref<64x64xf16>, memref<64x64xf16>)
-//                 outs(%c : memref<64x64xf16>)
-//     ```
-//   }];
-//
-//   let arguments = (ins
-//     AnyMemRef:$lhs,
-//     AnyMemRef:$rhs,
-//     AnyMemRef:$outs
-//   );
-//
-//   let results = (outs);
-//
-//   let assemblyFormat = [{
-//     `ins` `(` $lhs `,` $rhs `:` type($lhs) `,` type($rhs) `)`
-//     `outs` `(` $outs `:` type($outs) `)` attr-dict
-//   }];
-// }
+
+def MatmulOp : Loom_Op<"matmul", [
+  DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+]> {
+  let summary = "Loom implementation of matmul";
+  let description = [{
+    The `loom.matmul` operation performs matrix multiplication on memrefs.
+    It is equivalent to `linalg.matmul` but specifically used for the TT platform.
+    It currently only supports static shapes.
+
+    TODO: This op should be moved to a specific TT dialect in the future.
+
+    Example:
+    ```mlir
+    loom.matmul ins(%a, %b : memref<64x64xf16>, memref<64x64xf16>)
+                outs(%c : memref<64x64xf16>)
+    ```
+  }];
+
+  let arguments = (ins
+    AnyMemRef:$lhs,
+    AnyMemRef:$rhs,
+    AnyMemRef:$outs
+  );
+
+  let results = (outs);
+
+  let assemblyFormat = [{
+    `ins` `(` $lhs `,` $rhs `:` type($lhs) `,` type($rhs) `)`
+    `outs` `(` $outs `:` type($outs) `)` attr-dict
+  }];
+}
 
 def GatherOp : Loom_Op<"gather", [
   DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,

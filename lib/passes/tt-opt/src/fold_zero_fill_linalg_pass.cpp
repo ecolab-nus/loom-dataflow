@@ -3,7 +3,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Matchers.h"
@@ -50,25 +49,10 @@ bool isZeroConstant(Value value) {
 /// Checks if an op is effectively "between" two other ops in control flow.
 /// This is a conservative check for ops within the same block.
 bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
-  Operation *bridgeOp = nullptr;
-  bool sameBlock = start->getBlock() == end->getBlock();
-  bool oneLevelNested = false;
-
-  if (!sameBlock) {
-    // Allow exactly one-level loop nesting:
-    //   fill in parent block, consumer in immediate child loop body block.
-    Operation *parent = end->getBlock()->getParentOp();
-    if (!parent || parent->getBlock() != start->getBlock())
-      return true;
-    if (!isa<scf::ForOp, scf::ParallelOp>(parent))
-      return true;
-    if (!start->isBeforeInBlock(parent))
-      return true;
-    bridgeOp = parent;
-    oneLevelNested = true;
-  } else if (!start->isBeforeInBlock(end)) {
+  if (start->getBlock() != end->getBlock())
     return true;
-  }
+  if (!start->isBeforeInBlock(end))
+    return true;
 
   // Simple check: for each user of the memref, check its position.
   for (Operation *user : memref.getUsers()) {
@@ -83,34 +67,11 @@ bool isInterveningUsage(Operation *start, Operation *end, Value memref) {
         continue;
     }
 
-    if (sameBlock) {
-      if (user->getBlock() == start->getBlock() &&
-          start->isBeforeInBlock(user) && user->isBeforeInBlock(end)) {
-        return true;
-      }
-      continue;
-    }
-
-    // One-level nesting mode:
-    // 1) Parent block: disallow uses between fill and loop op.
-    if (user->getBlock() == start->getBlock()) {
-      if (start->isBeforeInBlock(user) && user->isBeforeInBlock(bridgeOp))
-        return true;
-      continue;
-    }
-
-    // 2) Consumer block: disallow uses before consumer.
-    if (user->getBlock() == end->getBlock()) {
-      if (user->isBeforeInBlock(end))
-        return true;
-      continue;
-    }
-
-    // 3) Any other block is conservatively considered intervening.
-    if (oneLevelNested) {
+    if (user->getBlock() == start->getBlock() &&
+        start->isBeforeInBlock(user) && user->isBeforeInBlock(end))
       return true;
-    }
   }
+
   return false;
 }
 
@@ -162,16 +123,27 @@ void processLinalgMatmul(LinalgMatmulOp matmulOp,
   fillsToErase.insert(fillOp);
 }
 
+template <typename LoomMatmulOp>
+void processLoomMatmul(LoomMatmulOp matmulOp,
+                       SmallPtrSetImpl<Operation *> &fillsToErase) {
+  Value outs = matmulOp.getOuts();
+
+  linalg::FillOp fillOp = findZeroFillForOutput(matmulOp, outs);
+  if (!fillOp)
+    return;
+
+  fillsToErase.insert(fillOp);
+}
+
 struct FoldZeroFillLinalgPass
     : public PassWrapper<FoldZeroFillLinalgPass, OperationPass<ModuleOp>> {
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(FoldZeroFillLinalgPass)
 
   StringRef getArgument() const override { return "tt-fold-zero-fill-linalg"; }
 
-	  StringRef getDescription() const override {
-	    return "Fold linalg.fill(0) feeding linalg outs operands, preserving "
-	           "linalg.matmul and batch_matmul lowering to loom ops.";
-	  }
+  StringRef getDescription() const override {
+    return "Fold same-block linalg.fill(0) ops feeding linalg outs operands.";
+  }
 
   void runOnOperation() override {
     ModuleOp module = getOperation();
@@ -180,10 +152,10 @@ struct FoldZeroFillLinalgPass
       SmallPtrSet<Operation *, 4> fillsToErase;
 
       // 1. Process regular matmuls
-	      SmallVector<linalg::MatmulOp> matmuls;
-	      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
-	      for (auto op : matmuls)
-	        processLinalgMatmul<linalg::MatmulOp>(op, fillsToErase);
+      SmallVector<linalg::MatmulOp> matmuls;
+      funcOp.walk([&](linalg::MatmulOp op) { matmuls.push_back(op); });
+      for (auto op : matmuls)
+        processLinalgMatmul<linalg::MatmulOp>(op, fillsToErase);
 
       // 2. Process batch matmuls
       SmallVector<linalg::BatchMatmulOp> batchMatmuls;
@@ -192,7 +164,19 @@ struct FoldZeroFillLinalgPass
       for (auto op : batchMatmuls)
         processLinalgMatmul<linalg::BatchMatmulOp>(op, fillsToErase);
 
-      // 3. Process all other linalg destination-style ops per output.
+      // 3. Process Loom matmuls created by the TT conversion pass.
+      SmallVector<loom::MatmulOp> loomMatmuls;
+      funcOp.walk([&](loom::MatmulOp op) { loomMatmuls.push_back(op); });
+      for (auto op : loomMatmuls)
+        processLoomMatmul<loom::MatmulOp>(op, fillsToErase);
+
+      SmallVector<loom::BatchMatmulOp> loomBatchMatmuls;
+      funcOp.walk(
+          [&](loom::BatchMatmulOp op) { loomBatchMatmuls.push_back(op); });
+      for (auto op : loomBatchMatmuls)
+        processLoomMatmul<loom::BatchMatmulOp>(op, fillsToErase);
+
+      // 4. Process all other linalg destination-style ops per output.
       SmallVector<linalg::LinalgOp> linalgOps;
       funcOp.walk([&](linalg::LinalgOp op) {
         if (isa<linalg::MatmulOp, linalg::BatchMatmulOp>(op))

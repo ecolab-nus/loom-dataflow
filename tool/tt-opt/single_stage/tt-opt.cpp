@@ -1,7 +1,7 @@
-// Standalone driver to run the TT fold-zero-fill-linalg pass.
+// Standalone driver to run the TT opt pipeline.
 //
 // Usage:
-//   fold_zero_fill_linalg --input <input.mlir>
+//   tt-opt --input <input.mlir>
 
 #include "tt-opt/inc/Passes.h"
 
@@ -40,7 +40,7 @@ static llvm::cl::opt<std::string>
 
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
-                                    "TT fold-zero-fill-linalg pass driver\n");
+                                    "TT opt pipeline driver\n");
 
   MLIRContext context;
   (void)context.getOrLoadDialect<mlir::BuiltinDialect>();
@@ -70,12 +70,12 @@ int main(int argc, char **argv) {
   }
 
   PassManager pm(&context);
+  pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   if (failed(pm.run(*module))) {
-    llvm::WithColor::error(llvm::errs())
-        << "TT fold-zero-fill-linalg pass failed\n";
+    llvm::WithColor::error(llvm::errs()) << "TT opt pipeline failed\n";
     return 2;
   }
 

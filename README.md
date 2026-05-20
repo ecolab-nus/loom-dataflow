@@ -14,12 +14,12 @@ lib/
     common/         — Shared analysis utilities (hardware discovery, affine utils, etc.)
     loom-opt/       — Core transformation passes
     lcs/            — Loom Compute Schedule: staged ETG builder and constraint expressions
-    tt-opt/         — Post-bufferization linalg cleanup passes (fold_zero_fill_linalg)
+    tt-opt/         — Post-bufferization TT optimization passes
   pipeline/         — High-level C++ API and Python bindings (pybind11)
   resources/        — Primitive hardware resource models (SRAM banks, rings, chains)
 tool/
   loom-opt/single_stage/ — Single-stage CLI drivers for each pipeline pass
-  tt-opt/single_stage/   — CLI driver for fold_zero_fill_linalg
+  tt-opt/single_stage/   — CLI driver for tt-opt
   dataflow-dialect/      — Dataflow dialect utilities
   resource-system/       — Hardware resource demos
   loom-lsp-server/       — LSP server for IDE support
@@ -96,7 +96,7 @@ All binaries live under `build/tool/` after a build. The full pipeline is exerci
 | 6 | `staged_etg` | Build Staged Execution Task Graph → JSON constraint model |
 | 7 | `canonicalize` | Materialize symbolic block sizes into concrete constants; canonicalize IR |
 | 8 | `one_shot_bufferize` | One-shot bufferization: tensor ops → memref ops |
-| 9 | `fold_zero_fill_linalg` | Fold zero `linalg.fill` ops feeding `linalg` outs; preserve matmul lowering to Loom ops |
+| 9 | `tt-opt` | Convert zero-initialized linalg matmul ops to Loom ops and fold redundant zero fills |
 
 **Not in the default pipeline (under active development):**
 - `hoist_block_loading` — hoist block loading operations from innermost loops to outer loop levels
@@ -153,7 +153,7 @@ build/tool/loom-opt/single_stage/one_shot_bufferize \
   > test/Passes/mqa_decode/IR/07_after_osb.mlir
 
 # Step 9
-build/tool/tt-opt/single_stage/fold_zero_fill_linalg \
+build/tool/tt-opt/single_stage/tt-opt \
   --input test/Passes/mqa_decode/IR/07_after_osb.mlir \
   > test/Passes/mqa_decode/IR/08_tt-opt.mlir
 ```
@@ -192,9 +192,9 @@ build/tool/tt-opt/single_stage/fold_zero_fill_linalg \
 - **Purpose**: Run MLIR's one-shot bufferization to lower tensor-level IR to memref-based IR in a single pass, using the `loom` dialect's custom bufferization interface.
 - **Implementation**: `lib/loom-dialect/Transforms/BufferizableOpInterfaceImpl.h`; CLI driver: `tool/loom-opt/single_stage/one_shot_bufferize_main.cpp`
 
-### `fold_zero_fill_linalg` (`tt-fold-zero-fill-linalg`)
-- **Purpose**: Remove zero `linalg.fill` ops feeding destination operands of any `linalg` op when there is no intervening use. `linalg.matmul` and `linalg.batch_matmul` continue to lower to the corresponding Loom ops.
-- **Implementation**: `lib/passes/tt-opt/src/fold_zero_fill_linalg_pass.cpp`
+### `tt-opt` (`tt-convert-zero-fill-linalg-matmul-to-loom` + `tt-fold-zero-fill-linalg`)
+- **Purpose**: Convert same-block zero-initialized `linalg.matmul` and `linalg.batch_matmul` ops to `loom.matmul` and `loom.batch_matmul`, then remove redundant zero `linalg.fill` ops feeding remaining destination-style `linalg` ops when there is no intervening use.
+- **Implementation**: `lib/passes/tt-opt/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp`, `lib/passes/tt-opt/src/fold_zero_fill_linalg_pass.cpp`
 
 ### `hoist_block_loading` (`loom-hoist-block-loading`) *(under active development)*
 - **Purpose**: Hoist block loading operations from innermost `affine.for` loops to outer loop levels to reduce redundant memory accesses. Identifies `loom.alloc + loom.copy_to_tensor` loading block patterns and clones the function per loading block.

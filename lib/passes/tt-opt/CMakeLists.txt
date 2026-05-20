@@ -10,6 +10,7 @@ mlir_tablegen(Passes.h.inc -gen-pass-decls -name LoomTTOpt ${TBLGEN_INCLUDES})
 add_public_tablegen_target(LoomTTOptPassesIncGen)
 
 add_library(loomTTOptPasses STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/fold_zero_fill_linalg_pass.cpp
 )
 

@@ -1,16 +1,16 @@
 # TT-opt single-stage tools
 
-add_executable(fold_zero_fill_linalg
-  ${CMAKE_CURRENT_LIST_DIR}/fold_zero_fill_linalg_main.cpp
+add_executable(tt-opt
+  ${CMAKE_CURRENT_LIST_DIR}/tt-opt.cpp
 )
 
-target_include_directories(fold_zero_fill_linalg PRIVATE
+target_include_directories(tt-opt PRIVATE
   ${MLIR_INCLUDE_DIRS} 
   ${LOOM_PASSES_INC}
   ${PROJECT_SOURCE_DIR}/lib/passes/tt-opt/inc
 )
 
-target_link_libraries(fold_zero_fill_linalg PRIVATE
+target_link_libraries(tt-opt PRIVATE
   loomTTOptPasses
   loomTritonSharedPasses
   MLIRIR
@@ -30,10 +30,10 @@ target_link_libraries(fold_zero_fill_linalg PRIVATE
   loomADLDialect
   loomDialect
 )
-mlir_check_all_link_libraries(fold_zero_fill_linalg)
+mlir_check_all_link_libraries(tt-opt)
 
-target_compile_options(fold_zero_fill_linalg PRIVATE -fno-rtti)
+target_compile_options(tt-opt PRIVATE -fno-rtti)
 
-set_target_properties(fold_zero_fill_linalg PROPERTIES
+set_target_properties(tt-opt PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

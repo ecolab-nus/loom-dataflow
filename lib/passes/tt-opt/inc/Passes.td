@@ -3,6 +3,23 @@
 
 include "mlir/Pass/PassBase.td"
 
+def ConvertZeroFillLinalgMatmulToLoom
+    : Pass<"tt-convert-zero-fill-linalg-matmul-to-loom", "mlir::ModuleOp"> {
+  let summary = "Convert zero-initialized linalg matmul ops to Loom ops";
+  let description = [{
+    Detects same-block zero linalg.fill initialization for linalg.matmul and
+    linalg.batch_matmul and rewrites the matmul op to loom.matmul or
+    loom.batch_matmul without directly erasing the fill.
+  }];
+  let constructor =
+      "loom::passes::createConvertZeroFillLinalgMatmulToLoomPass()";
+  let dependentDialects = [
+    "mlir::linalg::LinalgDialect",
+    "mlir::arith::ArithDialect",
+    "loom::LoomDialect"
+  ];
+}
+
 def FoldZeroFillLinalg : Pass<"tt-fold-zero-fill-linalg", "mlir::ModuleOp"> {
   let summary = "Fold linalg.fill(0) feeding linalg outs operands";
   let description = [{
