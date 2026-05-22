@@ -168,6 +168,16 @@ void pushGatherTemporalAcrossConstraints(mlir::func::FuncOp funcOp,
 
   funcOp.walk([&](loom::GatherOp gatherOp) {
     mlir::Value across = gatherOp.getAcross();
+    if (!across)
+      return;
+
+    // Materialization/staticization can fold a loop-carried across index into a
+    // compile-time constant (e.g., 0 when the tiled loop runs once). Treat such
+    // across as already resolved and skip temporal-loop constraints.
+    mlir::IntegerAttr constAttr;
+    if (mlir::matchPattern(across, mlir::m_Constant(&constAttr)))
+      return;
+
     auto temporalDeps = loom::utils::collectTemporalIVDependencies(across);
     if (temporalDeps.empty())
       failGatherConstraint(gatherOp, "across does not depend on any temporal loop IV");

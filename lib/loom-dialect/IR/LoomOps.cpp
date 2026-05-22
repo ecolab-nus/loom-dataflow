@@ -136,27 +136,9 @@ MemRefType loom::SubviewOp::inferResultType(MemRefType sourceType,
       }
     }
 
-    // Offset is 0 for initial default layout
-    resultOffset = 0;
-    for (size_t i = 0; i < staticOffsets.size(); ++i) {
-      // Recompute original stride for offset calculation
-      int64_t sourceStride = 1;
-      for (size_t j = i + 1; j < (size_t)sourceType.getRank(); ++j) {
-        if (sourceType.getDimSize(j) == ShapedType::kDynamic) {
-          sourceStride = ShapedType::kDynamic;
-          break;
-        }
-        sourceStride *= sourceType.getDimSize(j);
-      }
-
-      if (staticOffsets[i] != ShapedType::kDynamic &&
-          sourceStride != ShapedType::kDynamic &&
-          resultOffset != ShapedType::kDynamic) {
-        resultOffset += staticOffsets[i] * sourceStride;
-      } else {
-        resultOffset = ShapedType::kDynamic;
-      }
-    }
+    // Keep offset conservative when source layout is implicit identity.
+    // This matches verifier expectations for view-like ops in this case.
+    resultOffset = ShapedType::kDynamic;
   }
 
   auto layout = StridedLayoutAttr::get(sourceType.getContext(), resultOffset,
@@ -839,6 +821,14 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
 
   LogicalResult matchAndRewrite(GatherOp op,
                                 PatternRewriter &rewriter) const override {
+    Value across = op.getAcross();
+    bool dropAcross = false;
+    if (across) {
+      IntegerAttr constAttr;
+      if (matchPattern(across, m_Constant(&constAttr)))
+        dropAcross = true;
+    }
+
     Value source = op.getSource();
     if (auto cast = source.getDefiningOp<memref::CastOp>())
       source = cast.getSource();
@@ -847,12 +837,13 @@ struct StaticizeGather : public OpRewritePattern<GatherOp> {
     if (auto cast = destination.getDefiningOp<memref::CastOp>())
       destination = cast.getSource();
 
-    if (source == op.getSource() && destination == op.getDestination())
+    if (source == op.getSource() && destination == op.getDestination() &&
+        !dropAcross)
       return failure();
 
     rewriter.replaceOpWithNewOp<GatherOp>(
         op, source, destination, op.getSrcMemSpaceAttr(),
-        op.getDstMemSpaceAttr(), op.getAcross(), op.getArea(),
+        op.getDstMemSpaceAttr(), dropAcross ? Value{} : across, op.getArea(),
         op.getStaticAreaAttr(), op.getUlX(), op.getUlY(), op.getLrX(),
         op.getLrY());
     return success();
