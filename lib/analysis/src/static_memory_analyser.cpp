@@ -239,22 +239,49 @@ void MemoryAnalysisContext::collectExclusiveHandoffTargets(func::FuncOp func) {
 }
 
 std::optional<LoopContext> MemoryAnalysisContext::findLoopContext() const {
+  SmallVector<scf::ForOp, 4> loopCarriedForOps;
+
   for (auto &entry : opIndexMap_) {
-    if (auto parallelOp =
-            mlir::dyn_cast<affine::AffineParallelOp>(entry.first)) {
-      for (auto &op : *parallelOp.getBody()) {
-        if (auto forOp = mlir::dyn_cast<affine::AffineForOp>(op)) {
-          return LoopContext{forOp.getOperation(), getOpIndex(forOp),
-                             getLoopEndIndex(forOp)};
-        }
-        if (auto forOp = mlir::dyn_cast<scf::ForOp>(op)) {
-          return LoopContext{forOp.getOperation(), getOpIndex(forOp),
-                             getLoopEndIndex(forOp)};
-        }
-      }
-    }
+    auto parallelOp = mlir::dyn_cast<affine::AffineParallelOp>(entry.first);
+    if (!parallelOp)
+      continue;
+
+    parallelOp.walk([&](scf::ForOp forOp) {
+      if (!forOp.getInitArgs().empty())
+        loopCarriedForOps.push_back(forOp);
+    });
   }
-  return std::nullopt;
+
+  if (loopCarriedForOps.size() != 1) {
+    llvm::errs() << "memory analysis expects exactly one loop-carried scf.for, "
+                 << "found " << loopCarriedForOps.size() << "\n";
+    assert(false && "memory analysis expects exactly one loop-carried scf.for");
+    llvm::report_fatal_error(
+        "memory analysis expects exactly one loop-carried scf.for");
+  }
+
+  scf::ForOp loopCarriedForOp = loopCarriedForOps.front();
+  bool hasNestedLoop = false;
+  loopCarriedForOp.getBody()->walk([&](Operation *op) {
+    if (isa<scf::ForOp, affine::AffineForOp>(op)) {
+      hasNestedLoop = true;
+      return WalkResult::interrupt();
+    }
+    return WalkResult::advance();
+  });
+  if (hasNestedLoop) {
+    assert(false && "loop-carried scf.for must be innermost");
+    llvm::report_fatal_error("loop-carried scf.for must be innermost");
+  }
+
+  int startIndex = getOpIndex(loopCarriedForOp);
+  if (startIndex < 0) {
+    assert(false && "loop-carried scf.for missing operation index");
+    llvm::report_fatal_error("loop-carried scf.for missing operation index");
+  }
+
+  return LoopContext{loopCarriedForOp.getOperation(), startIndex,
+                     getLoopEndIndex(loopCarriedForOp)};
 }
 
 // ============================================================================
