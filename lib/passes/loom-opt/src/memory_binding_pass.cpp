@@ -19,6 +19,7 @@
 // Loom dialect and analysis headers
 #include "LoomDialect.h.inc"
 #include "static_memory_analyser.h"
+#include "utils.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -495,6 +496,7 @@ private:
   }
 
   void resolveBucketScopes() {
+    llvm::DenseMap<Operation *, Operation *> normalizedScopeCache;
     for (auto &[sig, bucket] : analysisCtx.getBucketsMutable()) {
       if (bucket.nodes.empty())
         continue;
@@ -502,7 +504,21 @@ private:
       Operation *op = bucket.nodes.front().definingOp;
       while (op && !isa<affine::AffineParallelOp>(op))
         op = op->getParentOp();
-      bucket.scopeOp = op;
+      auto parallelOp = dyn_cast_or_null<affine::AffineParallelOp>(op);
+      if (!parallelOp) {
+        bucket.scopeOp = nullptr;
+        continue;
+      }
+
+      Operation *parallelRaw = parallelOp.getOperation();
+      auto cachedIt = normalizedScopeCache.find(parallelRaw);
+      if (cachedIt == normalizedScopeCache.end()) {
+        Operation *normalizedScope =
+            loom::utils::getNormalizedMemoryBindingScope(parallelOp);
+        cachedIt =
+            normalizedScopeCache.insert({parallelRaw, normalizedScope}).first;
+      }
+      bucket.scopeOp = cachedIt->second;
     }
   }
 

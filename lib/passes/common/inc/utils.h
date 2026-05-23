@@ -5,7 +5,9 @@
 
 #pragma once
 
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/ADT/SmallVector.h"
@@ -56,6 +58,17 @@ llvm::SmallVector<AllocInfo> collectL1AllocInfos(mlir::func::FuncOp func);
  * @brief Trace an SSA value back to a symbolic block size name.
  */
 llvm::StringRef traceToSymbolicVar(mlir::Value val);
+
+/**
+ * @brief Return the memory-binding scope for a validated loop nest.
+ *
+ * The input must contain exactly one loop-carried scf.for. If that loop is
+ * wrapped by a supported perfectly-nested serial scf.for envelope, the returned
+ * scope is the loop-carried for's immediate parent. Otherwise the original
+ * affine.parallel is returned. Unsupported nest shapes report a fatal error.
+ */
+mlir::Operation *
+getNormalizedMemoryBindingScope(mlir::affine::AffineParallelOp parallelOp);
 
 } // namespace utils
 } // namespace loom
