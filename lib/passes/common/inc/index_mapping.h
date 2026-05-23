@@ -36,8 +36,8 @@ struct HWDimMapping {
  * TODO: Implement emitGlobalIndex1d for single-dimension hardware mapping
  */
 mlir::Value emitGlobalIndex2d(mlir::OpBuilder &b, mlir::Location loc,
-                              mlir::Value coreI, mlir::Value coreJ,
-                              unsigned meshWidth, mlir::Value waveIV,
+                              mlir::Value outerIV, mlir::Value innerIV,
+                              unsigned innerDimSize, mlir::Value waveIV,
                               unsigned tileWidth, unsigned totalCores);
 
 } // namespace loom

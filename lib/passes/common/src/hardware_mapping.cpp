@@ -261,7 +261,7 @@ static LogicalResult applyMappingToFunction(
       if (nonUnitHWMappings.size() >= 2) {
         reconstructedIV = loom::emitGlobalIndex2d(
             builder, loc, nonUnitHWMappings[0]->iv, nonUnitHWMappings[1]->iv,
-            nonUnitHWMappings[0]->hwDimSize, waveIV, 1,
+            nonUnitHWMappings[1]->hwDimSize, waveIV, 1,
             static_cast<unsigned>(totalCores));
       } else if (nonUnitHWMappings.size() == 1) {
         int64_t factor = nonUnitHWMappings[0]->hwDimSize;
