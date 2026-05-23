@@ -1551,7 +1551,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -1744,7 +1744,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -1937,7 +1937,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -2133,7 +2133,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index
@@ -2326,7 +2326,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -2520,7 +2520,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         affine.parallel (%arg9) = (0) to (8) {
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (1) {
-              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 scf.for %arg13 = %c0 to %c8 step %c1 {
                   %19 = arith.muli %arg13, %c4 : index
@@ -2716,7 +2716,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -2909,7 +2909,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -3101,7 +3101,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -3298,7 +3298,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index
@@ -6167,7 +6167,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -6361,7 +6361,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         affine.parallel (%arg9) = (0) to (2) {
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (2) {
-              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
+              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 scf.for %arg13 = %c0 to %c8 step %c1 {
                   %19 = arith.muli %arg13, %c4 : index
@@ -6552,7 +6552,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -6744,7 +6744,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         affine.parallel (%arg9) = (0) to (2) {
           affine.parallel (%arg10) = (0) to (8) {
             affine.parallel (%arg11) = (0) to (1) {
-              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
+              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 scf.for %arg13 = %c0 to %c8 step %c1 {
                   %19 = arith.muli %arg13, %c4 : index
@@ -7324,7 +7324,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -7520,7 +7520,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index
@@ -8103,7 +8103,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -8298,7 +8298,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index
@@ -8872,7 +8872,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -9065,7 +9065,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -9259,7 +9259,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -9452,7 +9452,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -11545,7 +11545,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -11738,7 +11738,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (8) {
             affine.parallel (%arg11) = (0) to (4) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -11931,7 +11931,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -12127,7 +12127,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index
@@ -12320,7 +12320,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (4) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -12514,7 +12514,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         affine.parallel (%arg9) = (0) to (2) {
           affine.parallel (%arg10) = (0) to (8) {
             affine.parallel (%arg11) = (0) to (1) {
-              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 2 + d1)>(%arg9, %arg10)
+              %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 scf.for %arg13 = %c0 to %c8 step %c1 {
                   %19 = arith.muli %arg13, %c4 : index
@@ -12710,7 +12710,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (1) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c5 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -12903,7 +12903,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (8) {
             affine.parallel (%arg11) = (0) to (2) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %19 = arith.muli %arg14, %c4 : index
@@ -13095,7 +13095,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
           affine.parallel (%arg10) = (0) to (2) {
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c3 step %c1 {
-                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg8, %arg9)
+                %18 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg8, %arg9)
                 %19 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg12)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -13292,7 +13292,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
             affine.parallel (%arg11) = (0) to (1) {
               scf.for %arg12 = %c0 to %c2 step %c1 {
                 %18 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 4 + d1)>(%arg9, %arg10)
+                %19 = affine.apply affine_map<(d0, d1) -> (d0 * 8 + d1)>(%arg9, %arg10)
                 scf.for %arg13 = %c0 to %c2 step %c1 {
                   scf.for %arg14 = %c0 to %c8 step %c1 {
                     %20 = arith.muli %arg14, %c4 : index

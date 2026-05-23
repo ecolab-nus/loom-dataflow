@@ -1595,7 +1595,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c2, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -1795,7 +1795,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c3 = arith.constant 3 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c2, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -1995,7 +1995,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10, %arg11) = (%c0, %c0, %c0, %c0) to (%c8, %c2, %c2, %c2) step (%c1, %c1, %c1, %c1) {
         scf.for %arg12 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg12, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -2202,7 +2202,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg12 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg12, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c8 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c2 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg13 = %c0 to %c2 step %c1 {
             scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -2404,7 +2404,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c2, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c2 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c4 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -2595,7 +2595,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c32 = arith.constant 32 : index
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
-        %18 = arith.muli %arg9, %c8 overflow<nsw> : index
+        %18 = arith.muli %arg9, %c2 overflow<nsw> : index
         %19 = arith.addi %18, %arg10 : index
         scf.for %arg11 = %c0 to %c2 step %c1 {
           scf.for %arg12 = %c0 to %c8 step %c1 {
@@ -2787,7 +2787,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c4, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -2987,7 +2987,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c4, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -3186,7 +3186,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c4, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -3381,7 +3381,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg11 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg11, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c8 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c4 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -6311,7 +6311,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10, %arg11) = (%c0, %c0, %c0, %c0) to (%c2, %c4, %c4, %c2) step (%c1, %c1, %c1, %c1) {
         scf.for %arg12 = %c0 to %c2 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg12, %c4 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -6515,7 +6515,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c32 = arith.constant 32 : index
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10, %arg11) = (%c0, %c0, %c0, %c0) to (%c4, %c2, %c4, %c2) step (%c1, %c1, %c1, %c1) {
-        %18 = arith.muli %arg9, %c2 overflow<nsw> : index
+        %18 = arith.muli %arg9, %c4 overflow<nsw> : index
         %19 = arith.addi %18, %arg10 : index
         scf.for %arg12 = %c0 to %c2 step %c1 {
           scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -6715,7 +6715,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c2 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c4 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -6906,7 +6906,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c32 = arith.constant 32 : index
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
-        %18 = arith.muli %arg9, %c2 overflow<nsw> : index
+        %18 = arith.muli %arg9, %c8 overflow<nsw> : index
         %19 = arith.addi %18, %arg10 : index
         scf.for %arg11 = %c0 to %c2 step %c1 {
           scf.for %arg12 = %c0 to %c8 step %c1 {
@@ -7501,7 +7501,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10, %arg11) = (%c0, %c0, %c0, %c0) to (%c4, %c2, %c2, %c4) step (%c1, %c1, %c1, %c1) {
         scf.for %arg12 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg12, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -7708,7 +7708,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg12 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg12, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c4 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c2 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg13 = %c0 to %c2 step %c1 {
             scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -8320,7 +8320,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -8515,7 +8515,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg11 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg11, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c4 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c8 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -9097,7 +9097,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c2, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -9297,7 +9297,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c3 = arith.constant 3 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c2, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -9498,7 +9498,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c4, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -9698,7 +9698,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c8, %c4, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -11825,7 +11825,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -12025,7 +12025,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c3 = arith.constant 3 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -12225,7 +12225,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10, %arg11) = (%c0, %c0, %c0, %c0) to (%c2, %c8, %c2, %c2) step (%c1, %c1, %c1, %c1) {
         scf.for %arg12 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg12, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -12432,7 +12432,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg12 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg12, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c2 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c8 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg13 = %c0 to %c2 step %c1 {
             scf.for %arg14 = %c0 to %c8 step %c1 {
@@ -12634,7 +12634,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c2, %c8, %c4) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c2 step %c1 {
-          %18 = arith.muli %arg8, %c2 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c4 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -12825,7 +12825,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c32 = arith.constant 32 : index
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c2, %c8) step (%c1, %c1, %c1) {
-        %18 = arith.muli %arg9, %c2 overflow<nsw> : index
+        %18 = arith.muli %arg9, %c8 overflow<nsw> : index
         %19 = arith.addi %18, %arg10 : index
         scf.for %arg11 = %c0 to %c2 step %c1 {
           scf.for %arg12 = %c0 to %c8 step %c1 {
@@ -13017,7 +13017,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c5 = arith.constant 5 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c5 step %c1 {
-          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -13217,7 +13217,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {
@@ -13416,7 +13416,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
       %c64 = arith.constant 64 : index
       scf.parallel (%arg8, %arg9, %arg10) = (%c0, %c0, %c0) to (%c4, %c8, %c2) step (%c1, %c1, %c1) {
         scf.for %arg11 = %c0 to %c3 step %c1 {
-          %18 = arith.muli %arg8, %c4 overflow<nsw> : index
+          %18 = arith.muli %arg8, %c8 overflow<nsw> : index
           %19 = arith.addi %18, %arg9 : index
           %20 = arith.muli %arg11, %c2 overflow<nsw> : index
           %21 = arith.addi %arg10, %20 : index
@@ -13611,7 +13611,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
         scf.for %arg11 = %c0 to %c2 step %c1 {
           %18 = arith.muli %arg11, %c2 overflow<nsw> : index
           %19 = arith.addi %arg8, %18 : index
-          %20 = arith.muli %arg9, %c4 overflow<nsw> : index
+          %20 = arith.muli %arg9, %c8 overflow<nsw> : index
           %21 = arith.addi %20, %arg10 : index
           scf.for %arg12 = %c0 to %c2 step %c1 {
             scf.for %arg13 = %c0 to %c8 step %c1 {

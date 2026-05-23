@@ -1595,7 +1595,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -1789,7 +1789,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -1983,7 +1983,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %31 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
@@ -2179,7 +2179,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %33 step %c1 {
@@ -2373,7 +2373,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c4 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -2568,7 +2568,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
@@ -2759,7 +2759,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -2951,7 +2951,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -3143,7 +3143,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c2 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -3336,7 +3336,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
@@ -6239,7 +6239,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 8)>(%arg8, %arg9, %arg12)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 8)>(%arg8, %arg9, %arg12)
                     %31 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
@@ -6435,7 +6435,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg8, %arg12)
-                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 8)>(%arg9, %arg10, %arg13)
+                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 8)>(%arg9, %arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %33 step %c1 {
@@ -6629,7 +6629,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c4 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -6824,7 +6824,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
@@ -7407,7 +7407,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   %29 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 8)>(%arg8, %arg9, %arg12)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 8)>(%arg8, %arg9, %arg12)
                     %31 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
@@ -7603,7 +7603,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                   %29 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 8)>(%arg9, %arg10, %arg13)
+                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 8)>(%arg9, %arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %33 step %c1 {
@@ -8185,7 +8185,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c2 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -8378,7 +8378,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
@@ -8955,7 +8955,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -9149,7 +9149,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -9341,7 +9341,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -9533,7 +9533,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -11657,7 +11657,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -11851,7 +11851,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c4 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -12045,7 +12045,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %31 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
@@ -12241,7 +12241,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                   %29 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %29 step %c1 {
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %31 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %32 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %33 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %33 step %c1 {
@@ -12435,7 +12435,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c4 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -12630,7 +12630,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 4)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 2 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 16)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
@@ -12821,7 +12821,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %25 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -13013,7 +13013,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %27 step %c1 {
                   %28 = arith.ceildivui %26, %c2 : index
                   scf.for %arg14 = %c0 to %28 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg11, %arg14)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -13205,7 +13205,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 %28 = arith.ceildivui %25, %c2 : index
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
-                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
+                    %29 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg8, %arg9, %arg12)
                     %30 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
@@ -13398,7 +13398,7 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 2 : index}
                 scf.for %arg13 = %c0 to %28 step %c1 {
                   scf.for %arg14 = %c0 to %26 step %c1 {
                     %29 = affine.apply affine_map<(d0, d1) -> (d0 + d1 * 2)>(%arg8, %arg12)
-                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 4 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
+                    %30 = affine.apply affine_map<(d0, d1, d2) -> (d0 * 8 + d1 + d2 * 32)>(%arg9, %arg10, %arg13)
                     %31 = arith.ceildivui %c2, %22 : index
                     scf.for %arg15 = %c0 to %31 step %c1 {
                       %32 = arith.ceildivui %c32, %23 : index
