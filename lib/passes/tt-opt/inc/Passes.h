@@ -15,6 +15,7 @@ namespace passes {
 #include "Passes.h.inc"
 
 std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
+std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 std::unique_ptr<mlir::Pass>
 createConvertZeroFillLinalgMatmulToLoomPass();
 

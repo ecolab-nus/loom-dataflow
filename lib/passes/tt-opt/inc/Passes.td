@@ -35,4 +35,19 @@ def FoldZeroFillLinalg : Pass<"tt-fold-zero-fill-linalg", "mlir::ModuleOp"> {
   ];
 }
 
+def SplitBinaryScalarChain
+    : Pass<"tt-split-binary-scalar-chain", "mlir::ModuleOp"> {
+  let summary = "Split safe fused binary scalar chains in linalg.generic ops";
+  let description = [{
+    Detects all-parallel single-output linalg.generic ops containing a safe
+    binary scalar chain and splits them into adjacent generics that use the
+    original output buffer as the intermediate storage.
+  }];
+  let constructor = "loom::passes::createSplitBinaryScalarChainPass()";
+  let dependentDialects = [
+    "mlir::linalg::LinalgDialect",
+    "mlir::arith::ArithDialect"
+  ];
+}
+
 #endif // LOOM_TT_OPT_PASSES

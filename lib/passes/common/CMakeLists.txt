@@ -12,6 +12,7 @@ add_library(LoomPassesCommon
   src/driver_utils.cpp
   src/ssa_utils.cpp
   src/loop_iv_dependency.cpp
+  src/binary_scalar_chain.cpp
 )
 
 target_include_directories(LoomPassesCommon

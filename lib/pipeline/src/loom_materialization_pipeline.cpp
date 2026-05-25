@@ -14,6 +14,7 @@
 namespace loom::passes {
 std::unique_ptr<mlir::Pass> createConvertZeroFillLinalgMatmulToLoomPass();
 std::unique_ptr<mlir::Pass> createFoldZeroFillLinalgPass();
+std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 } // namespace loom::passes
 
 #include "mlir/Conversion/Passes.h"
@@ -230,6 +231,7 @@ runMaterializationCore(const char *input_mlir_text,
   //       supported (e.g. TT-Metal vs. others).
   pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
+  pm.addPass(loom::passes::createSplitBinaryScalarChainPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   // --- Run pipeline ---

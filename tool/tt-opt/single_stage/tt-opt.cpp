@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
   PassManager pm(&context);
   pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
   pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
+  pm.addPass(loom::passes::createSplitBinaryScalarChainPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
   if (failed(pm.run(*module))) {

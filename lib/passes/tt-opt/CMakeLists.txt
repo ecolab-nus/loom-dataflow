@@ -12,6 +12,7 @@ add_public_tablegen_target(LoomTTOptPassesIncGen)
 add_library(loomTTOptPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/fold_zero_fill_linalg_pass.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/split_binary_scalar_chain_pass.cpp
 )
 
 target_include_directories(loomTTOptPasses PUBLIC
@@ -33,6 +34,7 @@ target_link_libraries(loomTTOptPasses PUBLIC
     MLIRLinalgDialect
     MLIRTensorDialect
     loomDialect
+    LoomPassesCommon
 )
 mlir_check_all_link_libraries(loomTTOptPasses)
 add_dependencies(loomTTOptPasses LoomTTOptPassesIncGen)
