@@ -4,13 +4,69 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/AffineMap.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/SmallPtrSet.h"
 
 using namespace mlir;
 
 namespace {
+
+bool isScalarOrRankOne(Type type) {
+  if (type.isIntOrIndexOrFloat())
+    return true;
+
+  auto shapedType = dyn_cast<ShapedType>(type);
+  return shapedType && shapedType.hasRank() && shapedType.getRank() <= 1;
+}
+
+bool tracesToScalarOrRankOneInput(Value value, linalg::GenericOp genericOp,
+                                  SmallPtrSetImpl<Operation *> &visitedOps) {
+  auto blockArg = dyn_cast<BlockArgument>(value);
+  if (blockArg) {
+    if (blockArg.getOwner() != genericOp.getBody())
+      return false;
+
+    unsigned argNumber = blockArg.getArgNumber();
+    if (argNumber >= genericOp.getNumDpsInputs())
+      return false;
+
+    Value genericInput = genericOp.getDpsInputs()[argNumber];
+    return isScalarOrRankOne(genericInput.getType());
+  }
+
+  Operation *defOp = value.getDefiningOp();
+  if (!defOp || defOp->getBlock() != genericOp.getBody())
+    return false;
+
+  if (!visitedOps.insert(defOp).second)
+    return false;
+
+  for (Value operand : defOp->getOperands()) {
+    if (tracesToScalarOrRankOneInput(operand, genericOp, visitedOps))
+      return true;
+  }
+  return false;
+}
+
+bool binaryOpUsesScalarOrRankOneInput(Operation *op,
+                                      linalg::GenericOp genericOp) {
+  SmallPtrSet<Operation *, 8> visitedOps;
+  for (Value operand : op->getOperands()) {
+    if (tracesToScalarOrRankOneInput(operand, genericOp, visitedOps))
+      return true;
+  }
+  return false;
+}
+
+bool matchHasUnsplittableScalarOrRankOneInput(
+    const loom::utils::BinaryScalarChainMatch &match) {
+  return binaryOpUsesScalarOrRankOneInput(match.intermediateOp,
+                                          match.genericOp) ||
+         binaryOpUsesScalarOrRankOneInput(match.splitOp, match.genericOp);
+}
 
 SmallVector<Value, 4> getInputsByIndex(linalg::GenericOp genericOp,
                                        ArrayRef<unsigned> indices) {
@@ -166,6 +222,8 @@ struct SplitBinaryScalarChainPass
         std::optional<loom::utils::BinaryScalarChainMatch> match =
             analyzer.findFirstMatch(genericOp);
         if (!match)
+          continue;
+        if (matchHasUnsplittableScalarOrRankOneInput(*match))
           continue;
 
         changed |= splitBinaryScalarChain(*match, rewriter);
