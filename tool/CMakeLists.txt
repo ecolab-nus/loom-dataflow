@@ -13,7 +13,7 @@ set(LOOM_PASSES_INC
 
 
 # Triton-shared tools
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt/single_stage)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/loom-opt)
 
 # TT-opt tools
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tt-opt/single_stage)
