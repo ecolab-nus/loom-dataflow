@@ -1,56 +1,45 @@
-<img src="assets/loom-logo.svg" alt="Loom Logi" width="250">
+<img src="assets/loom-logo.svg" alt="Loom Logo" width="250">
 
-
-LOOM is an MLIR-backed sandbox for exploring hardware scale-out models, a custom `df` (dataflow) dialect, and compiler passes that bridge Triton-style GPU kernels with affine IR. The repository combines C++ libraries that model hardware resources, MLIR dialect definitions, analysis/transform passes, and command-line tools for experimenting with mappings.
-
-## Highlights
-- Custom MLIR dialect `df` to describe spatial dimensions and interconnect topologies.
-- C++ runtime for modeling hardware resources (rings, chains, SRAM banks) and higher-level modules (meshes, tori).
-- MLIR passes that affinize Triton-shared kernels, tile affine loops, and enumerate spatial mappings.
-- Standalone tooling for running the passes and composing dataflow descriptions with transformed kernels.
-- Example MLIR programs and exploratory tests under `test/`.
+**loom-dataflow** is a sub-module of the [loom](https://github.com/anthropics/loom) project. It provides an MLIR-backed compiler pipeline for exploring spatial hardware mappings and generating constraint models for dataflow accelerators. The pipeline lowers tensor-level kernels through a series of analysis and transformation passes, culminating in bufferized IR annotated with hardware mapping and memory allocation decisions.
 
 ## Repository Map
-- `lib/` – C++ libraries and dialect code.
-  - `resources/` – primitive hardware resources and manager.
-  - `modules/` – compositions such as meshes and tori built from resources.
-  - `dataflow-dialect/` – TableGen + C++ for the `df` MLIR dialect.
-  - `passes/` – affine and Triton-shared transformations plus shared analyses.
-- `tool/` – command-line drivers that wire the passes into runnable pipelines and demos.
-- `test/` – GoogleTest unit tests and MLIR inputs covering dialects and passes.
-- `build.sh` – release build helper that configures MLIR paths and invokes Ninja.
-- `setup_ide.sh` – debug build + `compile_commands.json` generator for IDEs.
-- `benchmark.sh` – performance benchmarking script that measures command execution time with statistical analysis.
-- `Testing/` – generated CTest metadata (appears after running CMake).
 
-Detailed documentation for each subsystem lives alongside the code (see the READMEs under `lib/`, `tool/`, and `test/Passes/…`).
+```
+lib/
+  analysis/         — Static memory analysis library (shared by passes and debug CLI)
+  dataflow-dialect/ — TableGen + C++ for the df MLIR dialect
+  loom-dialect/     — TableGen + C++ for the loom MLIR dialect
+  modules/          — Hardware topology compositions (2D mesh, torus, ring chains)
+  passes/
+    common/         — Shared analysis utilities (hardware discovery, affine utils, etc.)
+    loom-opt/       — Core transformation passes
+    lcs/            — Loom Compute Schedule: staged ETG builder and constraint expressions
+    tt-opt/         — Post-bufferization TT optimization passes
+  pipeline/         — High-level C++ API and Python bindings (pybind11)
+  resources/        — Primitive hardware resource models (SRAM banks, rings, chains)
+tool/
+  loom-opt/single_stage/ — Single-stage CLI drivers for each pipeline pass
+  tt-opt/single_stage/   — CLI driver for tt-opt
+  dataflow-dialect/      — Dataflow dialect utilities
+  resource-system/       — Hardware resource demos
+  loom-lsp-server/       — LSP server for IDE support
+test/
+  Passes/mm_2Dmesh/      — Primary regression test (matrix multiply on 2D mesh)
+  Passes/flashattn_2Dmesh/
+  Passes/mm_ibmring/
+  Dialect/               — Dialect syntax and semantics tests
+```
 
 ## Requirements
+
 - CMake ≥ 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
 - An installed LLVM/MLIR build that exports CMake packages. The scripts default to `MLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`.
 - `lit` or `llvm-lit` on `PATH` for CTest-driven MLIR tests (`pipx install lit` is the recommended route).
 
-Quick install commands:
-
-Linux (Debian/Ubuntu)
+Quick install (Linux/Debian):
 ```bash
-sudo apt update
 sudo apt install cmake build-essential ninja-build lld
 ```
-
-Arch Linux
-```bash
-sudo pacman -S cmake gcc make ninja lld
-```
-
-macOS
-```bash
-brew install cmake ninja
-```
-
-Windows
-- Visual Studio 2019 or newer with the C++ workload.
-- CMake from https://cmake.org/download/.
 
 ### Building LLVM/MLIR (quick reference)
 ```bash
@@ -93,167 +82,160 @@ cmake --build . --config Release
 ### IDE/Debug setup
 `./setup_ide.sh` performs a clean Debug build and emits `build/compile_commands.json` for IntelliSense.
 
-## Running Tools & Passes
-All binaries live under `build/tool/` after a build. Useful entry points include:
-- `triton-shared/single_stage/affinize` – run the Triton-shared affinization pass.
-- `triton-shared/single_stage/grid_to_parallel` – replace grid indices with a 3-D `affine.parallel`.
-- `triton-shared/single_stage/explore_mapping` – enumerate spatial mappings and merge a DF module.
-- `triton-shared/single_stage/hoist_block_loading` – hoist block loading operations from innermost loops.
-- `triton-shared/single_stage/annotate_reuse` – attach `loom.reuse` on `memref.reinterpret_cast`.
-- `triton-shared/single_stage/explore_alloc_copy_mapping` – enumerate `memref.alloc`/`memref.copy` mapping choices.
-- `triton-shared/single_stage/tile_scf_for_to_l1` – tile `scf.for` loops to fit L1 memory capacity.
-- `ttshared-opt` – end-to-end Triton-shared → Affine/Dataflow pipeline driver.
-- `affine_explore`, `affine_tile`, `affine_analyze` – affine-only exploration, tiling, and reuse analysis utilities.
+## Core Pass Pipeline
 
+All binaries live under `build/tool/` after a build. The full pipeline is exercised by `run_pipeline.sh` (the regression test).
 
-### Triton-shared → Dataflow pipeline (step-by-step)
-The repository includes a runnable pipeline that lowers a Triton-shared kernel (already bufferized) into a custom Affine/Dataflow form. The examples under `test/Passes/mm_2Dmesh/` can be reproduced with the following commands executed from the repo root after a build.
+| Step | Tool | Purpose |
+|------|------|---------|
+| 1 | `tensor_canonicalize` | Specialize `linalg` destination operands; fold redundant `tensor.extract_slice` |
+| 2 | `memory_binding` | Bind physical memory to tensor ops via `loom.alloc` annotations |
+| 3 | `enumerate_hw_mapping` | Enumerate spatial mappings from `df.spatial_dim` declarations to `affine.parallel` iterators |
+| 4 | `analyze_reuse` | Annotate each `loom.subview` with `loom.reuse` (spatial / temporal / sequential dims) |
+| 5 | `enumerate_copy_broadcast` | Enumerate per-copy broadcast choices; annotate `memref.alloc` with `loom.alloc` |
+| 6 | `staged_etg` | Build Staged Execution Task Graph → JSON constraint model |
+| 7 | `canonicalize` | Materialize symbolic block sizes into concrete constants; canonicalize IR |
+| 8 | `one_shot_bufferize` | One-shot bufferization: tensor ops → memref ops |
+| 9 | `tt-opt` | Convert zero-initialized linalg matmul ops to Loom ops and fold redundant zero fills |
 
-#### Option A E2E(Recommended)
+**Not in the default pipeline (under active development):**
+- `hoist_block_loading` — hoist block loading operations from innermost loops to outer loop levels
+
+### Running the regression test
 ```bash
-build/tool/ttshared-opt \
-  --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  --dump-dir test/Passes/mm_2Dmesh/ \
-  --skip-tile-scf-for-to-l1
-```
-#### Option B step-by-step
-1) Affinize Triton-shared indices
-```bash
-build/tool/triton-shared/single_stage/affinize \
-  --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
-  > test/Passes/mm_2Dmesh/01_after_affinization.mlir
+cd third_party/loom-dataflow
+./run_pipeline.sh
 ```
 
-2) Replace grid indices with a 3-D `affine.parallel`
+### Step-by-step example (mqa_decode)
+
 ```bash
-build/tool/triton-shared/single_stage/grid_to_parallel \
-  --input test/Passes/mm_2Dmesh/01_after_affinization.mlir \
-  > test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir
+# Step 1
+build/tool/loom-opt/single_stage/tensor_canonicalize \
+  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir \
+  > test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir
+
+# Step 2
+build/tool/loom-opt/single_stage/memory_binding \
+  --input test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir \
+  > test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir
+
+# Step 3
+build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+  --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
+  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
+
+# Step 4
+build/tool/loom-opt/single_stage/analyze_reuse \
+  --input test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir \
+  > test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir
+
+# Step 5
+build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
+  --input test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir \
+  > test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir
+
+# Step 6 — emits JSON constraint model
+build/tool/loom-opt/single_stage/staged_etg \
+  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  --output test/Passes/mqa_decode/constraint_space/staged_etg_dump.json
+
+# Step 7
+build/tool/loom-opt/single_stage/canonicalize \
+  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  > test/Passes/mqa_decode/IR/06_after_canonicalize.mlir
+
+# Step 8
+build/tool/loom-opt/single_stage/one_shot_bufferize \
+  --input test/Passes/mqa_decode/IR/06_after_canonicalize.mlir \
+  > test/Passes/mqa_decode/IR/07_after_osb.mlir
+
+# Step 9
+build/tool/tt-opt/single_stage/tt-opt \
+  --input test/Passes/mqa_decode/IR/07_after_osb.mlir \
+  > test/Passes/mqa_decode/IR/08_tt-opt.mlir
 ```
 
-3) Enumerate spatial mappings and merge DF declarations
+## Pass Reference
+
+### `tensor_canonicalize` (`loom-linalg-destination-specialization` + `loom-fold-redundant-extract-slice`)
+- **Purpose**: Identify and fold redundant elementwise accumulation patterns into `linalg` output operands (e.g., `matmul(A,B,fill(0)) + add(iter_args)` → `matmul(A,B,iter_args)`). Then remove no-op `tensor.extract_slice` operations.
+- **Implementation**: `lib/passes/loom-opt/src/linalg_destination_specialization_pass.cpp`, `fold_redundant_extract_slice_pass.cpp`
+
+### `memory_binding` (`loom-memory-binding`)
+- **Purpose**: Transform bufferization patterns to `loom` dialect operations that bind physical memory allocations to tensor semantics for downstream dataflow analysis.
+- **Implementation**: `lib/passes/loom-opt/src/memory_binding_pass.cpp`
+
+### `enumerate_hw_mapping` (`loom-triton-shared-explore-spatial-mappings`)
+- **Purpose**: Enumerate all valid assignments of `df.spatial_dim` hardware dimensions to the outermost `affine.parallel` iterators. Clones the function per mapping, annotates inner loops with `loom.mapped_to`, and inserts outer `affine.for` wave loops when the mesh size does not cover the iteration space in one shot.
+- **Implementation**: `lib/passes/loom-opt/src/triton_shared_spatial_mapping_pass.cpp`
+
+### `analyze_reuse` (`loom-annotate-subview-reuse`)
+- **Purpose**: Attach a `loom.reuse` dictionary to each `loom.subview` describing how its offset varies with surrounding iterators (spatial / temporal / sequential). Records `reuse_type` (no\_reuse / total\_reuse) and volume per dimension.
+- **Implementation**: `lib/passes/loom-opt/src/analyze_reuse.cpp`
+
+### `enumerate_copy_broadcast` (`loom-enumerate-copy-broadcast`)
+- **Purpose**: For each `loom.copy_to_tensor`, enumerate whether the copy should use local memory or broadcast along dimensions with total spatial reuse. Annotates `memref.alloc` with `loom.alloc` carrying the candidate set. Supports `--analysis-only` mode to annotate without cloning.
+- **Implementation**: `lib/passes/loom-opt/src/enumerate_copy_broadcast.cpp`
+
+### `staged_etg`
+- **Purpose**: Traverse the annotated IR and construct a Staged Execution Task Graph. Emits a JSON constraint model describing compute and communication schedules for use by the SMT solver in the broader loom pipeline.
+- **Implementation**: `lib/passes/lcs/src/staged_etg_builder.cpp`; CLI driver: `tool/loom-opt/single_stage/staged_etg_main.cpp`
+
+### `canonicalize` (`loom-materialize` + standard canonicalization)
+- **Purpose**: Replace `loom.sym` symbolic block-size variables with concrete `arith.constant` values from the SMT solver result map. Variants for which no feasible solution exists are dropped with a diagnostic warning.
+- **Implementation**: `lib/passes/loom-opt/src/materialize.cpp`
+
+### `one_shot_bufferize`
+- **Purpose**: Run MLIR's one-shot bufferization to lower tensor-level IR to memref-based IR in a single pass, using the `loom` dialect's custom bufferization interface.
+- **Implementation**: `lib/loom-dialect/Transforms/BufferizableOpInterfaceImpl.h`; CLI driver: `tool/loom-opt/single_stage/one_shot_bufferize_main.cpp`
+
+### `tt-opt` (`tt-convert-zero-fill-linalg-matmul-to-loom` + `tt-fold-zero-fill-linalg`)
+- **Purpose**: Convert same-block zero-initialized `linalg.matmul` and `linalg.batch_matmul` ops to `loom.matmul` and `loom.batch_matmul`, then remove redundant zero `linalg.fill` ops feeding remaining destination-style `linalg` ops when there is no intervening use.
+- **Implementation**: `lib/passes/tt-opt/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp`, `lib/passes/tt-opt/src/fold_zero_fill_linalg_pass.cpp`
+
+### `hoist_block_loading` (`loom-hoist-block-loading`) *(under active development)*
+- **Purpose**: Hoist block loading operations from innermost `affine.for` loops to outer loop levels to reduce redundant memory accesses. Identifies `loom.alloc + loom.copy_to_tensor` loading block patterns and clones the function per loading block.
+- **Status**: Builds but is not part of the default pipeline. Updates pending.
+- **Implementation**: `lib/passes/loom-opt/src/hoist_block_loading.cpp`, `lib/passes/common/src/block_loading_pattern.cpp`
+
+## Debug Utilities
+
+### `static_memory_analyser`
+Standalone CLI for the memory analysis pass used internally by `memory_binding`. Parses an MLIR file and dumps the virtual buffer allocation plan (bucket grouping, coloring, liveness).
+
 ```bash
-build/tool/triton-shared/single_stage/explore_mapping \
-  --input test/Passes/mm_2Dmesh/02_after_grid_to_parallel.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  > test/Passes/mm_2Dmesh/03_after_exploration.mlir
+build/tool/loom-opt/single_stage/static_memory_analyser --input <file.mlir>
 ```
-
-4) Hoist block loading operations
-```bash
-build/tool/triton-shared/single_stage/hoist_block_loading \
-  --input test/Passes/mm_2Dmesh/03_after_exploration.mlir \
-  > test/Passes/mm_2Dmesh/04_after_hoist_block_loading.mlir
-```
-
-5) Annotate reuse on `memref.reinterpret_cast`
-```bash
-build/tool/triton-shared/single_stage/annotate_reuse \
-  --input test/Passes/mm_2Dmesh/04_after_hoist_block_loading.mlir \
-  > test/Passes/mm_2Dmesh/05_after_reuse_annotation.mlir
-```
-
-6) Explore alloc/copy mapping choices
-```bash
-build/tool/triton-shared/single_stage/explore_alloc_copy_mapping \
-  --input test/Passes/mm_2Dmesh/05_after_reuse_annotation.mlir \
-  > test/Passes/mm_2Dmesh/06_after_memref_mapping.mlir
-```
-
-7) Bufferize tensors to memrefs
-```bash
-mlir-opt \
-  --one-shot-bufferize="allow-unknown-ops allow-return-allocs-from-loops" \
-  test/Passes/mm_2Dmesh/06_after_memref_mapping.mlir \
-  > test/Passes/mm_2Dmesh/07_after_bufferization.mlir
-```
-
-8) Tile scf.for loops to fit L1 (optional)
-```bash
-build/tool/triton-shared/single_stage/tile_scf_for_to_l1 \
-  test/Passes/mm_2Dmesh/07_after_bufferization.mlir \
-  > test/Passes/mm_2Dmesh/08_after_for_tiling.mlir
-``` 
-
-Notes:
-- The end-to-end driver accepts `--map-analysis-only` to attach `loom.copy.candidates` without cloning functions.
-- The single-stage alloc/copy explorer accepts `--analysis-only` with the same effect.
 
 ### Performance Benchmarking
-The `benchmark.sh` script measures command execution time with statistical analysis. It performs warmup runs to reduce cold-start effects, then runs multiple benchmark iterations and reports mean, median, min, max, and standard deviation (all in milliseconds).
+`benchmark.sh` measures tool execution time with statistical analysis (mean, median, min, max, std dev across multiple runs).
 
 ```bash
-# Basic usage
-./benchmark.sh -- build/tool/ttshared-opt \
-  --ttshared test/Triton/mm_fixed_strides/runs/block_64x64x64/ttshared.mlir \
-  --df test/Dialect/DataflowDialect/2D_mesh.mlir \
-  --dump-dir test/Passes/mm_2Dmesh/ \
-  --skip-tile-scf-for-to-l1
-
-# Customize warmup and benchmark runs
-./benchmark.sh --warmup=5 --runs=20 -- build/tool/ttshared-opt ...
-
-# Quiet mode (suppress command output)
-./benchmark.sh -q -- build/tool/ttshared-opt ...
+./benchmark.sh --warmup=3 --runs=10 -- build/tool/loom-opt/single_stage/tensor_canonicalize \
+  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir
 ```
 
-Options: `--warmup=N` (default: 3), `--runs=N` (default: 10), `-q/--quiet`, `-h/--help`.
+## Tests
 
-### Pass reference (purpose, limitations, implementation)
-
-- Constant deduplication and cleanup (`loom-const-cleanup`)
-  - Purpose: Deduplicate `arith.constant` and `arith.constant_index` operations by value and type, remove unused constants, and fold constant operands into `affine.apply` operations to simplify IR.
-  - Limitations: Only handles constants that are directly unused or can be folded into affine operations. Does not perform cross-function constant sharing.
-  - Implementation: `lib/passes/triton-shared/const_dedup_cleanup.{h,cpp}`. This pass is automatically run after each major transformation in the pipeline.
-
-- Affinize Triton-shared indices (`loom-triton-shared-affinize`)
-  - Purpose: Rewrite arithmetic index expressions into `affine.apply`, convert eligible loads/stores to affine form, and express `memref.reinterpret_cast` offsets via affine maps. Treats trailing grid/thread arguments as dims/symbols to expose GPU-style indexing to affine. Promotes 32-bit integer ABI args to `index` type where needed.
-  - Limitations: Conservative—only provably affine expressions are converted. Assumes the last 6 function arguments encode grid sizes/indices; nonconforming kernels are left unchanged. Some `memref` ops remain non-affine if indices are not proven affine. Signed division is not converted to affine (to avoid trunc-vs-floor mismatch).
-  - Implementation: See `lib/passes/triton-shared/triton_shared_affinize.{h,cpp}`; pass argument is `loom-triton-shared-affinize`. CLI: `build/tool/triton-shared/single_stage/affinize`.
-
-- Grid-to-parallel (`loom-triton-shared-grid-to-parallel`)
-  - Purpose: Replace the last three grid index arguments with a 3-D `affine.parallel` with dynamic uppers `(sizeX,sizeY,sizeZ)`; erase index args from the signature and replace their uses by the parallel IVs. This makes the GPU launch grid explicit as a parallel loop structure.
-  - Limitations: Requires ≥ 6 function args following `(sizeX,sizeY,sizeZ, idxX,idxY,idxZ)`; otherwise no-op. Expects sizes to be of `index` (affinization establishes this in typical flows). The resulting parallel has no reductions and yields no values.
-  - Implementation: See `lib/passes/triton-shared/triton_shared_grid_to_parallel.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/grid_to_parallel`.
-
-- Spatial mapping exploration (`loom-triton-shared-explore-spatial-mappings`)
-  - Purpose: Enumerate mappings from hardware `df.spatial_dim` declarations to the outermost `affine.parallel` iterators; clone per mapping, annotate inner loops with `loom.mapped_to`, and insert outer `affine.for` "waves" when the mesh cannot cover the grid in one shot. Merges DF declarations into the module.
-  - Limitations: Combinatorial growth in clones due to partitioning/permutation of dims and outer-for orderings. Exploration is structural (not resource-capacity aware) in this prototype. Only enumerates the first outermost `affine.parallel` per function.
-  - Implementation: `lib/passes/triton-shared/spatial_mapping.{h,cpp}` (`EnumerateSpatialMappings`) and `triton_shared_spatial_mapping_pass.cpp`. CLI: `build/tool/triton-shared/single_stage/explore_mapping`.
-
-- Hoist block loading (`loom-hoist-block-loading`)
-  - Purpose: Hoist block loading operations from innermost `scf.for` loops to outer loop levels. For each function, identifies loading blocks (patterns of operations that load data blocks), clones the function per loading block, and hoists each block to reduce redundant memory accesses.
-  - Limitations: Only processes innermost `scf.for` loops that contain recognized loading block patterns. Functions without valid loading blocks are skipped. Block identification may miss non-standard patterns.
-  - Implementation: `lib/passes/triton-shared/hoist_block_loading.{h,cpp}` and `block_loading_pattern.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/hoist_block_loading` (or `mlir-opt --loom-hoist-block-loading` or the end-to-end `ttshared-opt` driver).
-
-- Reuse annotation on reinterpret-cast (`loom-annotate-reinterpret-cast-reuse`)
-  - Purpose: Attach a `loom.reuse` dictionary to each `memref.reinterpret_cast` describing how its offset varies with surrounding iterators, grouped by `spatial` (`affine.parallel`), `temporal` (`affine.for`), and `sequential` (`scf.for`). Each entry records `iterator` (SSA name), `depth`, `reuse_type` (`no_reuse`/`total_reuse`), `volume` (bytes; 0, full block, or -1 unknown), and `mapped_to` for spatial entries.
-  - Limitations: Binary reuse classification only (no partial reuse yet). Volumes require known block sizes. Dependency analysis is conservative and may miss some reuse opportunities.
-  - Implementation: `lib/passes/triton-shared/reinterpret_cast_reuse.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/annotate_reuse`.
-
-- Alloc/Copy mapping exploration (`loom-explore-alloc-copy-mapping`)
-  - Purpose: Annotate `memref.alloc` with `{loom.alloc={local=true, memory_name=…}}` and enumerate per-`memref.copy` mapping choices: local memory copies and broadcasts along dimensions with spatial total-reuse. Merge the DF module to discover one `df.memory` and classify `df.interconnects` as x/y based on affine maps. Supports analysis-only mode via `--analysis-only` flag.
-  - Limitations: Assumes a single `df.memory`; interconnect classification is heuristic (e.g., `(d0+1,d1)`→x, `(d0,d1+1)`→y). Enumerating the cross-product of candidates can explode; use analysis-only when needed. Requires prior reuse analysis to identify total-reuse dimensions.
-  - Implementation: `lib/passes/triton-shared/explore_alloc_copy_mapping.{h,cpp}` and notes in `lib/passes/triton-shared/README.alloc_copy_mapping.md`. CLI: `build/tool/triton-shared/single_stage/explore_alloc_copy_mapping` (or end-to-end via `build/tool/ttshared-opt`).
-
-- Tile scf.for loops to L1 (`loom-tile-scf-for-to-l1`)
-  - Purpose: Tile `scf.for` loops so that per-tile memory fits within the single `df.memory` (L1) capacity. Computes per-iteration memory from `memref.alloc` operations annotated with `loom.alloc`, picks the largest power-of-two tile factor that fits, and rewrites loops into outer/inner tile structure.
-  - Limitations: Requires fully bufferized IR (no tensor types). Assumes exactly one `df.memory`. Requires statically provable loop trip counts with exact divisibility by tile factor. Only considers allocs explicitly annotated as local to the single `df.memory`.
-  - Implementation: `lib/passes/triton-shared/tile_scf_for_to_l1.{h,cpp}`. CLI: `build/tool/triton-shared/single_stage/tile_scf_for_to_l1`.
-
-## Tests & Examples
 ```bash
-cd build
-ctest --output-on-failure
+# Run all CTest-driven MLIR tests
+cd build && ctest --output-on-failure
+
+# Run the full end-to-end regression pipeline
+cd third_party/loom-dataflow && ./run_pipeline.sh
 ```
 
-The `test/` folder contains MLIR snippets that showcase dialect usage (e.g., `test/Dialect/DataflowDialect/2D_mesh.mlir`) and Triton MM variations. `test/Passes/explore_over_triton_shared` documents how to reproduce the exploration pipeline end-to-end.
+Test cases are under `test/Passes/` (mm\_2Dmesh, flashattn\_2Dmesh, mm\_ibmring) and `test/Dialect/`.
 
 ## Troubleshooting
+
 - `lit` not found: install via `pipx install lit` (preferred) or provide `--llvm-lit=/path/to/lit`.
 - `MLIRConfig.cmake` missing: export `MLIR_DIR` to point at your LLVM/MLIR installation.
-- IntelliSense gaps: rerun `./setup_ide.sh` so that `compile_commands.json` stays in sync with headers generated by TableGen.
+- IntelliSense gaps: rerun `./setup_ide.sh` so that `compile_commands.json` stays in sync with TableGen-generated headers.
 
 ## License
+
 See `LICENSE`.

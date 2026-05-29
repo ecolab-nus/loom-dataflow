@@ -1,0 +1,179 @@
+#include "Passes.h"
+#include "mlir/Conversion/AffineToStandard/AffineToStandard.h"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Affine/Utils.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/IRMapping.h"
+#include "mlir/Pass/Pass.h"
+#include "mlir/Transforms/DialectConversion.h"
+
+using namespace mlir;
+
+namespace loom {
+namespace passes {
+
+#define GEN_PASS_DEF_LOWERAFFINEWITHATTR
+#include "Passes.h.inc"
+
+namespace {
+struct LowerAffineWithAttrPass
+    : public impl::LowerAffineWithAttrBase<LowerAffineWithAttrPass> {
+  void runOnOperation() override {
+    ModuleOp module = getOperation();
+    module.walk([&](func::FuncOp func) { runOnFunction(func); });
+  }
+
+  void runOnFunction(func::FuncOp func) {
+    MLIRContext *ctx = func.getContext();
+
+    // 1. Process affine.parallel nests and convert to scf.parallel with
+    // attributes We collect roots first because we'll be mutating the IR.
+    SmallVector<affine::AffineParallelOp> rootOps;
+    func.walk([&](affine::AffineParallelOp op) {
+      if (!op->getParentOp() ||
+          !isa<affine::AffineParallelOp>(op->getParentOp())) {
+        rootOps.push_back(op);
+      }
+    });
+
+    for (auto rootOp : rootOps) {
+      if (failed(lowerParallelNest(rootOp)))
+        return signalPassFailure();
+    }
+
+    // 2. Run standard lowering for the rest of affine operations (for, if,
+    // load, store, apply)
+    ConversionTarget target(*ctx);
+    target.addIllegalDialect<affine::AffineDialect>();
+    target.addLegalDialect<scf::SCFDialect>();
+    target.addLegalDialect<arith::ArithDialect>();
+    target.addLegalDialect<memref::MemRefDialect>();
+    target.addLegalDialect<func::FuncDialect>();
+
+    RewritePatternSet patterns(ctx);
+    populateAffineToStdConversionPatterns(patterns);
+
+    if (failed(applyPartialConversion(func, target, std::move(patterns))))
+      return signalPassFailure();
+  }
+
+  LogicalResult lowerParallelNest(affine::AffineParallelOp rootOp) {
+    SmallVector<affine::AffineParallelOp> nest;
+    affine::AffineParallelOp current = rootOp;
+    while (current) {
+      nest.push_back(current);
+      // Fusable if body has 1 child op and 1 terminator, and child is
+      // AffineParallelOp
+      if (current.getBody()->getOperations().size() == 2 &&
+          isa<affine::AffineParallelOp>(current.getBody()->front())) {
+        current = cast<affine::AffineParallelOp>(current.getBody()->front());
+      } else {
+        break;
+      }
+    }
+
+    OpBuilder builder(rootOp);
+    Location loc = rootOp.getLoc();
+    IRMapping mapping;
+
+    SmallVector<Value> lowerBounds, upperBounds, steps;
+    SmallVector<Attribute> physicalDims;
+    SmallVector<Attribute> logicalLevels;
+    SmallVector<Attribute> iterTypes;
+    SmallVector<Attribute> blockSyms;
+    bool hasAnyAttr = false;
+
+    for (auto parOp : nest) {
+      auto pd = parOp->getAttr("loom.physical_dim");
+      auto ll = parOp->getAttr("loom.logical_level");
+      auto it = parOp->getAttr("loom.iter_type");
+      auto bs = parOp->getAttr("loom.block_sym");
+      auto constantRanges = parOp.getConstantRanges();
+
+      for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
+        // Lower bounds using affine.apply (temporary, will be lowered later)
+        Value lowerBound = affine::AffineApplyOp::create(
+            builder, loc, parOp.getLowerBoundMap(i),
+            parOp.getLowerBoundsOperands());
+
+        // Fold single-iteration affine.parallel dimensions before creating
+        // scf.parallel. The upstream scf.parallel canonicalizer also folds
+        // these dims, but rebuilds the op without preserving discardable attrs.
+        if (constantRanges && (*constantRanges)[i] > 0 &&
+            (*constantRanges)[i] <= parOp.getSteps()[i]) {
+          mapping.map(parOp.getBody()->getArgument(i), lowerBound);
+          continue;
+        }
+
+        lowerBounds.push_back(lowerBound);
+        upperBounds.push_back(affine::AffineApplyOp::create(
+            builder, loc, parOp.getUpperBoundMap(i),
+            parOp.getUpperBoundsOperands()));
+        steps.push_back(arith::ConstantIndexOp::create(
+            builder, loc, parOp.getSteps()[i]));
+
+        physicalDims.push_back(pd ? pd : builder.getUnitAttr());
+        logicalLevels.push_back(ll ? ll : builder.getUnitAttr());
+        iterTypes.push_back(it ? it : builder.getUnitAttr());
+        blockSyms.push_back(bs ? bs : builder.getUnitAttr());
+      }
+      if (pd || ll || it || bs)
+        hasAnyAttr = true;
+    }
+
+    if (lowerBounds.empty()) {
+      Block *innermostBody = nest.back().getBody();
+      for (auto &innerOp : innermostBody->without_terminator())
+        builder.clone(innerOp, mapping);
+      rootOp.erase();
+      return success();
+    }
+
+    auto scfPar = scf::ParallelOp::create(
+        builder, loc, lowerBounds, upperBounds, steps,
+        [&](OpBuilder &nestedBuilder, Location /*nestedLoc*/, ValueRange ivs) {
+          // Map IVs
+          unsigned scfIvIdx = 0;
+          for (auto parOp : nest) {
+            for (unsigned i = 0; i < parOp.getNumDims(); ++i) {
+              Value iv = parOp.getBody()->getArgument(i);
+              if (mapping.contains(iv))
+                continue;
+              mapping.map(iv, ivs[scfIvIdx++]);
+            }
+          }
+
+          // Clone body of innermost loop
+          Block *innermostBody = nest.back().getBody();
+          for (auto &innerOp : innermostBody->without_terminator()) {
+            nestedBuilder.clone(innerOp, mapping);
+          }
+        });
+
+    // Set mapped attributes if any
+    if (hasAnyAttr) {
+      scfPar->setAttr("loom.physical_dims",
+                      builder.getArrayAttr(physicalDims));
+      scfPar->setAttr("loom.logical_levels",
+                      builder.getArrayAttr(logicalLevels));
+      scfPar->setAttr("loom.iter_types", builder.getArrayAttr(iterTypes));
+      scfPar->setAttr("loom.block_syms", builder.getArrayAttr(blockSyms));
+    }
+
+    // Erase the old nest
+    rootOp.erase();
+    return success();
+  }
+};
+} // namespace
+
+std::unique_ptr<Pass> createLowerAffineWithAttrPass() {
+  return std::make_unique<LowerAffineWithAttrPass>();
+}
+
+} // namespace passes
+} // namespace loom

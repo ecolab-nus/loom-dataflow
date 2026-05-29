@@ -38,6 +38,7 @@ done
 # Resolve repository root
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 BUILD_DIR="$ROOT_DIR/build"
+LOOM_VERSION=$(tr -d '[:space:]' < "$ROOT_DIR/VERSION")
 
 # Create build directory
 mkdir -p "$BUILD_DIR"
@@ -45,6 +46,7 @@ cd "$BUILD_DIR"
 
 # Configure with CMake (MLIR is always enabled)
 echo "Configuring project with CMake..."
+echo "LOOM version: $LOOM_VERSION"
 echo "MLIR directory: $MLIR_DIR"
 echo "Build directory: $BUILD_DIR"
 
