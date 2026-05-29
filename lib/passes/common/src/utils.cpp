@@ -4,6 +4,7 @@
  */
 
 #include "utils.h"
+#include "hardware_info.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/IRMapping.h"
@@ -16,8 +17,11 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include <cassert>
+#include <set>
+#include <string>
 
 // Include the generated Loom dialect headers
 #include "LoomDialect.h.inc"
@@ -31,6 +35,51 @@ using namespace mlir;
 
 namespace loom {
 namespace utils {
+namespace {
+
+using SizeChoice = std::optional<int64_t>;
+
+SmallVector<SizeChoice> getOccupancyChoices(const SpatialDimInfo &dim) {
+  SmallVector<SizeChoice> choices;
+  if (!dim.size || *dim.size < 2) {
+    choices.push_back(dim.size);
+    return choices;
+  }
+
+  for (int64_t size = 2; size <= *dim.size; size += 2)
+    choices.push_back(size);
+  return choices;
+}
+
+bool containsSize(ArrayRef<SizeChoice> choices, SizeChoice size) {
+  return llvm::is_contained(choices, size);
+}
+
+std::string buildOccupancyKey(ArrayRef<SizeChoice> sizes) {
+  std::string key;
+  llvm::raw_string_ostream os(key);
+  bool first = true;
+  for (SizeChoice size : sizes) {
+    if (!first)
+      os << ",";
+    first = false;
+    if (size)
+      os << *size;
+    else
+      os << "?";
+  }
+  return key;
+}
+
+HardwareInfo withOccupancySizes(const HardwareInfo &base,
+                                ArrayRef<SizeChoice> sizes) {
+  HardwareInfo variant = base;
+  for (auto [idx, size] : llvm::enumerate(sizes))
+    variant.spatialDimInfoVec[idx].size = size;
+  return variant;
+}
+
+} // namespace
 
 ModuleOp getParentModule(func::FuncOp func) {
   Operation *parent = func->getParentOp();
@@ -94,6 +143,73 @@ StringRef traceToSymbolicVar(Value val) {
   // loom.get_symbolic_block_size.
 
   return "";
+}
+
+SmallVector<HardwareInfo>
+generateHardwareOccupancyVariants(const HardwareInfo &hardwareInfo) {
+  SmallVector<HardwareInfo> variants;
+  const unsigned dimCount =
+      static_cast<unsigned>(hardwareInfo.spatialDimInfoVec.size());
+  if (dimCount == 0) {
+    variants.push_back(hardwareInfo);
+    return variants;
+  }
+
+  SmallVector<SmallVector<SizeChoice>> choicesByDim;
+  choicesByDim.reserve(dimCount);
+  for (const SpatialDimInfo &dim : hardwareInfo.spatialDimInfoVec)
+    choicesByDim.push_back(getOccupancyChoices(dim));
+
+  std::set<std::string> seen;
+  auto addVariant = [&](ArrayRef<SizeChoice> sizes) {
+    std::string key = buildOccupancyKey(sizes);
+    if (!seen.insert(key).second)
+      return;
+    variants.push_back(withOccupancySizes(hardwareInfo, sizes));
+  };
+
+  if (dimCount == 2) {
+    const auto &xChoices = choicesByDim[0];
+    const auto &yChoices = choicesByDim[1];
+    for (SizeChoice xCandidate : xChoices) {
+      for (SizeChoice yCandidate : yChoices) {
+        SmallVector<SizeChoice, 2> canonical;
+        if (xCandidate && yCandidate) {
+          SizeChoice larger = std::max(*xCandidate, *yCandidate);
+          SizeChoice smaller = std::min(*xCandidate, *yCandidate);
+          if (containsSize(xChoices, larger) &&
+              containsSize(yChoices, smaller)) {
+            canonical = {larger, smaller};
+          } else if (containsSize(xChoices, smaller) &&
+                     containsSize(yChoices, larger)) {
+            canonical = {smaller, larger};
+          } else {
+            canonical = {xCandidate, yCandidate};
+          }
+        } else {
+          canonical = {xCandidate, yCandidate};
+        }
+        addVariant(canonical);
+      }
+    }
+    return variants;
+  }
+
+  SmallVector<SizeChoice> current;
+  current.reserve(dimCount);
+  std::function<void(unsigned)> enumerate = [&](unsigned dimIdx) {
+    if (dimIdx == dimCount) {
+      addVariant(current);
+      return;
+    }
+    for (SizeChoice choice : choicesByDim[dimIdx]) {
+      current.push_back(choice);
+      enumerate(dimIdx + 1);
+      current.pop_back();
+    }
+  };
+  enumerate(0);
+  return variants;
 }
 
 namespace {

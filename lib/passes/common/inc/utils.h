@@ -13,6 +13,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include <functional>
 
+#include "hardware_info.h"
 // SymbolicDim and traceShape live in trace_shape.h; re-exported here so that
 // existing consumers of utils.h pick up both transparently.
 #include "trace_shape.h"
@@ -69,6 +70,17 @@ llvm::StringRef traceToSymbolicVar(mlir::Value val);
  */
 mlir::Operation *
 getNormalizedMemoryBindingScope(mlir::affine::AffineParallelOp parallelOp);
+
+/**
+ * @brief Generate canonical partial-hardware occupancy views.
+ *
+ * Each known spatial dimension of size N contributes even occupancy sizes
+ * 2, 4, ..., N. 2D mesh views are canonicalized so backend-equivalent swapped
+ * pairs are emitted once, preferring the larger legal size on the earlier
+ * hardware dimension.
+ */
+llvm::SmallVector<HardwareInfo>
+generateHardwareOccupancyVariants(const HardwareInfo &hardwareInfo);
 
 } // namespace utils
 } // namespace loom
