@@ -78,9 +78,21 @@ std::optional<int64_t> staticIndexFromOfr(mlir::OpFoldResult value) {
   return std::nullopt;
 }
 
-int64_t ceilDivPositive(int64_t numerator, int64_t denominator) {
-  assert(numerator > 0 && denominator > 0);
-  return (numerator + denominator - 1) / denominator;
+int64_t ceilDivNonNegative(int64_t numerator, int64_t denominator) {
+  assert(numerator >= 0 && denominator > 0);
+  return numerator == 0 ? 0 : (numerator + denominator - 1) / denominator;
+}
+
+int64_t ceilLog2Positive(int64_t value) {
+  if (value <= 1)
+    return 0;
+  int64_t log = 0;
+  int64_t threshold = 1;
+  while (threshold < value) {
+    threshold <<= 1;
+    ++log;
+  }
+  return log;
 }
 
 std::optional<std::array<int64_t, 2>>
@@ -117,6 +129,67 @@ extractTrailing2DStrides(mlir::Value value) {
   return std::array<int64_t, 2>{xStride, yStride};
 }
 
+bool isDimYPhysicalLoop(mlir::Operation *op) {
+  auto dimAttr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.physical_dim");
+  return dimAttr && dimAttr.getLeafReference() == "dim_y";
+}
+
+std::optional<int64_t> getLogicalLevel(mlir::Operation *op) {
+  if (auto levelAttr =
+          op->getAttrOfType<mlir::IntegerAttr>("loom.logical_level"))
+    return levelAttr.getInt();
+  return std::nullopt;
+}
+
+std::optional<int64_t>
+getSingleConstantUpperBound(mlir::affine::AffineParallelOp parOp) {
+  mlir::AffineMap ubMap = parOp.getUpperBoundsMap();
+  if (ubMap.getNumResults() != 1)
+    return std::nullopt;
+  auto constExpr = mlir::dyn_cast<mlir::AffineConstantExpr>(ubMap.getResult(0));
+  if (!constExpr)
+    return std::nullopt;
+  return constExpr.getValue();
+}
+
+std::optional<int64_t>
+getSingleConstantUpperBound(mlir::affine::AffineForOp forOp) {
+  mlir::AffineMap ubMap = forOp.getUpperBoundMap();
+  if (ubMap.getNumResults() != 1 || ubMap.getNumDims() != 0 ||
+      ubMap.getNumSymbols() != 0)
+    return std::nullopt;
+  auto constExpr = mlir::dyn_cast<mlir::AffineConstantExpr>(ubMap.getResult(0));
+  if (!constExpr)
+    return std::nullopt;
+  return constExpr.getValue();
+}
+
+int64_t getCurrentDimYSubmeshSize(mlir::Operation *op) {
+  int64_t submeshY = 1;
+  std::set<int64_t> seenLevels;
+
+  for (mlir::Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    if (!isDimYPhysicalLoop(parent))
+      continue;
+
+    std::optional<int64_t> level = getLogicalLevel(parent);
+    if (!level || !seenLevels.insert(*level).second)
+      continue;
+
+    std::optional<int64_t> ub;
+    if (auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent))
+      ub = getSingleConstantUpperBound(parOp);
+    else if (auto forOp = mlir::dyn_cast<mlir::affine::AffineForOp>(parent))
+      ub = getSingleConstantUpperBound(forOp);
+
+    if (ub && *ub > 0)
+      submeshY *= *ub;
+  }
+
+  return submeshY;
+}
+
 bool shouldApplyNoCBandwidthPenalty(std::array<int64_t, 2> srcStrides,
                                     std::array<int64_t, 2> area) {
   double strideNorm = std::hypot(static_cast<double>(srcStrides[0]),
@@ -130,25 +203,31 @@ bool shouldApplyNoCBandwidthPenalty(std::array<int64_t, 2> srcStrides,
                static_cast<double>(srcStrides[1]) * area[1];
   double cosine = dot / (strideNorm * areaNorm);
 
-  // Workaround: NoC read+multicast effective bandwidth depends on whether
-  // the source layout stride direction aligns with the broadcast direction.
-  // Treat aligned copies as healthy; otherwise inflate transferred M-size
-  // below to model lower effective bandwidth. This policy is intentionally
-  // isolated because the cutoff and penalty factor are hardware-model stopgaps.
-  return cosine <= 0.7;
+  // Workaround: only penalize broadcast patterns whose multicast direction is
+  // poorly aligned with the source layout direction. The cutoff is empirical
+  // and intentionally local to this policy so the NoC model can be replaced.
+  constexpr double kCosineSimilarityThreshold = 0.7;
+  return cosine <= kCosineSimilarityThreshold;
 }
 
-std::optional<int64_t>
-getMeshDimSize(mlir::ModuleOp platformModule, llvm::StringRef dimName) {
-  std::optional<int64_t> result;
-  platformModule.walk([&](adl::SpatialDimOp dimOp) {
-    if (dimOp.getSymName() == dimName) {
-      uint64_t size = dimOp.getSize();
-      if (size > 0)
-        result = static_cast<int64_t>(size);
-    }
-  });
-  return result;
+int64_t extractUniqueNonUnitStride(std::array<int64_t, 2> srcStrides) {
+  int nonUnitCount = 0;
+  int64_t activeStride = 1;
+  for (int64_t stride : srcStrides) {
+    if (stride == 1)
+      continue;
+    ++nonUnitCount;
+    activeStride = stride;
+  }
+  assert(nonUnitCount == 1 &&
+         "expected exactly one non-unit stride in the trailing 2D source "
+         "layout for NoC bandwidth penalty");
+  return activeStride;
+}
+
+int64_t computeStrideLogBandwidthBucket(std::array<int64_t, 2> srcStrides) {
+  int64_t activeStride = extractUniqueNonUnitStride(srcStrides);
+  return ceilDivNonNegative(ceilLog2Positive(activeStride), 8);
 }
 
 void applyNoCBandwidthPenaltyWorkaround(
@@ -160,31 +239,33 @@ void applyNoCBandwidthPenaltyWorkaround(
       bcastVec[1] <= 0)
     return;
 
+  std::array<int64_t, 2> area{bcastVec[0], bcastVec[1]};
+  if (area[0] == 1 && area[1] == 1) {
+    // Workaround: unicast DRAM->L1 copies still contend with the currently
+    // enabled y submesh. Use the product of enclosing dim_y spatial-loop UBs
+    // as the effective-bandwidth factor for this legacy NoC model hook.
+    // The performance model divides bandwidth by 10, so pass fixed-point
+    // numerators here.
+    dimMap["effective_bandwidth"] =
+        Expr::con(10 * getCurrentDimYSubmeshSize(copyOp));
+    return;
+  }
+
   auto srcStrides = extractTrailing2DStrides(copyOp.getSource());
   if (!srcStrides)
     return;
-
-  std::array<int64_t, 2> area{bcastVec[0], bcastVec[1]};
   if (!shouldApplyNoCBandwidthPenalty(*srcStrides, area))
     return;
 
-  mlir::ModuleOp platformModule = hwRegistry->getPlatformModule();
-  std::optional<int64_t> dimX = getMeshDimSize(platformModule, "dim_x");
-  std::optional<int64_t> dimY = getMeshDimSize(platformModule, "dim_y");
-  if (!dimX || !dimY)
-    return;
-
-  int64_t penalty = std::max(ceilDivPositive(*dimX, area[0]),
-                             ceilDivPositive(*dimY, area[1]));
-  if (penalty <= 1)
-    return;
-
-  // Workaround: ETG data volume for copies is represented by hardware symbols
-  // such as M/N. We model the NoC effective-bandwidth loss by inflating the
-  // first data-volume symbol (currently M for the data movers we emit), rather
-  // than coupling this policy into the normal loom.copy dispatch logic.
-  auto firstDim = dimMap.begin();
-  firstDim->second = Expr::con(penalty) * firstDim->second;
+  // Workaround: NoC read+multicast effective bandwidth depends on source
+  // memory layout. Keep the penalty isolated behind the effective_bandwidth
+  // symbol so normal loom.copy data-volume binding stays unchanged. The factor
+  // is deliberately coarse and small: use the unique non-unit trailing stride,
+  // bucket ceil(log2(stride)) by 8 in C++, then pass 10 + bucket. The hardware
+  // performance model divides bandwidth by 10 to preserve this fixed-point
+  // penalty without losing it to local ceildiv folding in the solver.
+  int64_t bucket = computeStrideLogBandwidthBucket(*srcStrides);
+  dimMap["effective_bandwidth"] = Expr::con(10) + Expr::con(bucket);
 }
 
 void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
@@ -785,6 +866,8 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
     addBindingDimsFromValue(source, hwFunc->input_bindings[0], dimMap);
   if (!hwFunc->output_bindings.empty())
     addBindingDimsFromValue(destination, hwFunc->output_bindings[0], dimMap);
+
+  dimMap["effective_bandwidth"] = Expr::con(10);
 
   applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
 
