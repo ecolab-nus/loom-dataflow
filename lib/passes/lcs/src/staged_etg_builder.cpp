@@ -22,7 +22,9 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
+#include <array>
 #include <cassert>
+#include <cmath>
 #include <optional>
 #include <set>
 #define GET_OP_CLASSES
@@ -74,6 +76,115 @@ std::optional<int64_t> staticIndexFromOfr(mlir::OpFoldResult value) {
     if (auto intAttr = mlir::dyn_cast<mlir::IntegerAttr>(constOp.getValue()))
       return intAttr.getInt();
   return std::nullopt;
+}
+
+int64_t ceilDivPositive(int64_t numerator, int64_t denominator) {
+  assert(numerator > 0 && denominator > 0);
+  return (numerator + denominator - 1) / denominator;
+}
+
+std::optional<std::array<int64_t, 2>>
+extractTrailing2DStrides(mlir::Value value) {
+  auto type = mlir::dyn_cast<mlir::MemRefType>(value.getType());
+  if (!type || type.getRank() < 2)
+    return std::nullopt;
+
+  llvm::SmallVector<int64_t, 4> strides(type.getRank(),
+                                        mlir::ShapedType::kDynamic);
+  if (auto stridedLayout =
+          mlir::dyn_cast<mlir::StridedLayoutAttr>(type.getLayout())) {
+    llvm::ArrayRef<int64_t> layoutStrides = stridedLayout.getStrides();
+    if (layoutStrides.size() != static_cast<size_t>(type.getRank()))
+      return std::nullopt;
+    strides.assign(layoutStrides.begin(), layoutStrides.end());
+  } else {
+    int64_t stride = 1;
+    for (int64_t i = type.getRank() - 1; i >= 0; --i) {
+      strides[i] = stride;
+      if (type.isDynamicDim(i)) {
+        stride = mlir::ShapedType::kDynamic;
+      } else if (stride != mlir::ShapedType::kDynamic) {
+        stride *= type.getDimSize(i);
+      }
+    }
+  }
+
+  int64_t xStride = strides[type.getRank() - 2];
+  int64_t yStride = strides[type.getRank() - 1];
+  if (mlir::ShapedType::isDynamic(xStride) ||
+      mlir::ShapedType::isDynamic(yStride))
+    return std::nullopt;
+  return std::array<int64_t, 2>{xStride, yStride};
+}
+
+bool shouldApplyNoCBandwidthPenalty(std::array<int64_t, 2> srcStrides,
+                                    std::array<int64_t, 2> area) {
+  double strideNorm = std::hypot(static_cast<double>(srcStrides[0]),
+                                 static_cast<double>(srcStrides[1]));
+  double areaNorm =
+      std::hypot(static_cast<double>(area[0]), static_cast<double>(area[1]));
+  if (strideNorm == 0.0 || areaNorm == 0.0)
+    return false;
+
+  double dot = static_cast<double>(srcStrides[0]) * area[0] +
+               static_cast<double>(srcStrides[1]) * area[1];
+  double cosine = dot / (strideNorm * areaNorm);
+
+  // Workaround: NoC read+multicast effective bandwidth depends on whether
+  // the source layout stride direction aligns with the broadcast direction.
+  // Treat aligned copies as healthy; otherwise inflate transferred M-size
+  // below to model lower effective bandwidth. This policy is intentionally
+  // isolated because the cutoff and penalty factor are hardware-model stopgaps.
+  return cosine <= 0.7;
+}
+
+std::optional<int64_t>
+getMeshDimSize(mlir::ModuleOp platformModule, llvm::StringRef dimName) {
+  std::optional<int64_t> result;
+  platformModule.walk([&](adl::SpatialDimOp dimOp) {
+    if (dimOp.getSymName() == dimName) {
+      uint64_t size = dimOp.getSize();
+      if (size > 0)
+        result = static_cast<int64_t>(size);
+    }
+  });
+  return result;
+}
+
+void applyNoCBandwidthPenaltyWorkaround(
+    loom::CopyOp copyOp, llvm::ArrayRef<int64_t> bcastVec,
+    const HWOpRegistry *hwRegistry, std::map<std::string, Expr> &dimMap) {
+  if (!hwRegistry || dimMap.empty() || bcastVec.size() < 2 ||
+      mlir::ShapedType::isDynamic(bcastVec[0]) ||
+      mlir::ShapedType::isDynamic(bcastVec[1]) || bcastVec[0] <= 0 ||
+      bcastVec[1] <= 0)
+    return;
+
+  auto srcStrides = extractTrailing2DStrides(copyOp.getSource());
+  if (!srcStrides)
+    return;
+
+  std::array<int64_t, 2> area{bcastVec[0], bcastVec[1]};
+  if (!shouldApplyNoCBandwidthPenalty(*srcStrides, area))
+    return;
+
+  mlir::ModuleOp platformModule = hwRegistry->getPlatformModule();
+  std::optional<int64_t> dimX = getMeshDimSize(platformModule, "dim_x");
+  std::optional<int64_t> dimY = getMeshDimSize(platformModule, "dim_y");
+  if (!dimX || !dimY)
+    return;
+
+  int64_t penalty = std::max(ceilDivPositive(*dimX, area[0]),
+                             ceilDivPositive(*dimY, area[1]));
+  if (penalty <= 1)
+    return;
+
+  // Workaround: ETG data volume for copies is represented by hardware symbols
+  // such as M/N. We model the NoC effective-bandwidth loss by inflating the
+  // first data-volume symbol (currently M for the data movers we emit), rather
+  // than coupling this policy into the normal loom.copy dispatch logic.
+  auto firstDim = dimMap.begin();
+  firstDim->second = Expr::con(penalty) * firstDim->second;
 }
 
 void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
@@ -674,6 +785,8 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
     addBindingDimsFromValue(source, hwFunc->input_bindings[0], dimMap);
   if (!hwFunc->output_bindings.empty())
     addBindingDimsFromValue(destination, hwFunc->output_bindings[0], dimMap);
+
+  applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap), hwFunc->resources);
