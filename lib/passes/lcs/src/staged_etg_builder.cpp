@@ -230,6 +230,72 @@ int64_t computeStrideLogBandwidthBucket(std::array<int64_t, 2> srcStrides) {
   return ceilDivNonNegative(ceilLog2Positive(activeStride), 2);
 }
 
+bool isSequentialScfFor(mlir::scf::ForOp forOp) {
+  auto iterAttr =
+      forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+  return iterAttr && iterAttr.getValue() == loom::IterType::Sequential;
+}
+
+mlir::scf::ForOp getNearestSequentialScfFor(mlir::Operation *op) {
+  for (mlir::Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto forOp = mlir::dyn_cast<mlir::scf::ForOp>(parent);
+    if (!forOp)
+      continue;
+    return isSequentialScfFor(forOp) ? forOp : mlir::scf::ForOp();
+  }
+  return mlir::scf::ForOp();
+}
+
+std::optional<unsigned>
+getUniqueTrailingOffsetDimDependingOnIV(loom::SubviewOp subviewOp,
+                                        mlir::Value iv) {
+  llvm::SmallVector<mlir::OpFoldResult, 4> offsets =
+      subviewOp.getMixedOffsets();
+  if (offsets.size() < 2)
+    return std::nullopt;
+
+  std::optional<unsigned> dependentDim;
+  unsigned firstTrailingDim = offsets.size() - 2;
+  for (unsigned dim = 0; dim < 2; ++dim) {
+    mlir::Value offsetValue =
+        offsets[firstTrailingDim + dim].dyn_cast<mlir::Value>();
+    if (!offsetValue || !loom::utils::dependsOn(offsetValue, iv))
+      continue;
+    if (dependentDim)
+      return std::nullopt;
+    dependentDim = dim;
+  }
+  return dependentDim;
+}
+
+std::optional<unsigned> getUniqueLargerAreaDim(std::array<int64_t, 2> area) {
+  if (area[0] == area[1])
+    return std::nullopt;
+  return area[0] > area[1] ? std::optional<unsigned>(0)
+                           : std::optional<unsigned>(1);
+}
+
+int64_t computeSubviewReadBandwidthBucket(loom::CopyOp copyOp,
+                                          loom::SubviewOp sourceSubview,
+                                          std::array<int64_t, 2> area) {
+  mlir::scf::ForOp sequentialFor = getNearestSequentialScfFor(copyOp);
+  if (!sequentialFor)
+    return 0;
+
+  std::optional<unsigned> offsetDim =
+      getUniqueTrailingOffsetDimDependingOnIV(sourceSubview,
+                                              sequentialFor.getInductionVar());
+  if (!offsetDim)
+    return 0;
+
+  std::optional<unsigned> areaDim = getUniqueLargerAreaDim(area);
+  if (!areaDim || *areaDim != *offsetDim)
+    return 0;
+
+  return 2;
+}
+
 void applyNoCBandwidthPenaltyWorkaround(
     loom::CopyOp copyOp, llvm::ArrayRef<int64_t> bcastVec,
     const HWOpRegistry *hwRegistry, std::map<std::string, Expr> &dimMap) {
@@ -251,21 +317,30 @@ void applyNoCBandwidthPenaltyWorkaround(
     return;
   }
 
+  auto sourceSubview = copyOp.getSource().getDefiningOp<loom::SubviewOp>();
+  assert(sourceSubview &&
+         "broadcast copy source is expected to be produced by loom.subview");
+
+  int64_t penaltyBucket =
+      computeSubviewReadBandwidthBucket(copyOp, sourceSubview, area);
+
   auto srcStrides = extractTrailing2DStrides(copyOp.getSource());
-  if (!srcStrides)
-    return;
-  if (!shouldApplyNoCBandwidthPenalty(*srcStrides, area))
+  if (srcStrides && shouldApplyNoCBandwidthPenalty(*srcStrides, area))
+    penaltyBucket += computeStrideLogBandwidthBucket(*srcStrides);
+
+  if (penaltyBucket == 0)
     return;
 
   // Workaround: NoC read+multicast effective bandwidth depends on source
   // memory layout. Keep the penalty isolated behind the effective_bandwidth
   // symbol so normal loom.copy data-volume binding stays unchanged. The factor
-  // is deliberately coarse and small: use the unique non-unit trailing stride,
-  // bucket ceil(log2(stride)) by 2 in C++, then pass 10 + bucket. The hardware
-  // performance model divides bandwidth by 10 to preserve this fixed-point
-  // penalty without losing it to local ceildiv folding in the solver.
-  int64_t bucket = computeStrideLogBandwidthBucket(*srcStrides);
-  dimMap["effective_bandwidth"] = Expr::con(10) + Expr::con(bucket);
+  // is deliberately coarse and small. First add the stride-layout bucket when
+  // the broadcast direction fails the cosine-similarity check; then add the
+  // subview-read bucket when the sequential-loop moving offset is aligned with
+  // the larger broadcast area axis. The hardware performance model divides
+  // bandwidth by 10 to preserve this fixed-point penalty without losing it to
+  // local ceildiv folding in the solver.
+  dimMap["effective_bandwidth"] = Expr::con(10) + Expr::con(penaltyBucket);
 }
 
 void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
