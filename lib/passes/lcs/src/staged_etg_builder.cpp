@@ -227,7 +227,7 @@ int64_t extractUniqueNonUnitStride(std::array<int64_t, 2> srcStrides) {
 
 int64_t computeStrideLogBandwidthBucket(std::array<int64_t, 2> srcStrides) {
   int64_t activeStride = extractUniqueNonUnitStride(srcStrides);
-  return ceilDivNonNegative(ceilLog2Positive(activeStride), 8);
+  return ceilDivNonNegative(ceilLog2Positive(activeStride), 2);
 }
 
 void applyNoCBandwidthPenaltyWorkaround(
@@ -261,7 +261,7 @@ void applyNoCBandwidthPenaltyWorkaround(
   // memory layout. Keep the penalty isolated behind the effective_bandwidth
   // symbol so normal loom.copy data-volume binding stays unchanged. The factor
   // is deliberately coarse and small: use the unique non-unit trailing stride,
-  // bucket ceil(log2(stride)) by 8 in C++, then pass 10 + bucket. The hardware
+  // bucket ceil(log2(stride)) by 2 in C++, then pass 10 + bucket. The hardware
   // performance model divides bandwidth by 10 to preserve this fixed-point
   // penalty without losing it to local ceildiv folding in the solver.
   int64_t bucket = computeStrideLogBandwidthBucket(*srcStrides);
@@ -350,6 +350,16 @@ resourcesForComputePipelineMode(const std::vector<std::string> &resources) {
 #if !ComputeKernelPipeline
   result.push_back("__compute_kernel_pipeline_disabled__");
 #endif
+  return result;
+}
+
+std::vector<std::string> resourcesForDataMover(const HWComputeFunc &hwFunc) {
+  std::vector<std::string> result = hwFunc.resources;
+  // Data mover processor declarations may not have explicit `with` resources.
+  // Treat the hardware module that registered the data-mover function as the
+  // resource identity so transfers using the same processor serialize.
+  if (!hwFunc.hw_component.empty())
+    result.push_back(hwFunc.hw_component);
   return result;
 }
 
@@ -872,7 +882,7 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
   applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                      std::move(dimMap), hwFunc->resources);
+                      std::move(dimMap), resourcesForDataMover(*hwFunc));
 }
 
 // ==========================================
