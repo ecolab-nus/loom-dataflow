@@ -16,6 +16,7 @@ namespace pipeline {
 /// @param input_mlir_text   Input MLIR text (stage 05) as a string.
 /// @param block_sizes_json  JSON string with block size assignments per variant.
 ///                          Format: {"func_name": {"SYM": value, ...}, ...}
+///                          or {"func_name": [{"SYM": value, ...}, ...], ...}
 ///                          Pass empty string to use placeholder solver.
 /// @return pair of (error, output_mlir). error is empty on success.
 std::pair<std::string, std::string>

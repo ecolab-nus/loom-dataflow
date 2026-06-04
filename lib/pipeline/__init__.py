@@ -25,6 +25,11 @@ Usage::
         input_mlir=output_mlir,
         block_sizes_json='{"variant": {"BM": 64, "BN": 64, "BK": 64}}',
     )
+
+    final_mlir = run_materialization(
+        input_mlir=output_mlir,
+        block_sizes_json='{"variant": [{"BM": 64}, {"BM": 128}]}',
+    )
 """
 
 from importlib.metadata import version as _pkg_version
@@ -95,9 +100,11 @@ def run_materialization(
 
     Args:
         input_mlir:       Input MLIR text (stage 05).
-        block_sizes_json: JSON string mapping variant names to block size
-                          assignments, e.g.
+        block_sizes_json: JSON string mapping variant names to one or more
+                          block size assignments, e.g.
                           ``{"func_name": {"BM": 64, "BN": 128}, ...}``.
+                          or
+                          ``{"func_name": [{"BM": 64}, {"BM": 128}], ...}``.
                           Pass empty string to use placeholder solver.
 
     Returns:

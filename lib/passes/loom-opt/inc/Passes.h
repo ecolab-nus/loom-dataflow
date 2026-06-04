@@ -4,6 +4,7 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/StringMap.h"
 #include <memory>
+#include <vector>
 
 namespace mlir {
 class ModuleOp;
@@ -12,9 +13,9 @@ class ModuleOp;
 namespace loom {
 namespace passes {
 
-// Map: func_name → {symbol_name → concrete_value}
+// Map: func_name → [{symbol_name → concrete_value}, ...]
 // Used to pass external solver results directly to the materialize pass.
-using BlockSizeMap = llvm::StringMap<llvm::StringMap<int64_t>>;
+using BlockSizeMap = llvm::StringMap<std::vector<llvm::StringMap<int64_t>>>;
 
 #define GEN_PASS_DECL
 #include "Passes.h.inc"

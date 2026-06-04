@@ -10,7 +10,9 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Casting.h"
 
 // Include Loom dialect headers
@@ -120,7 +122,8 @@ public:
   MaterializePass() = default;
 
   /// Constructor with external block sizes from the SMT solver.
-  /// blockSizes maps each variant function name to its symbol assignments.
+  /// blockSizes maps each variant function name to one or more symbol
+  /// assignments.
   explicit MaterializePass(const loom::passes::BlockSizeMap &blockSizes)
       : externalBlockSizes(&blockSizes) {}
 
@@ -155,7 +158,7 @@ public:
       SmallVector<BlockSizeBinding> bindings;
 
       if (externalBlockSizes) {
-        // --- External path: one binding per function from solver results ---
+        // --- External path: one or more bindings per function from solver results ---
         // Each nested module contains exactly one func.func whose name is
         // the variant name (e.g., "matmul__d0i0_d1i0__f01__d_d").
         for (auto func : funcs) {
@@ -171,10 +174,12 @@ public:
                 << "'; skipping materialization for this variant";
             continue;
           }
-          BlockSizeBinding b;
-          for (auto &entry : it->second)
-            b.varValues[entry.first()] = entry.second;
-          bindings.push_back(std::move(b));
+          for (const auto &bindingMap : it->second) {
+            BlockSizeBinding b;
+            for (auto &entry : bindingMap)
+              b.varValues[entry.first()] = entry.second;
+            bindings.push_back(std::move(b));
+          }
         }
       } else {
         // --- Fallback path: use hardcoded placeholder solver ---
@@ -216,8 +221,9 @@ public:
                               builder.getStringAttr("Materialize"));
 
       OpBuilder variantsBuilder(variantsModule.getBodyRegion());
+      llvm::StringSet<> usedNames;
 
-      for (const auto &binding : bindings) {
+      for (auto [bindingIndex, binding] : llvm::enumerate(bindings)) {
         for (auto func : funcs) {
           IRMapping funcMapping;
           auto clonedFunc =
@@ -225,6 +231,15 @@ public:
 
           // Rename with suffix
           std::string newName = func.getName().str() + binding.getSuffix();
+          if (usedNames.contains(newName)) {
+            std::string baseName = newName;
+            unsigned comboIndex = static_cast<unsigned>(bindingIndex);
+            do {
+              ++comboIndex;
+              newName = baseName + "__combo" + std::to_string(comboIndex);
+            } while (usedNames.contains(newName));
+          }
+          usedNames.insert(newName);
           clonedFunc.setName(newName);
 
           // Materialize

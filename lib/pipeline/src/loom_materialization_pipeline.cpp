@@ -63,13 +63,82 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 
 #include <string>
 #include <utility>
+#include <vector>
 
 using namespace mlir;
 
 namespace {
 
+std::vector<llvm::StringMap<int64_t>> cloneBindingList(
+    const std::vector<llvm::StringMap<int64_t>> &bindings) {
+  std::vector<llvm::StringMap<int64_t>> cloned;
+  cloned.reserve(bindings.size());
+  for (const auto &binding : bindings) {
+    llvm::StringMap<int64_t> bindingClone;
+    for (const auto &entry : binding)
+      bindingClone[entry.first()] = entry.second;
+    cloned.push_back(std::move(bindingClone));
+  }
+  return cloned;
+}
+
+bool parseSymbolMap(llvm::StringRef funcKey,
+                    const llvm::json::Object &symObj,
+                    llvm::StringMap<int64_t> &outMap,
+                    std::string &errMsg) {
+  for (auto &[symKey, val] : symObj) {
+    auto intVal = val.getAsInteger();
+    if (!intVal) {
+      errMsg = "Value for symbol '" + symKey.str() + "' in '" +
+               funcKey.str() + "' must be an integer";
+      return false;
+    }
+    outMap[symKey] = *intVal;
+  }
+  return true;
+}
+
+bool parseBindingList(llvm::StringRef funcKey,
+                      const llvm::json::Value &symVals,
+                      std::vector<llvm::StringMap<int64_t>> &outBindings,
+                      std::string &errMsg) {
+  if (auto *symObj = symVals.getAsObject()) {
+    llvm::StringMap<int64_t> symMap;
+    if (!parseSymbolMap(funcKey, *symObj, symMap, errMsg))
+      return false;
+    outBindings.push_back(std::move(symMap));
+    return true;
+  }
+
+  if (auto *bindingArray = symVals.getAsArray()) {
+    if (bindingArray->empty()) {
+      errMsg = "Value for key '" + funcKey.str() +
+               "' must not be an empty array";
+      return false;
+    }
+    for (size_t i = 0; i < bindingArray->size(); ++i) {
+      auto *symObj = (*bindingArray)[i].getAsObject();
+      if (!symObj) {
+        errMsg = "Value for key '" + funcKey.str() + "' at index " +
+                 std::to_string(i) + " must be a JSON object";
+        return false;
+      }
+      llvm::StringMap<int64_t> symMap;
+      if (!parseSymbolMap(funcKey, *symObj, symMap, errMsg))
+        return false;
+      outBindings.push_back(std::move(symMap));
+    }
+    return true;
+  }
+
+  errMsg = "Value for key '" + funcKey.str() +
+           "' must be a JSON object, array of objects, or null";
+  return false;
+}
+
 /// Parse the JSON block sizes string into a BlockSizeMap.
 /// JSON format: {"func_name": {"SYM": value, ...}, ...}
+///          or: {"func_name": [{"SYM": value, ...}, ...], ...}
 /// Returns true on success and fills outMap; false on parse error (fills errMsg).
 bool parseBlockSizesJson(const char *json_str,
                          loom::passes::BlockSizeMap &outMap,
@@ -97,22 +166,10 @@ bool parseBlockSizesJson(const char *json_str,
       //              << "' is UNSAT, will be omitted from output IR\n";
       continue;
     }
-    auto *symObj = symVals.getAsObject();
-    if (!symObj) {
-      errMsg = "Value for key '" + funcKey.str() + "' must be a JSON object";
+    std::vector<llvm::StringMap<int64_t>> bindings;
+    if (!parseBindingList(funcKey, symVals, bindings, errMsg))
       return false;
-    }
-    llvm::StringMap<int64_t> symMap;
-    for (auto &[symKey, val] : *symObj) {
-      auto intVal = val.getAsInteger();
-      if (!intVal) {
-        errMsg = "Value for symbol '" + symKey.str() + "' in '" +
-                 funcKey.str() + "' must be an integer";
-        return false;
-      }
-      symMap[symKey] = *intVal;
-    }
-    outMap[funcKey] = std::move(symMap);
+    outMap[funcKey] = std::move(bindings);
   }
   return true;
 }
@@ -177,7 +234,7 @@ runMaterializationCore(const char *input_mlir_text,
   if (hasExternalSizes) {
     auto allIt = blockSizeMap.find("ALL");
     if (allIt != blockSizeMap.end()) {
-      const auto allBinding = allIt->second;
+      auto allBindings = cloneBindingList(allIt->second);
       // Erase by key before inserting new entries. Inserting into StringMap may
       // rehash and invalidate iterators, so using `allIt` after insertions can
       // trigger LLVM StringMap internal assertions.
@@ -185,7 +242,7 @@ runMaterializationCore(const char *input_mlir_text,
       module->walk([&](func::FuncOp func) {
         StringRef funcName = func.getName();
         if (blockSizeMap.find(funcName) == blockSizeMap.end()) {
-          blockSizeMap[funcName] = allBinding;
+          blockSizeMap[funcName] = cloneBindingList(allBindings);
         }
       });
     }

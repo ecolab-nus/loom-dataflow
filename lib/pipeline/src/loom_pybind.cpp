@@ -55,7 +55,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
 
       Args:
           input_mlir_text: Input MLIR as a string (stage 05).
-          block_sizes_json: JSON string mapping variant names to block sizes.
+          block_sizes_json: JSON string mapping variant names to one or more
+              block-size assignments.
 
       Returns:
           Tuple of (error, output_mlir).
