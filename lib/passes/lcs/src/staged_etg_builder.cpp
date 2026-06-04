@@ -129,15 +129,23 @@ extractTrailing2DStrides(mlir::Value value) {
   return std::array<int64_t, 2>{xStride, yStride};
 }
 
-bool isDimYPhysicalLoop(mlir::Operation *op) {
+std::optional<llvm::StringRef> getPhysicalDimName(mlir::Operation *op) {
   auto dimAttr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.physical_dim");
-  return dimAttr && dimAttr.getLeafReference() == "dim_y";
+  if (!dimAttr)
+    return std::nullopt;
+  return dimAttr.getLeafReference();
 }
 
 std::optional<int64_t> getLogicalLevel(mlir::Operation *op) {
   if (auto levelAttr =
           op->getAttrOfType<mlir::IntegerAttr>("loom.logical_level"))
     return levelAttr.getInt();
+  return std::nullopt;
+}
+
+std::optional<std::string> getBlockSymName(mlir::Operation *op) {
+  if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
+    return attr.getLeafReference().str();
   return std::nullopt;
 }
 
@@ -152,42 +160,170 @@ getSingleConstantUpperBound(mlir::affine::AffineParallelOp parOp) {
   return constExpr.getValue();
 }
 
-std::optional<int64_t>
-getSingleConstantUpperBound(mlir::affine::AffineForOp forOp) {
-  mlir::AffineMap ubMap = forOp.getUpperBoundMap();
-  if (ubMap.getNumResults() != 1 || ubMap.getNumDims() != 0 ||
-      ubMap.getNumSymbols() != 0)
-    return std::nullopt;
-  auto constExpr = mlir::dyn_cast<mlir::AffineConstantExpr>(ubMap.getResult(0));
-  if (!constExpr)
-    return std::nullopt;
-  return constExpr.getValue();
-}
+struct SubmeshSize2D {
+  int64_t x = 1;
+  int64_t y = 1;
+};
 
-int64_t getCurrentDimYSubmeshSize(mlir::Operation *op) {
-  int64_t submeshY = 1;
-  std::set<int64_t> seenLevels;
+SubmeshSize2D getCurrentSubmeshSize2D(mlir::Operation *op) {
+  SubmeshSize2D submesh;
+  std::set<int64_t> seenXLevels;
+  std::set<int64_t> seenYLevels;
 
   for (mlir::Operation *parent = op->getParentOp(); parent;
        parent = parent->getParentOp()) {
-    if (!isDimYPhysicalLoop(parent))
+    auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent);
+    if (!parOp)
       continue;
 
+    std::optional<llvm::StringRef> dimName = getPhysicalDimName(parent);
+    if (!dimName || (*dimName != "dim_x" && *dimName != "dim_y"))
+      continue;
     std::optional<int64_t> level = getLogicalLevel(parent);
-    if (!level || !seenLevels.insert(*level).second)
+    if (!level)
+      continue;
+    std::optional<int64_t> ub = getSingleConstantUpperBound(parOp);
+    if (!ub || *ub <= 0)
       continue;
 
-    std::optional<int64_t> ub;
-    if (auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent))
-      ub = getSingleConstantUpperBound(parOp);
-    else if (auto forOp = mlir::dyn_cast<mlir::affine::AffineForOp>(parent))
-      ub = getSingleConstantUpperBound(forOp);
-
-    if (ub && *ub > 0)
-      submeshY *= *ub;
+    if (*dimName == "dim_x") {
+      if (seenXLevels.insert(*level).second)
+        submesh.x *= *ub;
+    } else {
+      if (seenYLevels.insert(*level).second)
+        submesh.y *= *ub;
+    }
   }
 
-  return submeshY;
+  return submesh;
+}
+
+std::optional<int64_t> getTemporalMeshFactor(mlir::scf::ForOp forOp) {
+  std::optional<std::string> loopBlockSym = getBlockSymName(forOp);
+  if (!loopBlockSym)
+    return std::nullopt;
+
+  int64_t factor = 1;
+  std::set<std::pair<std::string, int64_t>> seenLevels;
+
+  for (mlir::Operation *parent = forOp->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent);
+    if (!parOp)
+      continue;
+
+    std::optional<std::string> parBlockSym = getBlockSymName(parent);
+    if (!parBlockSym || *parBlockSym != *loopBlockSym)
+      continue;
+
+    if (auto iterAttr =
+            parent->getAttrOfType<loom::IterTypeAttr>("loom.iter_type"))
+      if (iterAttr.getValue() != loom::IterType::Spatial)
+        continue;
+
+    std::optional<llvm::StringRef> dimName = getPhysicalDimName(parent);
+    std::optional<int64_t> level = getLogicalLevel(parent);
+    std::optional<int64_t> ub = getSingleConstantUpperBound(parOp);
+    if (!dimName || !level || !ub || *ub <= 0)
+      continue;
+
+    std::pair<std::string, int64_t> key{dimName->str(), *level};
+    if (seenLevels.insert(key).second)
+      factor *= *ub;
+  }
+
+  if (seenLevels.empty())
+    return std::nullopt;
+  return factor;
+}
+
+Expr rebuildBinaryExpr(Expr::Kind kind, Expr lhs, Expr rhs) {
+  switch (kind) {
+  case Expr::Kind::Add:
+    return std::move(lhs) + std::move(rhs);
+  case Expr::Kind::Sub:
+    return std::move(lhs) - std::move(rhs);
+  case Expr::Kind::Mul:
+    return std::move(lhs) * std::move(rhs);
+  case Expr::Kind::Div:
+    return std::move(lhs) / std::move(rhs);
+  case Expr::Kind::Min:
+    return min_expr(std::move(lhs), std::move(rhs));
+  case Expr::Kind::Max:
+    return max_expr(std::move(lhs), std::move(rhs));
+  default:
+    return Expr::none();
+  }
+}
+
+Expr replaceFirstConstPreferDivDenom(const Expr &expr, int64_t oldValue,
+                                     int64_t newValue, bool &replaced) {
+  if (expr.isNone() || replaced)
+    return expr;
+
+  if (expr.kind() == Expr::Kind::Const) {
+    if (expr.constValue() == oldValue) {
+      replaced = true;
+      return Expr::con(newValue);
+    }
+    return expr;
+  }
+
+  switch (expr.kind()) {
+  case Expr::Kind::Add:
+  case Expr::Kind::Sub:
+  case Expr::Kind::Mul:
+  case Expr::Kind::Div:
+  case Expr::Kind::Min:
+  case Expr::Kind::Max: {
+    Expr lhs = expr.lhs();
+    Expr rhs = expr.rhs();
+    if (expr.kind() == Expr::Kind::Div) {
+      rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
+      if (!replaced)
+        lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
+    } else {
+      lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
+      if (!replaced)
+        rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
+    }
+    return rebuildBinaryExpr(expr.kind(), std::move(lhs), std::move(rhs));
+  }
+  case Expr::Kind::IfElse:
+    return expr;
+  case Expr::Kind::None:
+  case Expr::Kind::Const:
+  case Expr::Kind::Sym:
+    return expr;
+  }
+  return expr;
+}
+
+Expr relaxTemporalTripCountForConstraints(mlir::scf::ForOp forOp,
+                                          const Expr &tripCount) {
+  std::optional<int64_t> meshFactor = getTemporalMeshFactor(forOp);
+  if (!meshFactor)
+    return tripCount;
+  if (*meshFactor <= 1)
+    return tripCount;
+
+  bool replaced = false;
+  Expr relaxed = replaceFirstConstPreferDivDenom(
+      tripCount, *meshFactor, *meshFactor - 1, replaced);
+  if (!replaced)
+    forOp.emitWarning() << "could not find temporal mesh divisor "
+                        << *meshFactor
+                        << " in trip-count expression for relaxed iter_num";
+  return replaced ? relaxed : tripCount;
+}
+
+int64_t computeEffectiveBandwidthBase(std::array<int64_t, 2> area,
+                                      mlir::Operation *op) {
+  SubmeshSize2D submesh = getCurrentSubmeshSize2D(op);
+  int64_t ratioX = submesh.x / area[0];
+  int64_t ratioY = submesh.y / area[1];
+  int64_t factor = std::max<int64_t>(1, std::min(ratioX, ratioY));
+  return 10 * factor;
 }
 
 bool shouldApplyNoCBandwidthPenalty(std::array<int64_t, 2> srcStrides,
@@ -306,14 +442,14 @@ void applyNoCBandwidthPenaltyWorkaround(
     return;
 
   std::array<int64_t, 2> area{bcastVec[0], bcastVec[1]};
+  int64_t effectiveBandwidthBase =
+      computeEffectiveBandwidthBase(area, copyOp.getOperation());
+  dimMap["effective_bandwidth"] = Expr::con(effectiveBandwidthBase);
+
   if (area[0] == 1 && area[1] == 1) {
     // Workaround: unicast DRAM->L1 copies still contend with the currently
-    // enabled y submesh. Use the product of enclosing dim_y spatial-loop UBs
-    // as the effective-bandwidth factor for this legacy NoC model hook.
-    // The performance model divides bandwidth by 10, so pass fixed-point
-    // numerators here.
-    dimMap["effective_bandwidth"] =
-        Expr::con(10 * getCurrentDimYSubmeshSize(copyOp));
+    // enabled submesh. The common base helper already accounts for the current
+    // dim_x/dim_y occupancy, so no extra broadcast-specific bucket is applied.
     return;
   }
 
@@ -340,7 +476,8 @@ void applyNoCBandwidthPenaltyWorkaround(
   // the larger broadcast area axis. The hardware performance model divides
   // bandwidth by 10 to preserve this fixed-point penalty without losing it to
   // local ceildiv folding in the solver.
-  dimMap["effective_bandwidth"] = Expr::con(10) + Expr::con(penaltyBucket);
+  dimMap["effective_bandwidth"] =
+      Expr::con(effectiveBandwidthBase) + Expr::con(penaltyBucket);
 }
 
 void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
@@ -986,7 +1123,8 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
     if (iterAttr.getValue() == loom::IterType::Sequential)
       constraint_scope_.seq_iter = tripCount;
     else if (iterAttr.getValue() == loom::IterType::Temporal)
-      constraint_scope_.temp_iter.push_back(tripCount);
+      constraint_scope_.temp_iter.push_back(
+          relaxTemporalTripCountForConstraints(forOp, tripCount));
   });
 }
 

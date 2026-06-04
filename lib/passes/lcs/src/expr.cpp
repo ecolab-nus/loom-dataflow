@@ -31,6 +31,12 @@ Expr Expr::ifelse(std::shared_ptr<ConstraintExpr> cond, Expr then_expr,
   return Expr{std::move(n)};
 }
 
+std::optional<int64_t> Expr::constValue() const {
+  if (!node_ || node_->kind != Kind::Const)
+    return std::nullopt;
+  return node_->val;
+}
+
 // ── Binary ops ───────────────────────────────────────────────────────────────
 
 Expr Expr::binop(Kind k, Expr lhs, Expr rhs) {
