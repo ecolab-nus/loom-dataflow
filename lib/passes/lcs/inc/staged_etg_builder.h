@@ -12,8 +12,13 @@
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
+namespace mlir {
+class AsmState;
+}
 
 namespace loom {
 namespace lcs {
@@ -28,6 +33,7 @@ struct Workload {
   std::string op;
   std::map<std::string, Expr> dims;
   std::vector<std::string> resources;
+  std::optional<std::string> op_label;
 
   llvm::json::Value toJSON() const;
 };
@@ -72,7 +78,8 @@ public:
 
   void pushWorkload(const std::string &unit_name, const std::string &op,
                     std::map<std::string, Expr> dims,
-                    std::vector<std::string> resources);
+                    std::vector<std::string> resources,
+                    std::optional<std::string> op_label = std::nullopt);
 
   llvm::json::Object toJSONFragment() const override;
   void dump(llvm::raw_ostream &os, int indent) const override;
@@ -264,14 +271,19 @@ private:
   // Recursive scope population. Walks `region`'s direct ops, dispatching
   // each into the given load / compute / store scope according to its kind.
   void populateScopesFromRegion(mlir::Region &region, Scope &load_scope,
-                                Scope &compute_scope, Scope &store_scope);
+                                Scope &compute_scope, Scope &store_scope,
+                                mlir::AsmState &asm_state);
 
   void dispatchToComputeQueues(mlir::Operation *op,
-                               WorkloadStageBody &target);
-  void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target);
-  void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target);
+                               WorkloadStageBody &target,
+                               mlir::AsmState &asm_state);
+  void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target,
+                       mlir::AsmState &asm_state);
+  void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target,
+                         mlir::AsmState &asm_state);
   void dispatchToDataMoverQueues(mlir::Operation *op,
-                                 WorkloadStageBody &target);
+                                 WorkloadStageBody &target,
+                                 mlir::AsmState &asm_state);
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);

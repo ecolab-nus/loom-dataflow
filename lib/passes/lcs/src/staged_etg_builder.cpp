@@ -5,6 +5,7 @@
 #include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
+#include "workload_source_label.h"
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
@@ -17,6 +18,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/DenseMap.h"
@@ -596,6 +598,8 @@ llvm::json::Value Workload::toJSON() const {
   func_inner["symbols"] = std::move(symbols_json);
   func_inner["sym_map"] =
       llvm::json::Object{{"entries", std::move(entries_json)}};
+  if (op_label)
+    func_inner["op_label"] = *op_label;
 
   llvm::json::Object func_envelope;
   func_envelope["func"] = std::move(func_inner);
@@ -633,11 +637,13 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
 void WorkloadStageBody::pushWorkload(const std::string &unit_name,
                                      const std::string &op,
                                      std::map<std::string, Expr> dims,
-                                     std::vector<std::string> resources) {
+                                     std::vector<std::string> resources,
+                                     std::optional<std::string> op_label) {
   if (queues_.find(unit_name) == queues_.end())
     queues_[unit_name] = HardwareQueue{unit_name, {}};
   queues_[unit_name].workloads.push_back(
-      Workload{op, std::move(dims), std::move(resources)});
+      Workload{op, std::move(dims), std::move(resources),
+               std::move(op_label)});
 }
 
 llvm::json::Object WorkloadStageBody::toJSONFragment() const {
@@ -844,16 +850,18 @@ VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
 void VariantETG::buildFromFunc(mlir::func::FuncOp func_op) {
   if (func_op.isExternal() || func_op.empty())
     return;
+  mlir::AsmState asm_state(func_op.getOperation());
   populateScopesFromRegion(func_op.getRegion(),
                            kernel_block_.body.load_scope,
                            kernel_block_.body.compute_scope,
-                           kernel_block_.body.store_scope);
+                           kernel_block_.body.store_scope, asm_state);
 }
 
 void VariantETG::populateScopesFromRegion(mlir::Region &region,
                                           Scope &load_scope,
                                           Scope &compute_scope,
-                                          Scope &store_scope) {
+                                          Scope &store_scope,
+                                          mlir::AsmState &asm_state) {
   if (region.empty())
     return;
 
@@ -889,7 +897,8 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         // Recurse into the loop body with fresh scopes (a fresh region walk
         // re-seeds its own value_ready_stage from the for_op block args).
         populateScopesFromRegion(for_op.getRegion(), child->loadScope(),
-                                 child->computeScope(), child->storeScope());
+                                 child->computeScope(), child->storeScope(),
+                                 asm_state);
         compute_scope.placeStage(required_stage, std::move(child));
         dispatched = true;
         // for_op result tensors are visible to siblings; treat them as
@@ -925,7 +934,8 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
 
         if (is_compute && !is_linalg_infra) {
           dispatchToComputeQueues(
-              op, compute_scope.getOrCreateWorkloadStage(required_stage));
+              op, compute_scope.getOrCreateWorkloadStage(required_stage),
+              asm_state);
           dispatched = true;
 #if !ComputeKernelPipeline
           advances_stage = false;
@@ -935,10 +945,12 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
               loom::utils::classifyCopyMemoryDirection(op);
           if (direction == loom::utils::CopyMemoryDirection::Load) {
             dispatchToDataMoverQueues(
-                op, load_scope.getOrCreateWorkloadStage(required_stage));
+                op, load_scope.getOrCreateWorkloadStage(required_stage),
+                asm_state);
           } else if (direction == loom::utils::CopyMemoryDirection::Store) {
             dispatchToDataMoverQueues(
-                op, store_scope.getOrCreateWorkloadStage(required_stage));
+                op, store_scope.getOrCreateWorkloadStage(required_stage),
+                asm_state);
           }
           dispatched = true;
           advances_stage = false; // data-mover ops are non-blocking
@@ -959,16 +971,18 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
 }
 
 void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
-                                         WorkloadStageBody &target) {
+                                         WorkloadStageBody &target,
+                                         mlir::AsmState &asm_state) {
   assert(hw_registry_ && "HWOpRegistry must be provided");
   if (llvm::isa<mlir::linalg::GenericOp>(op))
-    dispatchGenericOp(op, target);
+    dispatchGenericOp(op, target, asm_state);
   else
-    dispatchNamedOp(op, target);
+    dispatchNamedOp(op, target, asm_state);
 }
 
 void VariantETG::dispatchNamedOp(mlir::Operation *op,
-                                 WorkloadStageBody &target) {
+                                 WorkloadStageBody &target,
+                                 mlir::AsmState &asm_state) {
   std::string linalg_op_name = op->getName().getStringRef().str();
   const HWComputeFunc *hwFunc =
       hw_registry_->lookup(HWOpKey::named(linalg_op_name));
@@ -994,11 +1008,13 @@ void VariantETG::dispatchNamedOp(mlir::Operation *op,
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap),
-                      resourcesForComputePipelineMode(hwFunc->resources));
+                      resourcesForComputePipelineMode(hwFunc->resources),
+                      makeNamedLinalgWorkloadLabel(linalgOp, asm_state));
 }
 
 void VariantETG::dispatchGenericOp(mlir::Operation *op,
-                                   WorkloadStageBody &target) {
+                                   WorkloadStageBody &target,
+                                   mlir::AsmState &asm_state) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
@@ -1031,12 +1047,15 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
 
     target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                         std::move(dimMap),
-                        resourcesForComputePipelineMode(hwFunc->resources));
+                        resourcesForComputePipelineMode(hwFunc->resources),
+                        makeGenericPayloadWorkloadLabel(&bodyOp, linalgOp,
+                                                        asm_state));
   }
 }
 
 void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
-                                           WorkloadStageBody &target) {
+                                           WorkloadStageBody &target,
+                                           mlir::AsmState &asm_state) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
   if (!copyOp)
     return;
@@ -1094,7 +1113,8 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
   applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                      std::move(dimMap), resourcesForDataMover(*hwFunc));
+                      std::move(dimMap), resourcesForDataMover(*hwFunc),
+                      makeCopyWorkloadLabel(op, asm_state));
 }
 
 // ==========================================
