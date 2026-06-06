@@ -142,6 +142,7 @@ bool parseBindingList(llvm::StringRef funcKey,
 /// Returns true on success and fills outMap; false on parse error (fills errMsg).
 bool parseBlockSizesJson(const char *json_str,
                          loom::passes::BlockSizeMap &outMap,
+                         loom::passes::CandidateOrder &candidateOrder,
                          std::string &errMsg) {
   if (!json_str || json_str[0] == '\0')
     return true; // empty → use placeholder solver
@@ -160,6 +161,24 @@ bool parseBlockSizesJson(const char *json_str,
   }
 
   for (auto &[funcKey, symVals] : *root) {
+    if (funcKey == "__loom_candidate_order__") {
+      auto *order = symVals.getAsArray();
+      if (!order) {
+        errMsg = "Value for '__loom_candidate_order__' must be an array";
+        return false;
+      }
+      for (const auto &nameValue : *order) {
+        auto name = nameValue.getAsString();
+        if (!name) {
+          errMsg =
+              "Entries in '__loom_candidate_order__' must be strings";
+          return false;
+        }
+        candidateOrder.push_back(name->str());
+      }
+      continue;
+    }
+
     // UNSAT variant: null block sizes → skip (not added to outMap)
     if (symVals.kind() == llvm::json::Value::Null) {
       // llvm::errs() << "info: variant '" << funcKey
@@ -180,12 +199,14 @@ runMaterializationCore(const char *input_mlir_text,
                        const char *block_sizes_json) {
   // --- Parse block sizes JSON ---
   loom::passes::BlockSizeMap blockSizeMap;
+  loom::passes::CandidateOrder candidateOrder;
   std::string errMsg;
   bool hasExternalSizes =
       block_sizes_json && block_sizes_json[0] != '\0';
 
   if (hasExternalSizes) {
-    if (!parseBlockSizesJson(block_sizes_json, blockSizeMap, errMsg))
+    if (!parseBlockSizesJson(block_sizes_json, blockSizeMap, candidateOrder,
+                             errMsg))
       return {errMsg, ""};
   }
 
@@ -239,10 +260,12 @@ runMaterializationCore(const char *input_mlir_text,
       // rehash and invalidate iterators, so using `allIt` after insertions can
       // trigger LLVM StringMap internal assertions.
       blockSizeMap.erase("ALL");
+      candidateOrder.clear();
       module->walk([&](func::FuncOp func) {
         StringRef funcName = func.getName();
         if (blockSizeMap.find(funcName) == blockSizeMap.end()) {
           blockSizeMap[funcName] = cloneBindingList(allBindings);
+          candidateOrder.push_back(funcName.str());
         }
       });
     }
@@ -253,7 +276,8 @@ runMaterializationCore(const char *input_mlir_text,
 
   // Stage 1: Materialize symbolic block sizes
   if (hasExternalSizes) {
-    pm.addPass(loom::passes::createMaterializePass(blockSizeMap));
+    pm.addPass(
+        loom::passes::createMaterializePass(blockSizeMap, candidateOrder));
   } else {
     pm.addPass(loom::passes::createMaterializePass());
   }

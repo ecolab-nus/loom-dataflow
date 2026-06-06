@@ -124,8 +124,10 @@ public:
   /// Constructor with external block sizes from the SMT solver.
   /// blockSizes maps each variant function name to one or more symbol
   /// assignments.
-  explicit MaterializePass(const loom::passes::BlockSizeMap &blockSizes)
-      : externalBlockSizes(&blockSizes) {}
+  explicit MaterializePass(
+      const loom::passes::BlockSizeMap &blockSizes,
+      const loom::passes::CandidateOrder &candidateOrder)
+      : externalBlockSizes(&blockSizes), candidateOrder(&candidateOrder) {}
 
   StringRef getArgument() const override { return "loom-materialize"; }
 
@@ -146,6 +148,21 @@ public:
     SmallVector<ModuleOp, 4> nestedModules;
     for (auto nestedModule : module.getOps<ModuleOp>()) {
       nestedModules.push_back(nestedModule);
+    }
+
+    if (externalBlockSizes && candidateOrder) {
+      llvm::StringMap<size_t> ranks;
+      for (auto [rank, name] : llvm::enumerate(*candidateOrder))
+        ranks[name] = rank;
+
+      llvm::stable_sort(nestedModules, [&](ModuleOp lhs, ModuleOp rhs) {
+        auto getRank = [&](ModuleOp candidate) {
+          auto func = *candidate.getOps<func::FuncOp>().begin();
+          auto it = ranks.find(func.getName());
+          return it == ranks.end() ? ranks.size() : it->second;
+        };
+        return getRank(lhs) < getRank(rhs);
+      });
     }
 
     for (auto nestedModule : nestedModules) {
@@ -210,7 +227,10 @@ public:
       }
 
       // Create a single nested module in the output to contain all variants
-      builder.setInsertionPoint(nestedModule);
+      if (externalBlockSizes)
+        builder.setInsertionPointToEnd(module.getBody());
+      else
+        builder.setInsertionPoint(nestedModule);
       auto variantsModule = ModuleOp::create(builder, nestedModule->getLoc());
 
       // Copy attributes from the original nested module
@@ -256,6 +276,7 @@ private:
   // Non-owning pointer to an external block size map (from SMT solver).
   // Null when using the hardcoded placeholder solver.
   const loom::passes::BlockSizeMap *externalBlockSizes = nullptr;
+  const loom::passes::CandidateOrder *candidateOrder = nullptr;
 };
 
 } // namespace
@@ -265,6 +286,7 @@ std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
 }
 
 std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass(
-    const loom::passes::BlockSizeMap &blockSizes) {
-  return std::make_unique<MaterializePass>(blockSizes);
+    const loom::passes::BlockSizeMap &blockSizes,
+    const loom::passes::CandidateOrder &candidateOrder) {
+  return std::make_unique<MaterializePass>(blockSizes, candidateOrder);
 }
