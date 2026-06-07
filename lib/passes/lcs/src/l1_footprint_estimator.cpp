@@ -4,6 +4,7 @@
 #include "ssa_utils.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Location.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -26,6 +27,7 @@ namespace lcs {
 namespace {
 
 constexpr int64_t kL1AlignTile = 32;
+constexpr int64_t kTenstorrentReductionConfigFootprint = 1024;
 
 struct AllocInfo {
   loom::AllocOp alloc_op;
@@ -126,6 +128,23 @@ std::vector<Expr> applyBottom2Padding(const AllocInfo &info) {
 
 Expr buildFootprintExpr(const std::vector<Expr> &alignedDims) {
   return productOfDims(alignedDims);
+}
+
+// Tenstorrent reduction generics require a static shared configuration
+// allocation in L1. All innermost-reduction linalg.generic ops in a func share
+// this fixed configuration footprint, so the caller should account for it once.
+bool hasInnermostReductionGeneric(mlir::func::FuncOp funcOp) {
+  bool found = false;
+  funcOp.walk([&](mlir::linalg::GenericOp genericOp) {
+    auto iteratorTypes = genericOp.getIteratorTypesArray();
+    if (!iteratorTypes.empty() &&
+        iteratorTypes.back() == mlir::utils::IteratorType::reduction) {
+      found = true;
+      return mlir::WalkResult::interrupt();
+    }
+    return mlir::WalkResult::advance();
+  });
+  return found;
 }
 
 void markAllocClass(llvm::DenseMap<mlir::Operation *, FootprintClass> &classes,
@@ -243,6 +262,10 @@ L1FootprintResult L1FootprintEstimator::estimateFromFunc(
       cls = it->second;
     pushFootprint(result.l1_footprint, cls, info.footprint);
   }
+
+  if (hasInnermostReductionGeneric(funcOp))
+    result.l1_footprint.compute.push_back(
+        Expr::con(kTenstorrentReductionConfigFootprint));
 
   return result;
 }
