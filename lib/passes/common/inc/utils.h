@@ -72,12 +72,11 @@ mlir::Operation *
 getNormalizedMemoryBindingScope(mlir::affine::AffineParallelOp parallelOp);
 
 /**
- * @brief Generate canonical partial-hardware occupancy views.
+ * @brief Generate partial-hardware occupancy views.
  *
  * Each known spatial dimension of size N contributes even occupancy sizes
- * 2, 4, ..., N. 2D mesh views are canonicalized so backend-equivalent swapped
- * pairs are emitted once, preferring the larger legal size on the earlier
- * hardware dimension.
+ * 2, 4, ..., N. Occupancy sizes remain associated with their physical
+ * dimensions, so swapped tuples such as (2, 8) and (8, 2) are both emitted.
  */
 llvm::SmallVector<HardwareInfo>
 generateHardwareOccupancyVariants(const HardwareInfo &hardwareInfo);

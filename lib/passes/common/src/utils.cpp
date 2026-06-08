@@ -51,10 +51,6 @@ SmallVector<SizeChoice> getOccupancyChoices(const SpatialDimInfo &dim) {
   return choices;
 }
 
-bool containsSize(ArrayRef<SizeChoice> choices, SizeChoice size) {
-  return llvm::is_contained(choices, size);
-}
-
 std::string buildOccupancyKey(ArrayRef<SizeChoice> sizes) {
   std::string key;
   llvm::raw_string_ostream os(key);
@@ -167,33 +163,6 @@ generateHardwareOccupancyVariants(const HardwareInfo &hardwareInfo) {
       return;
     variants.push_back(withOccupancySizes(hardwareInfo, sizes));
   };
-
-  if (dimCount == 2) {
-    const auto &xChoices = choicesByDim[0];
-    const auto &yChoices = choicesByDim[1];
-    for (SizeChoice xCandidate : xChoices) {
-      for (SizeChoice yCandidate : yChoices) {
-        SmallVector<SizeChoice, 2> canonical;
-        if (xCandidate && yCandidate) {
-          SizeChoice larger = std::max(*xCandidate, *yCandidate);
-          SizeChoice smaller = std::min(*xCandidate, *yCandidate);
-          if (containsSize(xChoices, larger) &&
-              containsSize(yChoices, smaller)) {
-            canonical = {larger, smaller};
-          } else if (containsSize(xChoices, smaller) &&
-                     containsSize(yChoices, larger)) {
-            canonical = {smaller, larger};
-          } else {
-            canonical = {xCandidate, yCandidate};
-          }
-        } else {
-          canonical = {xCandidate, yCandidate};
-        }
-        addVariant(canonical);
-      }
-    }
-    return variants;
-  }
 
   SmallVector<SizeChoice> current;
   current.reserve(dimCount);
