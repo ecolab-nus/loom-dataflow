@@ -488,6 +488,23 @@ void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
   if (!allocOp)
     return;
   std::vector<Expr> opDims = formatAllocDims(allocOp);
+  size_t bindingRank = binding.dim_symbols.size();
+  if (bindingRank >= 2 && opDims.size() > bindingRank) {
+    std::vector<Expr> foldedDims;
+    foldedDims.reserve(bindingRank);
+
+    size_t prefixRank = bindingRank - 2;
+    for (size_t d = 0; d < prefixRank; ++d)
+      foldedDims.push_back(opDims[d]);
+
+    Expr foldedM = opDims[prefixRank];
+    for (size_t d = prefixRank + 1; d + 1 < opDims.size(); ++d)
+      foldedM = std::move(foldedM) * opDims[d];
+    foldedDims.push_back(std::move(foldedM));
+    foldedDims.push_back(opDims.back());
+
+    opDims = std::move(foldedDims);
+  }
   for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
     if (dimMap.count(binding.dim_symbols[d]) == 0)
       dimMap[binding.dim_symbols[d]] = opDims[d];
