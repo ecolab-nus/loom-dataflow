@@ -927,7 +927,9 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         advances_stage = false; // parallel op itself produces no modelled work
       } else {
         bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-        bool is_data_mover = op->getName().getStringRef() == "loom.copy";
+        bool is_copy = llvm::isa<loom::CopyOp>(op);
+        bool is_gather = llvm::isa<loom::GatherOp>(op);
+        bool is_data_mover = is_copy || is_gather;
         bool is_linalg_infra =
             is_compute &&
             llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
@@ -943,13 +945,14 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         } else if (is_data_mover) {
           loom::utils::CopyMemoryDirection direction =
               loom::utils::classifyCopyMemoryDirection(op);
-          if (direction == loom::utils::CopyMemoryDirection::Load) {
-            dispatchToDataMoverQueues(
-                op, load_scope.getOrCreateWorkloadStage(required_stage),
-                asm_state);
-          } else if (direction == loom::utils::CopyMemoryDirection::Store) {
+          if (is_gather ||
+              direction == loom::utils::CopyMemoryDirection::Store) {
             dispatchToDataMoverQueues(
                 op, store_scope.getOrCreateWorkloadStage(required_stage),
+                asm_state);
+          } else if (direction == loom::utils::CopyMemoryDirection::Load) {
+            dispatchToDataMoverQueues(
+                op, load_scope.getOrCreateWorkloadStage(required_stage),
                 asm_state);
           }
           dispatched = true;
@@ -1057,23 +1060,38 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
                                            WorkloadStageBody &target,
                                            mlir::AsmState &asm_state) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
-  if (!copyOp)
+  auto gatherOp = llvm::dyn_cast<loom::GatherOp>(op);
+  if (!copyOp && !gatherOp)
     return;
 
   std::string srcMem, dstMem;
   mlir::Value source;
   mlir::Value destination;
   mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
-  DataMoverKind kind = DataMoverKind::Copy;
-  std::string opName = "loom.copy";
+  DataMoverKind kind;
+  std::string opName;
 
-  source = copyOp.getSource();
-  destination = copyOp.getDestination();
-  mixedArea = copyOp.getMixedArea();
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    srcMem = attr.getLeafReference().str();
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    dstMem = attr.getLeafReference().str();
+  if (copyOp) {
+    kind = DataMoverKind::Copy;
+    opName = "loom.copy";
+    source = copyOp.getSource();
+    destination = copyOp.getDestination();
+    mixedArea = copyOp.getMixedArea();
+    if (auto attr = copyOp.getSrcMemSpaceAttr())
+      srcMem = attr.getLeafReference().str();
+    if (auto attr = copyOp.getDstMemSpaceAttr())
+      dstMem = attr.getLeafReference().str();
+  } else {
+    kind = DataMoverKind::Gather;
+    opName = "loom.gather";
+    source = gatherOp.getSource();
+    destination = gatherOp.getDestination();
+    mixedArea = gatherOp.getMixedArea();
+    if (auto attr = gatherOp.getSrcMemSpaceAttr())
+      srcMem = attr.getLeafReference().str();
+    if (auto attr = gatherOp.getDstMemSpaceAttr())
+      dstMem = attr.getLeafReference().str();
+  }
 
   std::vector<int64_t> bcastVec;
   for (mlir::OpFoldResult area : mixedArea) {
@@ -1110,11 +1128,12 @@ void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
 
   dimMap["effective_bandwidth"] = Expr::con(10);
 
-  applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
+  if (copyOp)
+    applyNoCBandwidthPenaltyWorkaround(copyOp, bcastVec, hw_registry_, dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap), resourcesForDataMover(*hwFunc),
-                      makeCopyWorkloadLabel(op, asm_state));
+                      makeDataMoverWorkloadLabel(op, asm_state));
 }
 
 // ==========================================

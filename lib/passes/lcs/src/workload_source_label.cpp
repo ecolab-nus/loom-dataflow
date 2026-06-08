@@ -48,12 +48,17 @@ std::string makeGenericPayloadWorkloadLabel(mlir::Operation *payload_op,
                            asm_state);
 }
 
-std::string makeCopyWorkloadLabel(mlir::Operation *copy_op,
-                                  mlir::AsmState &asm_state) {
-  auto op = llvm::cast<loom::CopyOp>(copy_op);
-  mlir::SmallVector<mlir::Value> operands{op.getSource(),
-                                          op.getDestination()};
-  return makeWorkloadLabel(copy_op, operands, asm_state);
+std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
+                                       mlir::AsmState &asm_state) {
+  mlir::SmallVector<mlir::Value> operands;
+  if (auto copyOp = llvm::dyn_cast<loom::CopyOp>(data_mover_op)) {
+    operands = {copyOp.getSource(), copyOp.getDestination()};
+  } else if (auto gatherOp = llvm::dyn_cast<loom::GatherOp>(data_mover_op)) {
+    operands = {gatherOp.getSource(), gatherOp.getDestination()};
+  } else {
+    llvm_unreachable("expected loom.copy or loom.gather");
+  }
+  return makeWorkloadLabel(data_mover_op, operands, asm_state);
 }
 
 } // namespace lcs

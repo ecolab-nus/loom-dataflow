@@ -26,8 +26,8 @@ std::string makeGenericPayloadWorkloadLabel(mlir::Operation *payload_op,
                                             mlir::linalg::LinalgOp generic_op,
                                             mlir::AsmState &asm_state);
 
-std::string makeCopyWorkloadLabel(mlir::Operation *copy_op,
-                                  mlir::AsmState &asm_state);
+std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
+                                       mlir::AsmState &asm_state);
 
 } // namespace lcs
 } // namespace loom
