@@ -86,18 +86,11 @@ void collectSymbols(const Expr &expr, std::set<std::string> &symbols) {
   }
 }
 
-Expr flattenDivChainNumerator(const Expr &expr) {
-  Expr numerator = expr;
-  while (numerator.kind() == Expr::Kind::Div)
-    numerator = numerator.lhs();
-  return numerator;
-}
-
-bool hasAsureDivisibleDividend(
+bool hasAsureDivisibleTile(
     const Expr &expr, const std::map<std::string, SymbolInfo> &symbols) {
-  std::set<std::string> dividendSymbols;
-  collectSymbols(flattenDivChainNumerator(expr), dividendSymbols);
-  for (const std::string &name : dividendSymbols) {
+  std::set<std::string> participatingSymbols;
+  collectSymbols(expr, participatingSymbols);
+  for (const std::string &name : participatingSymbols) {
     auto it = symbols.find(name);
     if (it != symbols.end() && it->second.asure_divisible)
       return true;
@@ -1224,7 +1217,7 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
     if (tripCount.isNone())
       return;
     bool asureDivisible =
-        hasAsureDivisibleDividend(tripCount, constraint_scope_.symbols);
+        hasAsureDivisibleTile(tripCount, constraint_scope_.symbols);
     Expr constraintTripCount =
         asureDivisible ? tripCount
                        : relaxTripCountForConstraints(forOp, tripCount);
