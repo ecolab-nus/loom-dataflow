@@ -203,6 +203,13 @@ struct SymbolInfo {
   std::string type;        // always "int" for now
   int64_t natural_ub = -1; // -1 = unknown / not provided by loom.sym
   int64_t alignment = 1;   // hardware alignment factor for this symbol
+  bool asure_divisible = false;
+};
+
+/// A loop trip-count expression and whether its dividend is known divisible.
+struct IterNumInfo {
+  Expr expr;
+  bool asure_divisible = false;
 };
 
 /// ConstraintScope: Captures constraint metadata from a computation variant.
@@ -215,10 +222,10 @@ struct ConstraintScope {
   L1FootprintByScope l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
   std::string datatype;
-  // metadata.iter_num.seq_iter: symbolic trip count of the sequential loop
-  Expr seq_iter;
-  // metadata.iter_num.temp_iter: symbolic trip counts of temporal loops
-  std::vector<Expr> temp_iter;
+  // metadata.iter_num.seq_iter: [symbolic trip count, asure_divisible]
+  IterNumInfo seq_iter;
+  // metadata.iter_num.temp_iter: lists of [trip count, asure_divisible]
+  std::vector<IterNumInfo> temp_iter;
   // hard_constraints: constraints that every valid block-size assignment must satisfy
   std::vector<ConstraintExpr> hard_constraints;
   // metadata.booleans: symbolic boolean variables to be optimized by the solver.

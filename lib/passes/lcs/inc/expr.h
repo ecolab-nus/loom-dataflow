@@ -50,6 +50,9 @@ public:
   bool isNone() const { return !node_; }
   Kind kind() const { return node_ ? node_->kind : Kind::None; }
   std::optional<int64_t> constValue() const;
+  std::string symbolName() const {
+    return node_ && node_->kind == Kind::Sym ? node_->name : std::string();
+  }
 
   /// For binary ops: returns the left / right sub-expression.
   /// Returns Expr::none() if this node is not a binary op.

@@ -61,6 +61,50 @@ std::pair<Expr, Expr> findDivNode(const Expr &e) {
   return findDivNode(e.rhs());
 }
 
+void collectSymbols(const Expr &expr, std::set<std::string> &symbols) {
+  if (expr.isNone())
+    return;
+  if (expr.kind() == Expr::Kind::Sym) {
+    symbols.insert(expr.symbolName());
+    return;
+  }
+  switch (expr.kind()) {
+  case Expr::Kind::Add:
+  case Expr::Kind::Sub:
+  case Expr::Kind::Mul:
+  case Expr::Kind::Div:
+  case Expr::Kind::Min:
+  case Expr::Kind::Max:
+    collectSymbols(expr.lhs(), symbols);
+    collectSymbols(expr.rhs(), symbols);
+    return;
+  case Expr::Kind::None:
+  case Expr::Kind::Const:
+  case Expr::Kind::Sym:
+  case Expr::Kind::IfElse:
+    return;
+  }
+}
+
+Expr flattenDivChainNumerator(const Expr &expr) {
+  Expr numerator = expr;
+  while (numerator.kind() == Expr::Kind::Div)
+    numerator = numerator.lhs();
+  return numerator;
+}
+
+bool hasAsureDivisibleDividend(
+    const Expr &expr, const std::map<std::string, SymbolInfo> &symbols) {
+  std::set<std::string> dividendSymbols;
+  collectSymbols(flattenDivChainNumerator(expr), dividendSymbols);
+  for (const std::string &name : dividendSymbols) {
+    auto it = symbols.find(name);
+    if (it != symbols.end() && it->second.asure_divisible)
+      return true;
+  }
+  return false;
+}
+
 /// A group of workloads that must execute sequentially (they share resources).
 struct ResourceGroup {
   std::set<std::string> resources;
@@ -200,7 +244,7 @@ SubmeshSize2D getCurrentSubmeshSize2D(mlir::Operation *op) {
   return submesh;
 }
 
-std::optional<int64_t> getTemporalMeshFactor(mlir::scf::ForOp forOp) {
+std::optional<int64_t> getSpatialTilingFactor(mlir::scf::ForOp forOp) {
   std::optional<std::string> loopBlockSym = getBlockSymName(forOp);
   if (!loopBlockSym)
     return std::nullopt;
@@ -301,9 +345,9 @@ Expr replaceFirstConstPreferDivDenom(const Expr &expr, int64_t oldValue,
   return expr;
 }
 
-Expr relaxTemporalTripCountForConstraints(mlir::scf::ForOp forOp,
-                                          const Expr &tripCount) {
-  std::optional<int64_t> meshFactor = getTemporalMeshFactor(forOp);
+Expr relaxTripCountForConstraints(mlir::scf::ForOp forOp,
+                                  const Expr &tripCount) {
+  std::optional<int64_t> meshFactor = getSpatialTilingFactor(forOp);
   if (!meshFactor)
     return tripCount;
   if (*meshFactor <= 1)
@@ -815,7 +859,8 @@ llvm::json::Value ConstraintScope::toJSON() const {
 
   llvm::json::Array temp_iter_json;
   for (const auto &t : temp_iter)
-    temp_iter_json.push_back(t.toJSON());
+    temp_iter_json.push_back(
+        llvm::json::Array{t.expr.toJSON(), t.asure_divisible});
 
   auto footprintArray = [](const std::vector<Expr> &terms) {
     llvm::json::Array arr;
@@ -838,7 +883,8 @@ llvm::json::Value ConstraintScope::toJSON() const {
   metadata_json["L1_footprint"] = std::move(footprint_json);
   metadata_json["datatype"] = datatype;
   metadata_json["iter_num"] = llvm::json::Object{
-      {"seq_iter", seq_iter.toJSON()},
+      {"seq_iter",
+       llvm::json::Array{seq_iter.expr.toJSON(), seq_iter.asure_divisible}},
       {"temp_iter", std::move(temp_iter_json)}};
   metadata_json["booleans"] = std::move(booleans_json);
 
@@ -1163,6 +1209,7 @@ void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
     info.type = "int";
     if (auto ubAttr = op.getUpperBound())
       info.natural_ub = ubAttr->getSExtValue();
+    info.asure_divisible = op.getAsureDivisible();
     constraint_scope_.symbols[name] = std::move(info);
   });
 }
@@ -1176,11 +1223,18 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
     Expr tripCount = extractLoopTripCount(forOp);
     if (tripCount.isNone())
       return;
-    if (iterAttr.getValue() == loom::IterType::Sequential)
-      constraint_scope_.seq_iter = tripCount;
-    else if (iterAttr.getValue() == loom::IterType::Temporal)
+    bool asureDivisible =
+        hasAsureDivisibleDividend(tripCount, constraint_scope_.symbols);
+    Expr constraintTripCount =
+        asureDivisible ? tripCount
+                       : relaxTripCountForConstraints(forOp, tripCount);
+    if (iterAttr.getValue() == loom::IterType::Sequential) {
+      constraint_scope_.seq_iter = {std::move(constraintTripCount),
+                                    asureDivisible};
+    } else if (iterAttr.getValue() == loom::IterType::Temporal) {
       constraint_scope_.temp_iter.push_back(
-          relaxTemporalTripCountForConstraints(forOp, tripCount));
+          {std::move(constraintTripCount), asureDivisible});
+    }
   });
 }
 
@@ -1198,9 +1252,9 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
   analyzeLoopIterations(func_op);
-  // addIterDivisibilityConstraints(constraint_scope_.seq_iter);
-  // for (const Expr &t : constraint_scope_.temp_iter)
-    // addIterDivisibilityConstraints(t);
+  // addIterDivisibilityConstraints(constraint_scope_.seq_iter.expr);
+  // for (const IterNumInfo &t : constraint_scope_.temp_iter)
+  //   addIterDivisibilityConstraints(t.expr);
   L1FootprintResult l1Result =
       L1FootprintEstimator::estimateFromFunc(func_op, hw_registry_);
   constraint_scope_.datatype = std::move(l1Result.datatype);
