@@ -229,7 +229,7 @@ struct ConstraintScope {
   // hard_constraints: constraints that every valid block-size assignment must satisfy
   std::vector<ConstraintExpr> hard_constraints;
   // metadata.booleans: symbolic boolean variables to be optimized by the solver.
-  // Represented as integer symbols constrained to {0, 1} in the SMT model.
+  // Represented as integer symbols constrained to {0, 1} in the solver model.
   std::vector<std::string> booleans;
 
   /// Public API for appending a new hard constraint to the ETG.

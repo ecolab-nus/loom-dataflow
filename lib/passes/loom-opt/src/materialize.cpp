@@ -121,7 +121,7 @@ public:
   /// Default constructor: uses hardcoded placeholder solver.
   MaterializePass() = default;
 
-  /// Constructor with external block sizes from the SMT solver.
+  /// Constructor with external block sizes from the block-size solver.
   /// blockSizes maps each variant function name to one or more symbol
   /// assignments.
   explicit MaterializePass(
@@ -187,7 +187,7 @@ public:
             // current constraints (UNSAT). Emit a diagnostic to aid debugging
             // and skip emission of this function variant from the output IR.
             func.emitWarning()
-                << "No SMT solver result for function '" << funcName
+                << "No block-size solver result for function '" << funcName
                 << "'; skipping materialization for this variant";
             continue;
           }
@@ -273,7 +273,7 @@ public:
   }
 
 private:
-  // Non-owning pointer to an external block size map (from SMT solver).
+  // Non-owning pointer to an external block size map (from the solver).
   // Null when using the hardcoded placeholder solver.
   const loom::passes::BlockSizeMap *externalBlockSizes = nullptr;
   const loom::passes::CandidateOrder *candidateOrder = nullptr;
