@@ -4,6 +4,7 @@
 
 include "LoomDialect.td"
 include "LoomInterfaces.td"
+include "LoomTypes.td"
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/BuiltinAttributes.td"
@@ -36,6 +37,89 @@ def IterTypeAttr : EnumAttr<Loom_Dialect, IterTypeEnum, "iter_type"> {
 
 class Loom_Op<string mnemonic, list<Trait> traits = []>
   : Op<Loom_Dialect, mnemonic, traits> {}
+
+def YieldOp : Loom_Op<"yield", [
+    Pure,
+    Terminator
+  ]> {
+  let summary = "Terminator for Loom region operations";
+  let description = [{
+    `loom.yield` terminates Loom region operations that do not return values.
+  }];
+
+  let arguments = (ins);
+  let assemblyFormat = "attr-dict";
+}
+
+def MappingMatrixOp : Loom_Op<"mapping_matrix", [
+    Pure
+  ]> {
+  let summary = "Create a symbolic spatial mapping matrix";
+  let description = [{
+    `loom.mapping_matrix` creates a symbolic logical-to-physical mapping
+    matrix associated with an ADL architecture scale symbol. The op returns a
+    spatial map handle plus one logical-dimension product (LD) per matrix row.
+
+    Example:
+    ```mlir
+    %map, %ld_m, %ld_n = loom.mapping_matrix @arch_mesh
+      [[%m_x, %m_y], [%n_x, %n_y]] : !loom.spatial_map<2 x 2>
+    ```
+  }];
+
+  let arguments = (ins
+    FlatSymbolRefAttr:$mesh,
+    Variadic<Index>:$entries
+  );
+
+  let results = (outs
+    AnyType:$map,
+    Variadic<Index>:$lds
+  );
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+
+  let extraClassDeclaration = [{
+    unsigned getRows();
+    unsigned getCols();
+    ::mlir::Value getEntry(unsigned row, unsigned col);
+    ::mlir::ValueRange getLdValues();
+  }];
+}
+
+def SpatialMappingOp : Loom_Op<"spatial_mapping", [
+    AttrSizedOperandSegments,
+    SingleBlockImplicitTerminator<"YieldOp">
+  ]> {
+  let summary = "Represent symbolic spatial/wave mapping for parallel blocks";
+  let description = [{
+    `loom.spatial_mapping` replaces an outer parallel loop while keeping the
+    symbolic spatial/wave decomposition inside one cohesive op. Block indices
+    are printed in the op header and are available in the body as region
+    arguments. Wave indices, spatial indices, and LD values are printed in
+    header groups.
+  }];
+
+  let arguments = (ins
+    Variadic<Index>:$upper_bounds,
+    AnyType:$map,
+    Variadic<Index>:$lds
+  );
+
+  let regions = (region SizedRegion<1>:$body);
+
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+
+  let extraClassDeclaration = [{
+    unsigned getRank();
+    ::mlir::Block::BlockArgListType getBlockIndices();
+    ::mlir::Block::BlockArgListType getWaveIndices();
+    ::mlir::Block::BlockArgListType getSpatialIndices();
+    ::mlir::Block::BlockArgListType getLdArgs();
+  }];
+}
 
 
 def SubviewOp : Loom_Op<"subview", [

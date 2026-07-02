@@ -186,7 +186,7 @@ def ArchComposeOp : ADL_Op<"arch.compose", [Symbol, AttrSizedOperandSegments]> {
 //   %8 = adl.arch.scale "mesh", (%6, %7) of %5
 //===----------------------------------------------------------------------===//
 
-def ArchScaleOp : ADL_Op<"arch.scale", [AttrSizedOperandSegments]> {
+def ArchScaleOp : ADL_Op<"arch.scale", [Symbol, AttrSizedOperandSegments]> {
   let summary = "Scale an architecture across spatial dimensions";
   let description = [{
     `adl.arch.scale` replicates an architecture across one or more spatial
@@ -196,11 +196,11 @@ def ArchScaleOp : ADL_Op<"arch.scale", [AttrSizedOperandSegments]> {
       `%8 = adl.arch.scale "mesh", (%6, %7) of %5`
   }];
 
-  let arguments = (ins StrAttr:$name,
+  let arguments = (ins StrAttr:$sym_name,
                        Variadic<Index>:$spatial_dims,
                        ArchHandleType:$target,
                        Optional<MemHandleType>:$mem_region);
   let results = (outs ArchHandleType:$handle);
 
-  let assemblyFormat = "$name `,` `[` $spatial_dims `]` `of` $target (`,` `mem_region` $mem_region^)? attr-dict";
+  let assemblyFormat = "$sym_name `,` `[` $spatial_dims `]` `of` $target (`,` `mem_region` $mem_region^)? attr-dict";
 }

@@ -8,6 +8,9 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/IR/BuiltinTypes.td"
 
+#ifndef LOOM_DIALECT
+#define LOOM_DIALECT
+
 def Loom_Dialect : Dialect {
   let summary = "LOOM dialect for memory operations and transformations";
   let description = [{
@@ -18,10 +21,12 @@ def Loom_Dialect : Dialect {
   let name = "loom";
   let cppNamespace = "::loom";
   // Use generated default type printer/parser from types .inc
-  let useDefaultTypePrinterParser = 0;
+  let useDefaultTypePrinterParser = 1;
   let useDefaultAttributePrinterParser = 1;
   let usePropertiesForAttributes = 0;
   let dependentDialects = [
     "::mlir::memref::MemRefDialect"
   ];
 }
+
+#endif // LOOM_DIALECT

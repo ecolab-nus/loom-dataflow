@@ -21,10 +21,14 @@
 
 #include "LoomDialect.h.inc"
 #include "LoomEnums.h.inc"
+#define GET_TYPEDEF_CLASSES
+#include "LoomTypes.h.inc"
 #include "llvm/ADT/TypeSwitch.h"
 #define GET_ATTRDEF_CLASSES
 #include "LoomAttributes.h.inc"
 
+#define GET_TYPEDEF_CLASSES
+#include "LoomTypes.cpp.inc"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -51,6 +55,10 @@ void LoomDialect::initialize() {
 #define GET_ATTRDEF_LIST
 #include "LoomAttributes.cpp.inc"
       >();
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "LoomTypes.cpp.inc"
+      >();
 }
 
 // Custom assembly format helpers are provided by mlir::parseDynamicIndexList
@@ -62,6 +70,257 @@ void LoomDialect::initialize() {
 
 #define GET_OP_CLASSES
 #include "LoomOps.cpp.inc"
+
+//===----------------------------------------------------------------------===//
+// Spatial mapping operations
+//===----------------------------------------------------------------------===//
+
+static void printArgList(OpAsmPrinter &printer, Block::BlockArgListType args) {
+  llvm::interleaveComma(args, printer,
+                        [&](BlockArgument arg) {
+                          printer.printRegionArgument(arg, /*argAttrs=*/{},
+                                                      /*omitType=*/true);
+                        });
+}
+
+static ParseResult parseUntypedArgumentGroup(
+    OpAsmParser &parser, SmallVectorImpl<OpAsmParser::Argument> &args) {
+  if (parser.parseArgumentList(args, OpAsmParser::Delimiter::Paren,
+                               /*allowType=*/false, /*allowAttrs=*/false))
+    return failure();
+  Type indexType = parser.getBuilder().getIndexType();
+  for (auto &arg : args)
+    arg.type = indexType;
+  return success();
+}
+
+ParseResult MappingMatrixOp::parse(OpAsmParser &parser,
+                                   OperationState &result) {
+  FlatSymbolRefAttr meshAttr;
+  if (parser.parseAttribute(meshAttr))
+    return failure();
+  result.addAttribute("mesh", meshAttr);
+
+  SmallVector<OpAsmParser::UnresolvedOperand> entries;
+  unsigned rows = 0;
+  std::optional<unsigned> cols;
+  if (parser.parseLSquare())
+    return failure();
+  do {
+    SmallVector<OpAsmParser::UnresolvedOperand> rowEntries;
+    if (parser.parseLSquare())
+      return failure();
+    if (succeeded(parser.parseOptionalRSquare()))
+      return parser.emitError(parser.getCurrentLocation(),
+                              "expected non-empty mapping matrix row");
+    do {
+      OpAsmParser::UnresolvedOperand entry;
+      if (parser.parseOperand(entry))
+        return failure();
+      rowEntries.push_back(entry);
+    } while (succeeded(parser.parseOptionalComma()));
+    if (parser.parseRSquare())
+      return failure();
+
+    if (!cols)
+      cols = rowEntries.size();
+    if (*cols != rowEntries.size())
+      return parser.emitError(parser.getCurrentLocation(),
+                              "expected all mapping matrix rows to have the "
+                              "same number of entries");
+    entries.append(rowEntries);
+    ++rows;
+  } while (succeeded(parser.parseOptionalComma()));
+  if (parser.parseRSquare())
+    return failure();
+
+  Type parsedType;
+  if (parser.parseColonType(parsedType))
+    return failure();
+  auto mapType = dyn_cast<SpatialMapType>(parsedType);
+  if (!mapType)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected !loom.spatial_map type");
+  if (mapType.getRows() != rows || mapType.getCols() != *cols)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "mapping matrix shape does not match result type");
+
+  if (parser.resolveOperands(entries, parser.getBuilder().getIndexType(),
+                             result.operands))
+    return failure();
+
+  result.addTypes(mapType);
+  result.addTypes(SmallVector<Type>(rows, parser.getBuilder().getIndexType()));
+  return success();
+}
+
+void MappingMatrixOp::print(OpAsmPrinter &printer) {
+  auto mapType = cast<SpatialMapType>(getMap().getType());
+  printer << ' ';
+  printer.printAttribute(getMeshAttr());
+  printer << " [";
+  for (unsigned r = 0, rows = mapType.getRows(); r < rows; ++r) {
+    if (r != 0)
+      printer << ", ";
+    printer << "[";
+    for (unsigned c = 0, cols = mapType.getCols(); c < cols; ++c) {
+      if (c != 0)
+        printer << ", ";
+      printer.printOperand(getEntry(r, c));
+    }
+    printer << "]";
+  }
+  printer << "] : " << mapType;
+}
+
+LogicalResult MappingMatrixOp::verify() {
+  auto mapType = dyn_cast<SpatialMapType>(getMap().getType());
+  if (!mapType)
+    return emitOpError("expected map result to have !loom.spatial_map type");
+  unsigned rows = mapType.getRows();
+  unsigned cols = mapType.getCols();
+  if (rows == 0 || cols == 0)
+    return emitOpError("expected non-zero spatial map dimensions");
+  if (getEntries().size() != rows * cols)
+    return emitOpError("expected ")
+           << rows * cols << " matrix entries, got " << getEntries().size();
+  if (getLds().size() != rows)
+    return emitOpError("expected one LD result per matrix row");
+  return success();
+}
+
+unsigned MappingMatrixOp::getRows() {
+  return cast<SpatialMapType>(getMap().getType()).getRows();
+}
+
+unsigned MappingMatrixOp::getCols() {
+  return cast<SpatialMapType>(getMap().getType()).getCols();
+}
+
+Value MappingMatrixOp::getEntry(unsigned row, unsigned col) {
+  return getEntries()[row * getCols() + col];
+}
+
+ValueRange MappingMatrixOp::getLdValues() { return getLds(); }
+
+ParseResult SpatialMappingOp::parse(OpAsmParser &parser,
+                                    OperationState &result) {
+  SmallVector<OpAsmParser::Argument> blockArgs;
+  if (parseUntypedArgumentGroup(parser, blockArgs))
+    return failure();
+
+  SmallVector<OpAsmParser::UnresolvedOperand> upperBounds;
+  if (parser.parseKeyword("to") ||
+      parser.parseOperandList(upperBounds, OpAsmParser::Delimiter::Paren))
+    return failure();
+
+  OpAsmParser::UnresolvedOperand mapOperand;
+  Type parsedMapType;
+  if (parser.parseKeyword("using") || parser.parseOperand(mapOperand) ||
+      parser.parseColonType(parsedMapType))
+    return failure();
+  auto mapType = dyn_cast<SpatialMapType>(parsedMapType);
+  if (!mapType)
+    return parser.emitError(parser.getCurrentLocation(),
+                            "expected !loom.spatial_map type");
+
+  SmallVector<OpAsmParser::UnresolvedOperand> lds;
+  if (parser.parseKeyword("ld") ||
+      parser.parseOperandList(lds, OpAsmParser::Delimiter::Square))
+    return failure();
+
+  SmallVector<OpAsmParser::Argument> waveArgs, spatialArgs, ldArgs;
+  if (parser.parseKeyword("waves") ||
+      parseUntypedArgumentGroup(parser, waveArgs) ||
+      parser.parseKeyword("spatial") ||
+      parseUntypedArgumentGroup(parser, spatialArgs) ||
+      parser.parseKeyword("ld_args") ||
+      parseUntypedArgumentGroup(parser, ldArgs))
+    return failure();
+
+  SmallVector<OpAsmParser::Argument> regionArgs;
+  regionArgs.append(blockArgs);
+  regionArgs.append(waveArgs);
+  regionArgs.append(spatialArgs);
+  regionArgs.append(ldArgs);
+
+  Region *body = result.addRegion();
+  if (parser.parseRegion(*body, regionArgs))
+    return failure();
+  SpatialMappingOp::ensureTerminator(*body, parser.getBuilder(),
+                                     result.location);
+
+  Type indexType = parser.getBuilder().getIndexType();
+  if (parser.resolveOperands(upperBounds, indexType, result.operands) ||
+      parser.resolveOperand(mapOperand, mapType, result.operands) ||
+      parser.resolveOperands(lds, indexType, result.operands))
+    return failure();
+
+  result.addAttribute("operandSegmentSizes",
+                      parser.getBuilder().getDenseI32ArrayAttr(
+                          {static_cast<int32_t>(upperBounds.size()), 1,
+                           static_cast<int32_t>(lds.size())}));
+  return success();
+}
+
+void SpatialMappingOp::print(OpAsmPrinter &printer) {
+  printer << " (";
+  printArgList(printer, getBlockIndices());
+  printer << ") to (";
+  printer.printOperands(getUpperBounds());
+  printer << ") using ";
+  printer.printOperand(getMap());
+  printer << " : " << getMap().getType();
+  printer << " ld [";
+  printer.printOperands(getLds());
+  printer << "] waves(";
+  printArgList(printer, getWaveIndices());
+  printer << ") spatial(";
+  printArgList(printer, getSpatialIndices());
+  printer << ") ld_args(";
+  printArgList(printer, getLdArgs());
+  printer << ") ";
+  printer.printRegion(getBody(), /*printEntryBlockArgs=*/false,
+                      /*printBlockTerminators=*/false);
+}
+
+LogicalResult SpatialMappingOp::verify() {
+  auto mapType = dyn_cast<SpatialMapType>(getMap().getType());
+  if (!mapType)
+    return emitOpError("expected spatial map operand to have "
+                       "!loom.spatial_map type");
+  unsigned rows = mapType.getRows();
+  if (getUpperBounds().size() != rows)
+    return emitOpError("expected one upper bound per spatial map row");
+  if (getLds().size() != rows)
+    return emitOpError("expected one LD operand per spatial map row");
+  if (getBody().empty())
+    return emitOpError("expected non-empty body region");
+  if (getBody().front().getNumArguments() != rows * 4)
+    return emitOpError("expected block, wave, spatial, and LD region "
+                       "arguments for each spatial map row");
+  return success();
+}
+
+unsigned SpatialMappingOp::getRank() {
+  return cast<SpatialMapType>(getMap().getType()).getRows();
+}
+
+Block::BlockArgListType SpatialMappingOp::getBlockIndices() {
+  return getBody().front().getArguments().take_front(getRank());
+}
+
+Block::BlockArgListType SpatialMappingOp::getWaveIndices() {
+  return getBody().front().getArguments().slice(getRank(), getRank());
+}
+
+Block::BlockArgListType SpatialMappingOp::getSpatialIndices() {
+  return getBody().front().getArguments().slice(getRank() * 2, getRank());
+}
+
+Block::BlockArgListType SpatialMappingOp::getLdArgs() {
+  return getBody().front().getArguments().slice(getRank() * 3, getRank());
+}
 
 
 //===----------------------------------------------------------------------===//
