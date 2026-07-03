@@ -23,7 +23,6 @@ using CandidateOrder = std::vector<std::string>;
 #include "Passes.h.inc"
 
 // Pass factory functions
-std::unique_ptr<mlir::Pass> createTritonSharedExploreSpatialMappingsPass();
 std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
 std::unique_ptr<mlir::Pass> createAnnotateSubviewReusePass();
 std::unique_ptr<mlir::Pass> createEnumerateCopyBroadcastPass();
@@ -42,9 +41,6 @@ std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
 std::unique_ptr<mlir::Pass> createHandoffSyncInsertionPass();
 std::unique_ptr<mlir::Pass> createLoopHandoffProxyCopyInsertionPass();
 std::unique_ptr<mlir::Pass> createLowerLinalgCopyToLoomCopyPass();
-
-// Pass registration functions
-void registerTritonSharedExploreSpatialMappingsPass();
 
 #define GEN_PASS_REGISTRATION
 #include "Passes.h.inc"

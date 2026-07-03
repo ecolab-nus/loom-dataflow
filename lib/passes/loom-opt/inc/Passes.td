@@ -3,18 +3,6 @@
 
 include "mlir/Pass/PassBase.td"
 
-
-
-def TritonSharedExploreSpatialMappings : Pass<"loom-triton-shared-explore-spatial-mappings", "mlir::ModuleOp"> {
-  let summary = "Enumerate spatial mappings";
-  let description = [{
-    Enumerate mappings from hardware df.spatial_dim declarations to the 
-    outermost affine.parallel iterators; clone per mapping, annotate inner 
-    loops with loom.mapped_to, and insert outer affine.for waves when needed.
-  }];
-  let constructor = "loom::passes::createTritonSharedExploreSpatialMappingsPass()";
-}
-
 def HoistBlockLoading : Pass<"loom-hoist-block-loading", "mlir::ModuleOp"> {
   let summary = "Hoist block loading operations";
   let description = [{

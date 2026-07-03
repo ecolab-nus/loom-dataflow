@@ -11,11 +11,14 @@
 #include "mlir/Dialect/Tensor/IR/TensorInferTypeOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/IR/TensorTilingInterfaceImpl.h"
 #include "mlir/IR/AsmState.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/WithColor.h"
+#include "llvm/Support/raw_ostream.h"
 
 // Dialect headers
 #include "ADLDialect.h.inc"
@@ -83,6 +86,26 @@ ModuleOp findArchSystemModule(ModuleOp hwModule) {
     }
   }
   return nullptr;
+}
+
+LogicalResult cloneArchSystemDeclarations(ModuleOp hwModule,
+                                          OpBuilder &builder) {
+  ModuleOp systemModule = findArchSystemModule(hwModule);
+  if (!systemModule) {
+    llvm::errs() << "Could not find module @arch_system in hw_spec file\n";
+    return failure();
+  }
+
+  IRMapping mapping;
+  for (Operation &op : *systemModule.getBody()) {
+    if (isa<ModuleOp>(&op))
+      continue;
+    if (op.hasTrait<OpTrait::IsTerminator>())
+      continue;
+    builder.clone(op, mapping);
+  }
+
+  return success();
 }
 
 } // namespace loom::driver

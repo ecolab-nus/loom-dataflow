@@ -376,8 +376,10 @@ public:
 private:
   void processFunction(func::FuncOp originalFunc) {
     ModuleOp parentModule = loom::utils::getParentModule(originalFunc);
+    const bool parentIsRootModule = parentModule == module;
     DictionaryAttr moduleAttrs =
-        parentModule ? parentModule->getAttrDictionary() : nullptr;
+        (parentModule && !parentIsRootModule) ? parentModule->getAttrDictionary()
+                                              : nullptr;
 
     auto copyOps = findCopyOpsInFunc(originalFunc);
     if (copyOps.empty())
@@ -395,7 +397,8 @@ private:
     SmallVector<BroadcastChoice> current;
     generateCartesianProduct(allCandidates, 0, current, combinations);
 
-    Operation *insertAfter = parentModule;
+    Operation *insertAfter =
+        parentIsRootModule ? originalFunc.getOperation() : parentModule;
     for (const auto &combo : combinations) {
       std::string newName =
           generateFunctionName(originalFunc.getSymName(), combo);
@@ -406,12 +409,15 @@ private:
           insertAfter);
 
       if (clonedFunc) {
-        if (auto clonedParent = loom::utils::getParentModule(clonedFunc))
+        if (parentIsRootModule) {
+          insertAfter = clonedFunc.getOperation();
+        } else if (auto clonedParent = loom::utils::getParentModule(clonedFunc)) {
           insertAfter = clonedParent;
+        }
       }
     }
 
-    if (parentModule)
+    if (parentModule && !parentIsRootModule)
       parentModule.erase();
     else
       originalFunc.erase();

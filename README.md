@@ -107,7 +107,7 @@ The first argument is the test case under `test/Passes/`. The optional second ar
 |------|------|---------|
 | 1 | `tensor_canonicalize` | Normalize tensor IR, specialize linalg destinations, insert handoff helpers, and prepare bufferization anchors |
 | 2 | `memory_binding` | Bind physical memory to tensor-level operations with Loom dialect handoff/copy operations |
-| 3 | `enumerate_hw_mapping` | Enumerate mappings from ADL hardware dimensions to `affine.parallel` iterators |
+| 3 | `spatial_mapping` | Copy ADL hardware declarations into the pipeline IR |
 | 4 | `analyze_reuse` | Annotate each `loom.subview` with spatial, temporal, and sequential reuse information |
 | 5 | `enumerate_copy_broadcast` | Enumerate local-copy and broadcast candidates for copy-to-tensor operations |
 | 6 | `staged_etg` | Build a Staged Execution Task Graph and emit JSON constraints |
@@ -125,7 +125,7 @@ These tools read MLIR with `--input`; tools that need hardware use `--hw_spec`, 
 |------|---------|-------------|
 | `build/tool/loom-opt/single_stage/tensor_canonicalize` | `--input in.mlir > out.mlir` | Runs guarded linalg fusion, destination specialization, extract-slice folding, and bufferization handoff preparation. |
 | `build/tool/loom-opt/single_stage/memory_binding` | `--input in.mlir > out.mlir` | Rewrites tensor/memory handoffs into Loom dialect memory operations. |
-| `build/tool/loom-opt/single_stage/enumerate_hw_mapping` | `--input in.mlir --hw_spec arch.mlir > out.mlir` | Loads an ADL hardware spec, clones mapping candidates, and merges hardware declarations into the output module. |
+| `build/tool/loom-opt/single_stage/spatial_mapping` | `--input in.mlir --hw_spec arch.mlir > out.mlir` | Loads an ADL hardware spec and prepends its `@arch_system` declarations to the output module. |
 | `build/tool/loom-opt/single_stage/hoist_block_loading` | `--input in.mlir > out.mlir` | Hoists recognized block-loading patterns for experimentation outside the default pipeline. |
 | `build/tool/loom-opt/single_stage/analyze_reuse` | `--input in.mlir > out.mlir` | Adds reuse metadata to Loom subviews based on surrounding loop iterators. |
 | `build/tool/loom-opt/single_stage/enumerate_copy_broadcast` | `--input in.mlir > out.mlir` | Enumerates copy placement and broadcast choices from reuse metadata. |
@@ -167,11 +167,11 @@ build/tool/loom-opt/single_stage/enumerate_hw_mapping \
   --full_occ=false \
   --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
   --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
+  > test/Passes/mqa_decode/IR/03_after_spatial_mapping.mlir
 
 # Step 4
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir \
+  --input test/Passes/mqa_decode/IR/03_after_spatial_mapping.mlir \
   > test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir
 
 # Step 5
@@ -211,9 +211,9 @@ build/tool/tt-opt/single_stage/tt-opt \
 - **Purpose**: Transform tensor-level bufferization patterns to Loom dialect operations that explicitly bind physical memory allocations for downstream dataflow analysis.
 - **Implementation**: `lib/passes/loom-opt/src/memory_binding_pass.cpp`
 
-### `enumerate_hw_mapping` (`loom-triton-shared-explore-spatial-mappings`)
-- **Purpose**: Enumerate assignments from ADL hardware dimensions to outer `affine.parallel` iterators, clone functions per candidate, annotate mapped loops, and insert wave loops when needed.
-- **Implementation**: `lib/passes/loom-opt/src/triton_shared_spatial_mapping_pass.cpp`, `lib/passes/common/src/hardware_mapping.cpp`
+### `spatial_mapping`
+- **Purpose**: Copy ADL declarations from the hardware spec's `@arch_system` module into the pipeline IR before downstream analysis.
+- **Implementation**: `tool/loom-opt/single_stage/spatial_mapping_main.cpp`, `lib/passes/common/src/driver_utils.cpp`
 
 ### `analyze_reuse` (`loom-annotate-subview-reuse`)
 - **Purpose**: Attach reuse metadata to each `loom.subview`, grouped by spatial, temporal, and sequential iterators.

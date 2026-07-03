@@ -11,20 +11,20 @@ Executables built from this directory wrap the passes in `lib/passes/` and expos
   ```bash
   # Note: This tool is no longer built by default. Implementation preserved in tool/loom-opt/single_stage/ deprecated/
   ```
-- `enumerate_hw_mapping` – enumerate spatial mappings for a Triton-shared kernel after grid-to-parallel and merge DF declarations provided via `--df`.
+- `spatial_mapping` – merge ADL declarations from a hardware spec into a Triton-shared module.
   ```bash
-  build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+  build/tool/loom-opt/single_stage/spatial_mapping \
     --input path/to/input.mlir \
-    --df path/to/df.mlir > merged.mlir
+    --hw_spec path/to/adl.mlir > merged.mlir
   ```
 - `ttshared-opt` (deprecated) – end-to-end pipeline: affinize → grid-to-parallel → spatial exploration. 
   ```bash
   # Note: This tool is no longer built by default. Implementation preserved in tool/loom-opt/single_stage/ deprecated/
   ```
 
-The pipeline expects a Triton `tt.shared` kernel (see `test/Dialect/Triton/mm_fixed_strides/ttshared.mlir`) together with a hardware description written in the nascent `df` dialect (e.g. `test/Dialect/DataflowDialect/2D_mesh.mlir`). After affinization, the GPU launch grid becomes a single 3-D `affine.parallel`. Exploration then pairs those iterators with the declared hardware dimensions, cloning the kernel per mapping, tagging parallel loops with `loom.mapped_to`, and inserting outer `affine.for` loops whenever additional “waves” are required to cover the full grid. Nested `scf.for` loops stay within a core to model sequential tile processing.
+The pipeline expects a Triton `tt.shared` kernel (see `test/Dialect/Triton/mm_fixed_strides/ttshared.mlir`) together with an ADL hardware description. Stage 3 currently prepends declarations from the spec's `@arch_system` module to the transformed kernel IR; hardware mapping enumeration is intentionally left for a future rewrite.
 
-Both `enumerate_hw_mapping` and `ttshared-opt` also run the reuse annotator. Look for a `loom.reuse` dictionary attached to each `memref.reinterpret_cast`. Entries are grouped by iterator kind: `spatial` for `affine.parallel` loops that map work across hardware cores, `temporal` for `affine.for` loops that schedule successive waves across the fabric, and `sequential` for per-core `scf.for` loops that step through tiles locally. Each entry lists the induction-variable SSA name (e.g. `%arg13`), the nesting `depth`, a `reuse_type` (`no_reuse` or `total_reuse` for now), and the reused `volume` in bytes (0 for `no_reuse`, the full block size for `total_reuse`, or -1 when the size is not statically known). Partial reuse classification will arrive in a later iteration; spatial entries also keep `mapped_to` to surface the hardware dimension.
+The reuse annotator attaches a `loom.reuse` dictionary to each `memref.reinterpret_cast`. Entries are grouped by iterator kind: `spatial` for hardware-mapped `affine.parallel` loops when present, `temporal` for `affine.for` loops that schedule successive waves across the fabric, and `sequential` for per-core `scf.for` loops that step through tiles locally.
 
 ## Affine utilities
 - `affine_explore` – enumerate mappings between DF spatial dims and the outermost `affine.parallel` loops in an affine module.

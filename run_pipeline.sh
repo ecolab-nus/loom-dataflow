@@ -56,11 +56,11 @@ if should_run 2; then
 fi
 
 if should_run 3; then
-    echo "3) Enumerate spatial mappings and merge DF declarations..."
-    if ! build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+    echo "3) Merge ADL hardware declarations..."
+    if ! build/tool/loom-opt/single_stage/spatial_mapping \
       --input test/Passes/$TEST_CASE/IR/02_explicit_memory_access.mlir \
       --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-      > test/Passes/$TEST_CASE/IR/03_after_hardware_mapping.mlir; then
+      > test/Passes/$TEST_CASE/IR/03_after_spatial_mapping.mlir; then
         echo "Error: Step 3 failed."
         exit 1
     fi
@@ -69,7 +69,7 @@ fi
 if should_run 4; then
     echo "4) Analyze reuse pattern on loom.subview..."
     if ! build/tool/loom-opt/single_stage/analyze_reuse \
-      --input test/Passes/$TEST_CASE/IR/03_after_hardware_mapping.mlir \
+      --input test/Passes/$TEST_CASE/IR/03_after_spatial_mapping.mlir \
       > test/Passes/$TEST_CASE/IR/04_after_reuse_analyzation.mlir; then
         echo "Error: Step 4 failed."
         exit 1

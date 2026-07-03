@@ -5,10 +5,7 @@ add_library(LoomPassesCommon
   src/utils.cpp
   src/trace_shape.cpp
   src/block_loading_pattern.cpp
-  src/hardware_discovery.cpp
-  src/hardware_mapping.cpp
   src/affine_utils.cpp
-  src/index_mapping.cpp
   src/driver_utils.cpp
   src/ssa_utils.cpp
   src/loop_iv_dependency.cpp

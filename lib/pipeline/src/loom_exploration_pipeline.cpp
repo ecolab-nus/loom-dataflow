@@ -3,7 +3,7 @@
 /// Consolidates the following single-stage drivers into one in-memory pipeline:
 ///   1. tensor_canonicalize  (stages 0→1)
 ///   2. memory_binding       (stages 1→2)
-///   3. enumerate_hw_mapping (stages 2→3)  -- custom logic, not a simple pass
+///   3. spatial_mapping      (stages 2→3)  -- ADL declaration merge
 ///   4. analyze_reuse        (stages 3→4)
 ///   5. enumerate_copy_broadcast (stages 4→5)
 ///   6. (optional) staged_etg   -- ETG JSON extraction
@@ -11,7 +11,6 @@
 #include "loom_exploration_pipeline.h"
 #include "Passes.h"
 #include "hw_op_registry.h"
-#include "hardware_info.h"
 #include "staged_etg_builder.h"
 #include "driver_utils.h"
 
@@ -269,62 +268,39 @@ runExplorationPipeline(const std::string &input_mlir_text,
   }
 
   // ================================================================
-  // Interlude: enumerate_hw_mapping (stage 2→3)
-  // This is NOT a standard pass — it creates a new ModuleOp.
-  // Replicates enumerate_hw_mapping_main.cpp lines 92-141.
+  // Interlude: spatial_mapping (stage 2→3)
+  // This is NOT a standard pass — it creates a new ModuleOp by copying ADL
+  // declarations before the transformed input IR.
   // ================================================================
 
-  // Collect hardware info from DF module.
-  loom::HardwareInfo hardwareInfo;
-  if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo)))
-    return {"Failed to collect hardware information from DF module", "", ""};
-
-  // Enumerate spatial mappings — returns a brand new ModuleOp.
-  OwningOpRef<ModuleOp> enumerated =
-      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo, full_occ);
-
-  // Merge DF declarations and enumerated clones into a single module.
+  // Merge ADL declarations and the transformed input into a single module.
   OwningOpRef<ModuleOp> merged =
       ModuleOp::create(UnknownLoc::get(&context));
-  if (!(*enumerated)->getAttrs().empty())
-    (*merged)->setAttrs((*enumerated)->getAttrs());
+  if (!(*inputModule)->getAttrs().empty())
+    (*merged)->setAttrs((*inputModule)->getAttrs());
 
   {
     OpBuilder builder(merged->getBodyRegion());
-    IRMapping mapping;
 
-    // Insert DF hardware declarations from the hardware specification at the
-    // top of the outer module.
-    // We use findArchSystemModule to locate the @arch_system module.
-    ModuleOp systemModule = loom::driver::findArchSystemModule(*dfModule);
-    if (!systemModule)
+    if (failed(loom::driver::cloneArchSystemDeclarations(*dfModule, builder)))
       return {"Could not find module @arch_system in hw_spec file", "", ""};
 
-    for (Operation &op : *systemModule.getBody()) {
-      if (isa<ModuleOp>(&op))
-          continue;
-      if (op.hasTrait<OpTrait::IsTerminator>())
-          continue;
-      builder.clone(op, mapping);
-    }
-
-    // Insert all the nested modules containing function variants.
-    for (Operation &op : *enumerated->getBody())
+    IRMapping mapping;
+    for (Operation &op : *inputModule->getBody())
       builder.clone(op, mapping);
   }
 
-  // Clean up merged output, matching enumerate_hw_mapping_main.cpp.
+  // Clean up merged output, matching spatial_mapping_main.cpp.
   {
     PassManager pm(&context);
     pm.addPass(mlir::createCSEPass());
     pm.addPass(mlir::createCanonicalizerPass());
     if (failed(pm.run(*merged)))
-      return {"enumerate_hw_mapping cleanup failed", "", ""};
+      return {"spatial_mapping cleanup failed", "", ""};
   }
 
   // Release intermediate modules to free memory.
   inputModule = nullptr;
-  enumerated = nullptr;
 
   if (spatial_reuse) {
     // ================================================================

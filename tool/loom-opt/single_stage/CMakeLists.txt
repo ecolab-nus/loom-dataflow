@@ -46,9 +46,9 @@ add_loom_single_stage_tool(memory_binding
   ${CMAKE_CURRENT_LIST_DIR}/memory_binding_main.cpp
 )
 
-# Step 3: Enumerate spatial mappings from adl.arch.scale to affine.parallel
-add_loom_single_stage_tool(enumerate_hw_mapping
-  ${CMAKE_CURRENT_LIST_DIR}/enumerate_hw_mapping_main.cpp
+# Step 3: Merge ADL hardware declarations into the pipeline IR
+add_loom_single_stage_tool(spatial_mapping
+  ${CMAKE_CURRENT_LIST_DIR}/spatial_mapping_main.cpp
   loomADLDialect
 )
 

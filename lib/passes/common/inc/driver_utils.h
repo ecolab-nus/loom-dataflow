@@ -1,7 +1,9 @@
 #pragma once
 
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/Support/LogicalResult.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace loom::driver {
@@ -25,5 +27,10 @@ void printModule(mlir::ModuleOp module);
 /// Find the @arch_system module within a hardware specification module.
 /// Can be the top-level module itself or a nested child.
 mlir::ModuleOp findArchSystemModule(mlir::ModuleOp hwModule);
+
+/// Clone top-level ADL declarations from @arch_system into `builder`.
+/// Skips child modules and terminators.
+mlir::LogicalResult cloneArchSystemDeclarations(mlir::ModuleOp hwModule,
+                                                mlir::OpBuilder &builder);
 
 } // namespace loom::driver

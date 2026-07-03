@@ -4,7 +4,6 @@
 
 add_library(LoomAnalysis
   src/static_memory_analyser.cpp
-  src/mapping_prioritizer.cpp
   src/hw_dim_splitter.cpp
 )
 

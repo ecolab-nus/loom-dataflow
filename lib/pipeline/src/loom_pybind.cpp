@@ -29,7 +29,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("spatial_reuse") = true,
       R"doc(Run the exploration pipeline (stages 0-5).
 
-      Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
+      Consolidates tensor_canonicalize, memory_binding, ADL declaration merging,
       analyze_reuse, and enumerate_copy_broadcast into a single in-memory run.
 
       Args:
