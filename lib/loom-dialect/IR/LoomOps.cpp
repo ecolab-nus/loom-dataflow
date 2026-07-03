@@ -229,20 +229,14 @@ ParseResult SpatialMappingOp::parse(OpAsmParser &parser,
       parser.parseOperandList(lds, OpAsmParser::Delimiter::Square))
     return failure();
 
-  SmallVector<OpAsmParser::Argument> waveArgs, spatialArgs, ldArgs;
+  SmallVector<OpAsmParser::Argument> waveArgs;
   if (parser.parseKeyword("waves") ||
-      parseUntypedArgumentGroup(parser, waveArgs) ||
-      parser.parseKeyword("spatial") ||
-      parseUntypedArgumentGroup(parser, spatialArgs) ||
-      parser.parseKeyword("ld_args") ||
-      parseUntypedArgumentGroup(parser, ldArgs))
+      parseUntypedArgumentGroup(parser, waveArgs))
     return failure();
 
   SmallVector<OpAsmParser::Argument> regionArgs;
   regionArgs.append(blockArgs);
   regionArgs.append(waveArgs);
-  regionArgs.append(spatialArgs);
-  regionArgs.append(ldArgs);
 
   Region *body = result.addRegion();
   if (parser.parseRegion(*body, regionArgs))
@@ -275,10 +269,6 @@ void SpatialMappingOp::print(OpAsmPrinter &printer) {
   printer.printOperands(getLds());
   printer << "] waves(";
   printArgList(printer, getWaveIndices());
-  printer << ") spatial(";
-  printArgList(printer, getSpatialIndices());
-  printer << ") ld_args(";
-  printArgList(printer, getLdArgs());
   printer << ") ";
   printer.printRegion(getBody(), /*printEntryBlockArgs=*/false,
                       /*printBlockTerminators=*/false);
@@ -296,9 +286,9 @@ LogicalResult SpatialMappingOp::verify() {
     return emitOpError("expected one LD operand per spatial map row");
   if (getBody().empty())
     return emitOpError("expected non-empty body region");
-  if (getBody().front().getNumArguments() != rows * 4)
-    return emitOpError("expected block, wave, spatial, and LD region "
-                       "arguments for each spatial map row");
+  if (getBody().front().getNumArguments() != rows * 2)
+    return emitOpError("expected block and wave region arguments for each "
+                       "spatial map row");
   return success();
 }
 
@@ -313,15 +303,6 @@ Block::BlockArgListType SpatialMappingOp::getBlockIndices() {
 Block::BlockArgListType SpatialMappingOp::getWaveIndices() {
   return getBody().front().getArguments().slice(getRank(), getRank());
 }
-
-Block::BlockArgListType SpatialMappingOp::getSpatialIndices() {
-  return getBody().front().getArguments().slice(getRank() * 2, getRank());
-}
-
-Block::BlockArgListType SpatialMappingOp::getLdArgs() {
-  return getBody().front().getArguments().slice(getRank() * 3, getRank());
-}
-
 
 //===----------------------------------------------------------------------===//
 // SubviewOp Type Inference

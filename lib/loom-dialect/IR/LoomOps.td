@@ -97,8 +97,7 @@ def SpatialMappingOp : Loom_Op<"spatial_mapping", [
     `loom.spatial_mapping` replaces an outer parallel loop while keeping the
     symbolic spatial/wave decomposition inside one cohesive op. Block indices
     are printed in the op header and are available in the body as region
-    arguments. Wave indices, spatial indices, and LD values are printed in
-    header groups.
+    arguments. Wave indices are printed in a header group.
   }];
 
   let arguments = (ins
@@ -116,8 +115,6 @@ def SpatialMappingOp : Loom_Op<"spatial_mapping", [
     unsigned getRank();
     ::mlir::Block::BlockArgListType getBlockIndices();
     ::mlir::Block::BlockArgListType getWaveIndices();
-    ::mlir::Block::BlockArgListType getSpatialIndices();
-    ::mlir::Block::BlockArgListType getLdArgs();
   }];
 }
 
