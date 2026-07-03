@@ -4,6 +4,7 @@
 //   spatial_mapping --input <input.mlir> --hw_spec <adl.mlir>
 
 #include "driver_utils.h"
+#include "Passes.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/IRMapping.h"
@@ -59,6 +60,7 @@ int main(int argc, char **argv) {
 
   // Clean up the generated code with CSE and DCE (Canonicalizer)
   PassManager pm(&context);
+  pm.addPass(loom::passes::createLowerInputParallelToSpatialMappingPass());
   pm.addPass(mlir::createCSEPass());
   pm.addPass(mlir::createCanonicalizerPass());
   if (failed(pm.run(*merged))) {

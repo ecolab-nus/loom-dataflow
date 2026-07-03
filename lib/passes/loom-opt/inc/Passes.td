@@ -118,6 +118,16 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
+def LowerInputParallelToSpatialMapping : Pass<"loom-lower-input-parallel-to-spatial-mapping", "mlir::ModuleOp"> {
+  let summary = "Lower the input affine.parallel to symbolic spatial mapping ops";
+  let description = [{
+    Replace the single input affine.parallel with loom.mapping_matrix and
+    loom.spatial_mapping, using the ADL @arch_mesh spatial dimension count as
+    the physical-dimension count.
+  }];
+  let constructor = "loom::passes::createLowerInputParallelToSpatialMappingPass()";
+}
+
 def HandoffSyncInsertionPass : Pass<"loom-handoff-sync-insertion", "mlir::ModuleOp"> {
   let summary = "Insert tensor.empty + loom.sync around execution-core handoffs";
   let description = [{
