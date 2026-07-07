@@ -70,6 +70,12 @@ add_loom_single_stage_tool(enumerate_copy_broadcast
   loomADLDialect
 )
 
+# Step 6b: Annotate copy multicast area from spatial_mapping reuse
+add_loom_single_stage_tool(spatial_reuse
+  ${CMAKE_CURRENT_LIST_DIR}/spatial_reuse_main.cpp
+  loomADLDialect
+)
+
 # Step 7: Build Staged Execution Task Graph and emit JSON constraint model
 add_loom_single_stage_tool(staged_etg
   ${CMAKE_CURRENT_LIST_DIR}/staged_etg_main.cpp

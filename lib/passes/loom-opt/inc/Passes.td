@@ -33,6 +33,17 @@ def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::Module
   let constructor = "loom::passes::createEnumerateCopyBroadcastPass()";
 }
 
+def SpatialReuse : Pass<"loom-spatial-reuse", "mlir::ModuleOp"> {
+  let summary = "Annotate loom.copy area from loom.spatial_mapping reuse";
+  let description = [{
+    Analyze source loom.subview offsets for DRAM-to-L1 loom.copy operations
+    against enclosing loom.spatial_mapping block indices. If a copy is
+    independent of a spatial mapping axis, use that axis' LD value as the
+    dynamic copy area for multicast along the axis.
+  }];
+  let constructor = "loom::passes::createSpatialReusePass()";
+}
+
 
 def Materialize : Pass<"loom-materialize", "mlir::ModuleOp"> {
   let summary = "Materialize module attributes";
