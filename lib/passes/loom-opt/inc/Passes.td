@@ -13,26 +13,6 @@ def HoistBlockLoading : Pass<"loom-hoist-block-loading", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createHoistBlockLoadingPass()";
 }
 
-def AnnotateSubviewReuse : Pass<"loom-annotate-subview-reuse", "mlir::ModuleOp"> {
-  let summary = "Analyze reuse pattern on loom.subview";
-  let description = [{
-    Attach a loom.reuse dictionary to each loom.subview describing 
-    how its offset varies with surrounding iterators, grouped by spatial 
-    (affine.parallel), temporal (affine.for), and sequential (scf.for).
-  }];
-  let constructor = "loom::passes::createAnnotateSubviewReusePass()";
-}
-
-def EnumerateCopyBroadcast : Pass<"loom-enumerate-copy-broadcast", "mlir::ModuleOp"> {
-  let summary = "Enumerate copy interconnect broadcast choices";
-  let description = [{
-    Annotate memref.alloc with loom.alloc and enumerate per-memref.copy 
-    mapping choices: local memory copies and broadcasts along dimensions 
-    with spatial total-reuse.
-  }];
-  let constructor = "loom::passes::createEnumerateCopyBroadcastPass()";
-}
-
 def SpatialReuse : Pass<"loom-spatial-reuse", "mlir::ModuleOp"> {
   let summary = "Annotate loom.copy area from loom.spatial_mapping reuse";
   let description = [{

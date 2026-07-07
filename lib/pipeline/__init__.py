@@ -66,7 +66,7 @@ def run_exploration(
     """Run the exploration pipeline (stages 0→5).
 
     Consolidates tensor_canonicalize, memory_binding, ADL declaration merging,
-    analyze_reuse, and enumerate_copy_broadcast into a single in-memory run.
+    and spatial_reuse into a single in-memory run.
     Optionally produces staged ETG JSON for the external block-size solver.
 
     Args:

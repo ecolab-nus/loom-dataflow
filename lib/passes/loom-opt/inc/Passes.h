@@ -24,8 +24,6 @@ using CandidateOrder = std::vector<std::string>;
 
 // Pass factory functions
 std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
-std::unique_ptr<mlir::Pass> createAnnotateSubviewReusePass();
-std::unique_ptr<mlir::Pass> createEnumerateCopyBroadcastPass();
 std::unique_ptr<mlir::Pass> createSpatialReusePass();
 std::unique_ptr<mlir::Pass> createMaterializePass();
 std::unique_ptr<mlir::Pass>

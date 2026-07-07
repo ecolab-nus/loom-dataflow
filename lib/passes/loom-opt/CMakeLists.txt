@@ -11,10 +11,8 @@ mlir_tablegen(Passes.h.inc -gen-pass-decls -name LoomTritonShared ${TBLGEN_INCLU
 add_public_tablegen_target(LoomTritonSharedPassesIncGen)
 
 add_library(loomTritonSharedPasses STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/src/enumerate_copy_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/hoist_block_loading.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/analyze_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/spatial_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/linalg_destination_specialization_pass.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/fold_redundant_extract_slice_pass.cpp

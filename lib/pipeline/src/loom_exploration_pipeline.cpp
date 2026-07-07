@@ -4,9 +4,8 @@
 ///   1. tensor_canonicalize  (stages 0→1)
 ///   2. memory_binding       (stages 1→2)
 ///   3. spatial_mapping      (stages 2→3)  -- ADL declaration merge
-///   4. analyze_reuse        (stages 3→4)
-///   5. enumerate_copy_broadcast (stages 4→5)
-///   6. (optional) staged_etg   -- ETG JSON extraction
+///   4. spatial_reuse        (stages 3→5)
+///   5. (optional) staged_etg   -- ETG JSON extraction
 
 #include "loom_exploration_pipeline.h"
 #include "Passes.h"
@@ -302,20 +301,18 @@ runExplorationPipeline(const std::string &input_mlir_text,
   // Release intermediate modules to free memory.
   inputModule = nullptr;
 
-  if (spatial_reuse) {
-    // ================================================================
-    // Phase B: analyze_reuse + enumerate_copy_broadcast (stages 3→5)
-    // ================================================================
+  // ================================================================
+  // Phase B: spatial_reuse (stages 3→5)
+  // ================================================================
+  {
     PassManager pm(&context);
-    pm.addPass(loom::passes::createAnnotateSubviewReusePass());
-    pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
-    // Match enumerate_copy_broadcast_main.cpp post-pass cleanup.
+    pm.addPass(loom::passes::createSpatialReusePass());
+    // Keep the historical post-reuse cleanup contract.
     pm.addPass(mlir::createCSEPass());
     pm.addPass(mlir::createCanonicalizerPass());
 
     if (failed(pm.run(*merged)))
-      return {"Phase B (analyze_reuse + enumerate_copy_broadcast) failed",
-              "", ""};
+      return {"Phase B (spatial_reuse) failed", "", ""};
   }
 
   // ================================================================

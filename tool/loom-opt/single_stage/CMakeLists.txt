@@ -58,19 +58,7 @@ add_loom_single_stage_tool(hoist_block_loading
   loomADLDialect
 )
 
-# Step 5: Annotate loom.subview with reuse patterns
-add_loom_single_stage_tool(analyze_reuse
-  ${CMAKE_CURRENT_LIST_DIR}/analyze_reuse_main.cpp
-  loomADLDialect
-)
-
-# Step 6: Enumerate per-copy broadcast choices and annotate allocs
-add_loom_single_stage_tool(enumerate_copy_broadcast
-  ${CMAKE_CURRENT_LIST_DIR}/enumerate_copy_broadcast_main.cpp
-  loomADLDialect
-)
-
-# Step 6b: Annotate copy multicast area from spatial_mapping reuse
+# Step 5: Annotate copy multicast area from spatial_mapping reuse
 add_loom_single_stage_tool(spatial_reuse
   ${CMAKE_CURRENT_LIST_DIR}/spatial_reuse_main.cpp
   loomADLDialect
