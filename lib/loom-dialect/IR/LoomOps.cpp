@@ -225,7 +225,7 @@ ParseResult SpatialMappingOp::parse(OpAsmParser &parser,
                             "expected !loom.spatial_map type");
 
   SmallVector<OpAsmParser::UnresolvedOperand> lds;
-  if (parser.parseKeyword("ld") ||
+  if (parser.parseKeyword("logdim") ||
       parser.parseOperandList(lds, OpAsmParser::Delimiter::Square))
     return failure();
 
@@ -265,7 +265,7 @@ void SpatialMappingOp::print(OpAsmPrinter &printer) {
   printer << ") using ";
   printer.printOperand(getMap());
   printer << " : " << getMap().getType();
-  printer << " ld [";
+  printer << " logdim [";
   printer.printOperands(getLds());
   printer << "] waves(";
   printArgList(printer, getWaveIndices());

@@ -18,7 +18,8 @@
 #define GET_OP_CLASSES
 #include "ADLOps.h.inc"
 
-// Loom dialect headers for loom.sym, loom.mapping_matrix, loom.spatial_mapping.
+// Loom dialect headers for loom.sym, loom.mapping_matrix, and
+// loom.spatial_mapping.
 #include "LoomDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "LoomTypes.h.inc"
@@ -133,10 +134,10 @@ private:
     for (unsigned row = 0; row < numLogicalDims; ++row) {
       for (unsigned col = 0; col < numPhysicalDims; ++col) {
         std::string symName =
-            llvm::formatv("ld_{0}{1}", row, col).str();
+            llvm::formatv("logdim_{0}{1}", row, col).str();
         auto symRef = SymbolRefAttr::get(ctx, symName);
         auto symOp =
-            loom::SymOp::create(builder, loc, symRef,
+            loom::SymOp::create(builder, loc, builder.getIndexType(), symRef,
                                 /*upper_bound=*/IntegerAttr{},
                                 /*is_reduction=*/false,
                                 /*asure_divisible=*/false);

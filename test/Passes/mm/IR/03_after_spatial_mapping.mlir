@@ -28,12 +28,12 @@ module attributes {loom.tile_k = {is_reduction = false, upper_bound = 256 : inde
     %20 = loom.sym @tile_k {upper_bound = 256 : index} : index
     %21 = arith.ceildivui %c2048, %18 : index
     %22 = arith.ceildivui %c256, %19 : index
-    %23 = loom.sym @ld_00 : index
-    %24 = loom.sym @ld_01 : index
-    %25 = loom.sym @ld_10 : index
-    %26 = loom.sym @ld_11 : index
+    %23 = loom.sym @logdim_00 : index
+    %24 = loom.sym @logdim_01 : index
+    %25 = loom.sym @logdim_10 : index
+    %26 = loom.sym @logdim_11 : index
     %map, %lds:2 = loom.mapping_matrix @arch_mesh [[%23, %24], [%25, %26]] : !loom.spatial_map<2 x 2>
-    loom.spatial_mapping (%arg3, %arg4) to (%21, %22) using %map : !loom.spatial_map<2 x 2> ld [%lds#0, %lds#1] waves(%arg5, %arg6) {
+    loom.spatial_mapping (%arg3, %arg4) to (%21, %22) using %map : !loom.spatial_map<2 x 2> logdim [%lds#0, %lds#1] waves(%arg5, %arg6) {
       %27 = arith.ceildivui %c256, %20 : index
       %28 = loom.alloc [%18, %19] on @L1 : memref<?x?xf16>
       %29 = loom.semaphore_take %28 : memref<?x?xf16> -> memref<?x?xf16>

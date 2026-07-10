@@ -58,11 +58,12 @@ def MappingMatrixOp : Loom_Op<"mapping_matrix", [
   let description = [{
     `loom.mapping_matrix` creates a symbolic logical-to-physical mapping
     matrix associated with an ADL architecture scale symbol. The op returns a
-    spatial map handle plus one logical-dimension product (LD) per matrix row.
+    spatial map handle plus one logical-dimension product (logdim) per matrix
+    row.
 
     Example:
     ```mlir
-    %map, %ld_m, %ld_n = loom.mapping_matrix @arch_mesh
+    %map, %logdim_m, %logdim_n = loom.mapping_matrix @arch_mesh
       [[%m_x, %m_y], [%n_x, %n_y]] : !loom.spatial_map<2 x 2>
     ```
   }];
@@ -774,11 +775,12 @@ def SymOp : Loom_Op<"sym", [
 ]> {
   let summary = "Reference a named symbolic variable";
   let description = [{
-    This operation retrieves the value of a named symbolic variable.
-    It returns an index value that can be used in subsequent computations.
+    This operation retrieves the value of a named symbolic variable. Its result
+    type is either `index` for integer dimensions or `i1` for boolean symbols.
 
     Example:
       %m_val = loom.sym @M : index
+      %enabled = loom.sym @enabled : i1
   }];
 
   let arguments = (ins
@@ -788,10 +790,31 @@ def SymOp : Loom_Op<"sym", [
     DefaultValuedAttr<BoolAttr, "false">:$asure_divisible
   );
 
-  let results = (outs Index:$result);
+  let results = (outs AnyTypeOf<[Index, I1]>:$result);
 
   let assemblyFormat = [{
     $symbol_ref attr-dict `:` type($result)
+  }];
+}
+
+/// Mark an index SSA value as an intermediate variable.
+def SymIvOp : Loom_Op<"sym.iv", [
+  Pure
+]> {
+  let summary = "Identity index SSA intermediate variable";
+  let description = [{
+    `loom.sym.iv` is a pure index-to-index SSA identity operation. It carries
+    no symbol reference or other symbolic-variable semantics.
+
+    Example:
+      %iv = loom.sym.iv %input : index
+  }];
+
+  let arguments = (ins Index:$input);
+  let results = (outs Index:$result);
+
+  let assemblyFormat = [{
+    $input attr-dict `:` type($result)
   }];
 }
 
