@@ -25,6 +25,12 @@ static llvm::cl::opt<std::string>
                   llvm::cl::desc("Path to ADL MLIR file (hardware specification)"),
                   llvm::cl::value_desc("filename"), llvm::cl::Required);
 
+static llvm::cl::opt<bool>
+    clFullOccupancy("full_occ",
+                    llvm::cl::desc("Use only full hardware occupancy instead "
+                                   "of enumerating partial occupancies"),
+                    llvm::cl::init(false));
+
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv,
                                      "LOOM Triton-shared spatial explorer\n");
@@ -49,7 +55,7 @@ int main(int argc, char **argv) {
 
   // Enumerate all grid-to-spatial assignments for the input module.
   OwningOpRef<ModuleOp> out =
-      loom::EnumerateSpatialMappings(*tsModule, hardwareInfo);
+      loom::EnumerateSpatialMappings(*tsModule, hardwareInfo, clFullOccupancy);
 
   // Merge ADL hardware declarations and generated clones into a single module.
   OwningOpRef<ModuleOp> merged = ModuleOp::create(UnknownLoc::get(&context));

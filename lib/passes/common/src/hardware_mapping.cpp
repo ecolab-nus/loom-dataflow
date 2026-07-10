@@ -614,12 +614,22 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
 
 OwningOpRef<ModuleOp>
 EnumerateSpatialMappings(ModuleOp affineModule,
-                         const HardwareInfo &hardwareInfo) {
+                         const HardwareInfo &hardwareInfo,
+                         bool fullOccupancy) {
   auto out = ModuleOp::create(affineModule.getLoc());
   if (!affineModule->getAttrs().empty())
     out->setAttrs(affineModule->getAttrs());
 
   OpBuilder builder(out.getBodyRegion());
+  if (fullOccupancy) {
+    OwningOpRef<ModuleOp> fullOccupancyModule =
+        enumerateSpatialMappingsForOneHardwareInfo(affineModule, hardwareInfo);
+    IRMapping mapping;
+    for (Operation &op : *fullOccupancyModule->getBody())
+      builder.clone(op, mapping);
+    return out;
+  }
+
   for (const HardwareInfo &variant :
        loom::utils::generateHardwareOccupancyVariants(hardwareInfo)) {
     OwningOpRef<ModuleOp> variantModule =

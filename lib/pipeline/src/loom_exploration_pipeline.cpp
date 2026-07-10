@@ -176,7 +176,8 @@ std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
                        bool produce_etg,
-                       bool skip_etg) {
+                       bool skip_etg,
+                       bool full_occ) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -270,7 +271,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
 
   // Enumerate spatial mappings — returns a brand new ModuleOp.
   OwningOpRef<ModuleOp> enumerated =
-      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo);
+      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo, full_occ);
 
   // Merge DF declarations and enumerated clones into a single module.
   OwningOpRef<ModuleOp> merged =

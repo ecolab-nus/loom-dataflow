@@ -45,8 +45,13 @@ mlir::LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp hwModule,
 
 /**
  * \brief Enumerate all unique mappings and emit one function clone per mapping.
+ *
+ * When \p fullOccupancy is true, use the physical hardware dimensions exactly
+ * as declared. When false (the default), also enumerate partial occupancy
+ * variants for every hardware dimension.
  */
 mlir::OwningOpRef<mlir::ModuleOp>
 EnumerateSpatialMappings(mlir::ModuleOp affineModule,
-                         const HardwareInfo &hardwareInfo);
+                         const HardwareInfo &hardwareInfo,
+                         bool fullOccupancy = false);
 } // namespace loom

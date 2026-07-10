@@ -25,6 +25,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("hw_spec_file"),
       py::arg("produce_etg") = true,
       py::arg("skip_etg") = false,
+      py::arg("full_occ") = false,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -36,6 +37,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
               hardware description and compute/data mover components.
           produce_etg: Whether to produce ETG JSON (default True).
           skip_etg: When True, skip staged ETG generation.
+          full_occ: When True, use only full hardware occupancy.
 
       Returns:
           Tuple of (error, output_mlir, etg_json).

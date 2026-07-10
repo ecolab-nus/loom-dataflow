@@ -162,7 +162,9 @@ build/tool/loom-opt/single_stage/memory_binding \
   > test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir
 
 # Step 3
+# Changing the knob full_occ to true skips occupancy enumerating
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+  --full_occ=false \
   --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
   --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
   > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
