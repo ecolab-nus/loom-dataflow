@@ -177,7 +177,8 @@ runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
                        bool produce_etg,
                        bool skip_etg,
-                       bool full_occ) {
+                       bool full_occ,
+                       bool spatial_reuse) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -316,10 +317,10 @@ runExplorationPipeline(const std::string &input_mlir_text,
   inputModule = nullptr;
   enumerated = nullptr;
 
-  // ================================================================
-  // Phase B: analyze_reuse + enumerate_copy_broadcast (stages 3→5)
-  // ================================================================
-  {
+  if (spatial_reuse) {
+    // ================================================================
+    // Phase B: analyze_reuse + enumerate_copy_broadcast (stages 3→5)
+    // ================================================================
     PassManager pm(&context);
     pm.addPass(loom::passes::createAnnotateSubviewReusePass());
     pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());
