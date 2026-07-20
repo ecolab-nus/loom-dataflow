@@ -1,6 +1,6 @@
 #map = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
 #map1 = affine_map<(d0, d1, d2) -> (d0, d1, 0)>
-module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
+module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
   func.func @attention(%k_view_arg: memref<32x128x4096xf16>, %v_view_arg: memref<32x4096x128xf16>, %q_view_arg: memref<32x4096x128xf16>, %out__arg: memref<32x4096x128xf16>) {
     %c0 = arith.constant 0 : index
     %cst = arith.constant 0.000000e+00 : f16
@@ -10,9 +10,9 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index
     %cst_2 = arith.constant 8.837890e-02 : f16
     %c32 = arith.constant 32 : index
     %c4096 = arith.constant 4096 : index
-    %0 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_b, upper_bound = 32 : index} : () -> index
-    %1 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_m, upper_bound = 4096 : index} : () -> index
-    %2 = "loom.sym"() {is_reduction = false, symbol_ref = @tile_n, upper_bound = 4096 : index} : () -> index
+    %0 = "loom.sym"() {asure_divisible = false, is_reduction = false, symbol_ref = @tile_b, upper_bound = 32 : index} : () -> index
+    %1 = "loom.sym"() {asure_divisible = false, is_reduction = false, symbol_ref = @tile_m, upper_bound = 4096 : index} : () -> index
+    %2 = "loom.sym"() {asure_divisible = false, is_reduction = false, symbol_ref = @tile_n, upper_bound = 4096 : index} : () -> index
     %3 = arith.ceildivui %c32, %0 : index
     %4 = arith.ceildivui %c4096, %1 : index
     affine.parallel (%arg4, %arg5) = (0, 0) to (symbol(%3), symbol(%4)) {
@@ -29,13 +29,13 @@ module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index
       %14:3 = scf.for %arg6 = %c0 to %13 step %c1 iter_args(%arg7 = %6, %arg8 = %7, %arg9 = %9) -> (tensor<?x?x1xf16>, tensor<?x?x1xf16>, tensor<?x?x128xf16>) {
         %18 = arith.muli %arg6, %2 : index
         %subview_4 = memref.subview %k_view_arg[%10, 0, %18] [%0, 128, %2] [1, 1, 1] : memref<32x128x4096xf16> to memref<?x128x?xf16, strided<[524288, 4096, 1], offset: ?>>
-        %19 = bufferization.to_tensor %subview_4 : memref<?x128x?xf16, strided<[524288, 4096, 1], offset: ?>> to tensor<?x128x?xf16>
+        %19 = bufferization.to_tensor %subview_4 : memref<?x128x?xf16, strided<[524288, 4096, 1], offset: ?>> to tensor<?x128x?xf16, {mem_space = 1 : i64}>
         %20 = arith.index_cast %0 : index to i64
         %21 = arith.cmpi eq, %20, %20 : i64
         cf.assert %21, "mismatching contracting dimension"
         %22 = tensor.empty(%0, %1, %2) : tensor<?x?x?xf16>
         %23 = linalg.fill ins(%cst : f16) outs(%22 : tensor<?x?x?xf16>) -> tensor<?x?x?xf16>
-        %24 = linalg.batch_matmul ins(%12, %19 : tensor<?x?x128xf16>, tensor<?x128x?xf16>) outs(%23 : tensor<?x?x?xf16>) -> tensor<?x?x?xf16>
+        %24 = linalg.batch_matmul ins(%12, %19 : tensor<?x?x128xf16>, tensor<?x128x?xf16, {mem_space = 1 : i64}>) outs(%23 : tensor<?x?x?xf16>) -> tensor<?x?x?xf16>
         %25 = linalg.generic {indexing_maps = [#map, #map1], iterator_types = ["parallel", "parallel", "reduction"]} ins(%24 : tensor<?x?x?xf16>) outs(%6 : tensor<?x?x1xf16>) {
         ^bb0(%in: f16, %out: f16):
           %44 = arith.maximumf %in, %out : f16
