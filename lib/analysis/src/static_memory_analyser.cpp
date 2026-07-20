@@ -132,7 +132,8 @@ void MemoryAnalysisContext::setOpIndex(Operation *op, int idx) {
 }
 
 void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
-                                      Operation *defOp, int idx) {
+                                      Operation *defOp, int idx,
+                                      std::optional<int64_t> memSpace) {
   setOpIndex(defOp, idx);
   if (!v)
     return;
@@ -140,7 +141,7 @@ void MemoryAnalysisContext::addTensor(Value v, ShapeSignature sig,
   Bucket &bucket = buckets_[sig];
   bucket.signature = sig;
 
-  bucket.nodes.emplace_back(v, defOp, idx);
+  bucket.nodes.emplace_back(v, defOp, idx, memSpace);
   valueToNodeMap_[v] = &bucket.nodes.back();
 }
 
@@ -314,6 +315,25 @@ void MemoryAnalysisContext::assignExclusiveTargetAttributes(Bucket &bucket) {
   }
 }
 
+void MemoryAnalysisContext::applySpecialMemorySpaceAxiom(Bucket &bucket) {
+  for (auto &node : bucket.nodes) {
+    if (node.mappedVBId.has_value() || !node.memSpace.has_value())
+      continue;
+
+    // TODO: This conservative policy is currently designed for RRAM-backed
+    // weights. RRAM should become read-only within a wave to minimize writes;
+    // replace this fixed rule with memory-space capabilities once available.
+    VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
+    vb->addMember(&node);
+    vb->liveness = {node.linearIndex, node.deathIndex};
+    vb->memSpace = node.memSpace;
+    vb->updateDefiningOp();
+
+    // A special-memory-space tensor owns a singleton, non-reusable VB.
+    bucket.exclusiveVBIds.insert(vb->id);
+  }
+}
+
 void MemoryAnalysisContext::applyPhiFusionAxiom(
     Bucket &bucket, const LoopContext &loopContext) {
   Operation *loopOp = loopContext.loopOp;
@@ -450,6 +470,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
 
   for (auto &[sig, bucket] : buckets_) {
+    applySpecialMemorySpaceAxiom(bucket);
     if (loopOpt) {
       applyPhiFusionAxiom(bucket, *loopOpt);
       applyExternalEternityAxiom(bucket, *loopOpt);
@@ -832,14 +853,20 @@ void MemoryAnalysisContext::buildAllocationPlan() {
     // Build physical buffer slots
     std::vector<LoomAllocationPlan::PhysicalBufferSlot> slots;
     slots.reserve(bucket.maxColorsRequired);
+    std::vector<std::optional<int64_t>> colorMemorySpaces(
+        bucket.maxColorsRequired);
+    for (const auto &vb : bucket.virtualBuffers) {
+      if (vb->memSpace.has_value())
+        colorMemorySpaces[vb->color] = vb->memSpace;
+    }
     for (int c = 0; c < bucket.maxColorsRequired; ++c) {
-      slots.push_back({c, sig, sig.elementType});
+      slots.push_back({c, sig, sig.elementType, colorMemorySpaces[c]});
     }
     allocationPlan_.bucketAllocations[sig] = std::move(slots);
 
     // Map each tensor value to its assignment
     for (const auto &vb : bucket.virtualBuffers) {
-      LoomAllocationPlan::Assignment assignment{sig, vb->color};
+      LoomAllocationPlan::Assignment assignment{sig, vb->color, vb->memSpace};
       for (TensorNode *member : vb->members) {
         allocationPlan_.tensorToBufferMap[member->value] = assignment;
       }
@@ -973,7 +1000,10 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
     os << ", Tensors: " << bucket.nodes.size() << "\n";
     for (const auto &node : bucket.nodes) {
       os << "  - [Liveness: " << node.linearIndex << " -> " << node.deathIndex
-         << "] Value: ";
+         << "]";
+      if (node.memSpace.has_value())
+        os << " [mem_space=" << *node.memSpace << "]";
+      os << " Value: ";
       node.value.printAsOperand(os, flags);
       os << "\n";
     }
@@ -982,7 +1012,10 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
       os << "  VirtualBuffers: " << bucket.virtualBuffers.size() << "\n";
       for (const auto &vb : bucket.virtualBuffers) {
         os << "    VB#" << vb->id << " (" << toString(vb->type) << ") ["
-           << vb->liveness.birth << " -> " << vb->liveness.death << "]: ";
+           << vb->liveness.birth << " -> " << vb->liveness.death << "]";
+        if (vb->memSpace.has_value())
+          os << " [mem_space=" << *vb->memSpace << "]";
+        os << ": ";
         for (size_t i = 0; i < vb->members.size(); ++i) {
           vb->members[i]->value.printAsOperand(os, flags);
           if (i < vb->members.size() - 1)
@@ -1010,6 +1043,19 @@ void MemoryAnalysisContext::dump(llvm::raw_ostream &os) const {
 // Main Analysis Entry
 // ============================================================================
 
+static std::optional<int64_t>
+getTensorMemorySpace(RankedTensorType tensorType) {
+  auto encoding = mlir::dyn_cast_or_null<DictionaryAttr>(
+      tensorType.getEncoding());
+  if (!encoding)
+    return std::nullopt;
+
+  auto memSpace = encoding.getAs<IntegerAttr>("mem_space");
+  if (!memSpace)
+    return std::nullopt;
+  return memSpace.getInt();
+}
+
 MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
   MemoryAnalysisContext ctx;
   int linearIdx = 0;
@@ -1028,7 +1074,8 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
           continue;
 
         ShapeSignature signature{sig, tensorType.getElementType()};
-        ctx.addTensor(res, signature, op, ctx.getOpIndex(op));
+        ctx.addTensor(res, signature, op, ctx.getOpIndex(op),
+                      getTensorMemorySpace(tensorType));
       }
     }
 
@@ -1041,7 +1088,8 @@ MemoryAnalysisContext loom::runMemoryAnalysis(func::FuncOp func) {
             continue;
 
           ShapeSignature signature{sig, tensorType.getElementType()};
-          ctx.addTensor(arg, signature, op, ctx.getOpIndex(op));
+          ctx.addTensor(arg, signature, op, ctx.getOpIndex(op),
+                        getTensorMemorySpace(tensorType));
         }
       }
     };
