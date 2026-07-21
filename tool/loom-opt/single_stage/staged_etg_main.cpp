@@ -42,20 +42,28 @@ int main(int argc, char **argv) {
   if (!module) return 1;
 
   llvm::json::Array json_etgs;
+  bool etgFailed = false;
 
   // Iterate over all functions and build a loop-structure-aware ETG per
   // variant. The builder walks the function body, recurses into scf.for to
   // produce nested for_loop_block stages, and walks through affine.parallel
   // transparently.
   module->walk([&](mlir::func::FuncOp func_op) {
+    if (etgFailed)
+      return;
     if (func_op.isExternal() || func_op.empty())
       return;
     VariantETG etg(func_op.getName(), &registry);
-    etg.buildFromFunc(func_op);
+    if (mlir::failed(etg.buildFromFunc(func_op))) {
+      etgFailed = true;
+      return;
+    }
     etg.buildConstraintScope(func_op);
     etg.buildHardConstraints(func_op);
     json_etgs.push_back(etg.toJSON());
   });
+  if (etgFailed)
+    return 1;
 
   std::error_code ec;
   llvm::raw_fd_ostream output(clOutput, ec);

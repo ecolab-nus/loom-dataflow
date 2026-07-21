@@ -148,15 +148,24 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
 std::pair<std::string, std::string>
 buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
   llvm::json::Array json_etgs;
+  bool etgFailed = false;
 
   module.walk([&](func::FuncOp func_op) {
+    if (etgFailed)
+      return;
     if (func_op.isExternal() || func_op.empty())
       return;
     loom::lcs::VariantETG etg(func_op.getName(), &registry);
-    etg.buildFromFunc(func_op);
+    if (failed(etg.buildFromFunc(func_op))) {
+      etgFailed = true;
+      return;
+    }
     etg.buildConstraintScope(func_op);
     json_etgs.push_back(etg.toJSON());
   });
+
+  if (etgFailed)
+    return {"ETG construction failed; see MLIR diagnostics above", ""};
 
   std::string result;
   llvm::raw_string_ostream output(result);

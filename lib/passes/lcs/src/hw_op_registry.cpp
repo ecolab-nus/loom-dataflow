@@ -47,6 +47,10 @@ bool HWOpKey::operator<(const HWOpKey &rhs) const {
       return src_mem_space < rhs.src_mem_space;
     if (dst_mem_space != rhs.dst_mem_space)
       return dst_mem_space < rhs.dst_mem_space;
+    if (src_mem_kind != rhs.src_mem_kind)
+      return src_mem_kind < rhs.src_mem_kind;
+    if (dst_mem_kind != rhs.dst_mem_kind)
+      return dst_mem_kind < rhs.dst_mem_kind;
     return broadcast < rhs.broadcast;
   }
   llvm_unreachable("unknown HWOpKey kind");
@@ -68,12 +72,16 @@ HWOpKey HWOpKey::generic(std::string body_op, GenericClass cls) {
 }
 
 HWOpKey HWOpKey::dataMover(DataMoverKind kind, std::string src, std::string dst,
+                           std::optional<int64_t> src_kind,
+                           std::optional<int64_t> dst_kind,
                            std::vector<int64_t> bcast) {
   HWOpKey k;
   k.kind = DataMover;
   k.data_mover_kind = kind;
   k.src_mem_space = std::move(src);
   k.dst_mem_space = std::move(dst);
+  k.src_mem_kind = src_kind;
+  k.dst_mem_kind = dst_kind;
   k.broadcast = std::move(bcast);
   return k;
 }
@@ -183,11 +191,11 @@ const HWComputeFunc *HWOpRegistry::lookup(const HWOpKey &key) const {
 
 const HWComputeFunc *HWOpRegistry::lookupDataMover(
     DataMoverKind kind, llvm::StringRef src_mem_space,
-    llvm::StringRef dst_mem_space, llvm::ArrayRef<int64_t> area) const {
+    llvm::StringRef dst_mem_space, std::optional<int64_t> src_mem_kind,
+    std::optional<int64_t> dst_mem_kind, llvm::ArrayRef<int64_t> area) const {
   std::string src = detail::canonicalMemSpace(src_mem_space);
   std::string dst = detail::canonicalMemSpace(dst_mem_space);
-  HWOpKey exact =
-      HWOpKey::dataMover(kind, src, dst,
+  HWOpKey exact = HWOpKey::dataMover(kind, src, dst, src_mem_kind, dst_mem_kind,
                          std::vector<int64_t>(area.begin(), area.end()));
   if (const HWComputeFunc *hwFunc = lookup(exact))
     return hwFunc;
@@ -198,6 +206,8 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
   for (const HWComputeFunc &candidate : symbolic_data_movers_) {
     if (candidate.data_mover_kind != kind ||
         candidate.src_mem_space != src || candidate.dst_mem_space != dst ||
+        candidate.src_mem_kind != src_mem_kind ||
+        candidate.dst_mem_kind != dst_mem_kind ||
         candidate.broadcast.size() != area.size())
       continue;
 
@@ -214,14 +224,6 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
   }
 
   return nullptr;
-}
-
-HWComputeFunc HWOpRegistry::makePlaceholder(llvm::StringRef op_name,
-                                             llvm::StringRef hw_component) {
-  HWComputeFunc p;
-  p.hw_func_name = ("__unregistered__:" + op_name).str();
-  p.hw_component = hw_component.str();
-  return p;
 }
 
 // ============================================================
@@ -260,6 +262,7 @@ void HWOpRegistry::indexModule(mlir::ModuleOp module,
       }
       key = HWOpKey::dataMover(hwFunc->data_mover_kind,
                                hwFunc->src_mem_space, hwFunc->dst_mem_space,
+                               hwFunc->src_mem_kind, hwFunc->dst_mem_kind,
                                hwFunc->broadcast);
     } else if (!hwFunc->body_op_name.empty()) {
       key = HWOpKey::generic(hwFunc->body_op_name, hwFunc->generic_class);

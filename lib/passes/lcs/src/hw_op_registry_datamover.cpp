@@ -51,6 +51,10 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
       result.src_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
     if (auto attr = copyOp.getDstMemSpaceAttr())
       result.dst_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
+    if (auto attr = copyOp.getSrcMemKindAttr())
+      result.src_mem_kind = attr.getInt();
+    if (auto attr = copyOp.getDstMemKindAttr())
+      result.dst_mem_kind = attr.getInt();
   } else {
     source = gatherOp.getSource();
     destination = gatherOp.getDestination();

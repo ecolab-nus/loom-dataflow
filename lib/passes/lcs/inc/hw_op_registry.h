@@ -40,6 +40,8 @@ struct HWOpKey {
   DataMoverKind data_mover_kind = DataMoverKind::Copy;
   std::string src_mem_space;
   std::string dst_mem_space;
+  std::optional<int64_t> src_mem_kind;
+  std::optional<int64_t> dst_mem_kind;
   std::vector<int64_t> broadcast;
 
   bool operator<(const HWOpKey &rhs) const;
@@ -47,6 +49,8 @@ struct HWOpKey {
   static HWOpKey named(std::string op_name);
   static HWOpKey generic(std::string body_op, GenericClass cls);
   static HWOpKey dataMover(DataMoverKind kind, std::string src, std::string dst,
+                           std::optional<int64_t> src_kind,
+                           std::optional<int64_t> dst_kind,
                            std::vector<int64_t> bcast);
 };
 
@@ -68,6 +72,8 @@ struct HWComputeFunc {
   DataMoverKind data_mover_kind = DataMoverKind::Copy;
   std::string src_mem_space;        // e.g., "DRAM"
   std::string dst_mem_space;        // e.g., "L1"
+  std::optional<int64_t> src_mem_kind;
+  std::optional<int64_t> dst_mem_kind;
   // Static entries are constants; dynamic entries use ShapedType::kDynamic and
   // carry the corresponding hardware symbol in area_symbols.
   std::vector<int64_t> broadcast;   // e.g., {1,1} or {?,?}
@@ -90,11 +96,9 @@ public:
   const HWComputeFunc *lookupDataMover(DataMoverKind kind,
                                        llvm::StringRef src_mem_space,
                                        llvm::StringRef dst_mem_space,
+                                       std::optional<int64_t> src_mem_kind,
+                                       std::optional<int64_t> dst_mem_kind,
                                        llvm::ArrayRef<int64_t> area) const;
-
-  /// Create a placeholder entry for an unregistered operation.
-  static HWComputeFunc makePlaceholder(llvm::StringRef op_name,
-                                        llvm::StringRef hw_component = "__unregistered__");
 
   /// Return the parsed platform module (kept alive by this registry).
   mlir::ModuleOp getPlatformModule() const { return *platform_module_; }

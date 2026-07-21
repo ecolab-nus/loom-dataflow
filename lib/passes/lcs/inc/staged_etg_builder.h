@@ -8,6 +8,7 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "llvm/Support/LogicalResult.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
@@ -257,7 +258,7 @@ public:
   /// Build the kernel's ETG by walking the function body, recursing into
   /// scf.for loops to produce nested for_loop_block stages and walking
   /// through affine.parallel loops transparently.
-  void buildFromFunc(mlir::func::FuncOp func_op);
+  mlir::LogicalResult buildFromFunc(mlir::func::FuncOp func_op);
 
   /// Build constraint scope from a func operation.
   /// Extracts symbolic block sizes and global loop iteration counts.
@@ -277,20 +278,25 @@ private:
 
   // Recursive scope population. Walks `region`'s direct ops, dispatching
   // each into the given load / compute / store scope according to its kind.
-  void populateScopesFromRegion(mlir::Region &region, Scope &load_scope,
-                                Scope &compute_scope, Scope &store_scope,
-                                mlir::AsmState &asm_state);
+  mlir::LogicalResult populateScopesFromRegion(
+      mlir::Region &region, Scope &load_scope, Scope &compute_scope,
+      Scope &store_scope, mlir::AsmState &asm_state);
 
-  void dispatchToComputeQueues(mlir::Operation *op,
-                               WorkloadStageBody &target,
-                               mlir::AsmState &asm_state);
-  void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target,
-                       mlir::AsmState &asm_state);
-  void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target,
-                         mlir::AsmState &asm_state);
-  void dispatchToDataMoverQueues(mlir::Operation *op,
-                                 WorkloadStageBody &target,
-                                 mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchToComputeQueues(mlir::Operation *op,
+                                              WorkloadStageBody &target,
+                                              mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchNamedOp(mlir::Operation *op,
+                                      WorkloadStageBody &target,
+                                      mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchGenericOp(mlir::Operation *op,
+                                        WorkloadStageBody &target,
+                                        mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchToDataMoverQueues(mlir::Operation *op,
+                                                WorkloadStageBody &target,
+                                                mlir::AsmState &asm_state);
+
+  mlir::LogicalResult validateDispatches(mlir::func::FuncOp func_op,
+                                         std::set<std::string> &skipped_ops);
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);
