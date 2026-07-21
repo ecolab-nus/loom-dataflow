@@ -37,67 +37,23 @@ void ADLDialect::initialize() {
 }
 
 //===----------------------------------------------------------------------===//
-// Custom parser/printer/verifier for ProcessorComputeOp & ProcessorDMoverOp
+// Custom parser/printer for ProcessorComputeOp & ProcessorDMoverOp
 //===----------------------------------------------------------------------===//
 
-/// Parse the mem-pair list: `[` `(` %src, %dst `)` , ... `]`
-static ParseResult parseMemPairs(
-    OpAsmParser &parser,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &srcMems,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &dstMems) {
-  if (parser.parseLSquare())
-    return failure();
-  if (succeeded(parser.parseOptionalRSquare()))
-    return success();
-  do {
-    OpAsmParser::UnresolvedOperand src, dst;
-    if (parser.parseLParen() || parser.parseOperand(src) ||
-        parser.parseComma() || parser.parseOperand(dst) ||
-        parser.parseRParen())
-      return failure();
-    srcMems.push_back(src);
-    dstMems.push_back(dst);
-  } while (succeeded(parser.parseOptionalComma()));
-  return parser.parseRSquare();
-}
-
-/// Finish building a processor-like op after name, pairs and resources have been parsed.
+/// Finish building a processor-like op after name, route and resources have been parsed.
 static ParseResult resolveProcessorOperands(
     OpAsmParser &parser, OperationState &result,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &srcMems,
-    SmallVectorImpl<OpAsmParser::UnresolvedOperand> &dstMems,
+    OpAsmParser::UnresolvedOperand &source,
+    OpAsmParser::UnresolvedOperand &destination,
     SmallVectorImpl<OpAsmParser::UnresolvedOperand> &resources) {
   auto memType = MemHandleType::get(parser.getContext());
   auto resourceType = ResourceHandleType::get(parser.getContext());
-  if (parser.resolveOperands(srcMems, memType, result.operands) ||
-      parser.resolveOperands(dstMems, memType, result.operands) ||
+  if (parser.resolveOperand(source, memType, result.operands) ||
+      parser.resolveOperand(destination, memType, result.operands) ||
       parser.resolveOperands(resources, resourceType, result.operands))
     return failure();
-  result.addAttribute(
-      "operandSegmentSizes",
-      parser.getBuilder().getDenseI32ArrayAttr(
-          {static_cast<int32_t>(srcMems.size()),
-           static_cast<int32_t>(dstMems.size()),
-           static_cast<int32_t>(resources.size())}));
   result.addTypes(ArchHandleType::get(parser.getContext()));
   return success();
-}
-
-
-/// Print the mem-pair list: `[` `(` %src, %dst `)` , ... `]`
-static void printMemPairs(OpAsmPrinter &p, OperandRange srcMems,
-                          OperandRange dstMems) {
-  p << "[";
-  for (size_t i = 0, e = srcMems.size(); i < e; ++i) {
-    if (i > 0)
-      p << ", ";
-    p << "(";
-    p.printOperand(srcMems[i]);
-    p << ", ";
-    p.printOperand(dstMems[i]);
-    p << ")";
-  }
-  p << "]";
 }
 
 //--- ProcessorComputeOp ---------------------------------------------------
@@ -106,9 +62,11 @@ static void printMemPairs(OpAsmPrinter &p, OperandRange srcMems,
 ParseResult ProcessorComputeOp::parse(OpAsmParser &parser,
                                        OperationState &result) {
   FlatSymbolRefAttr symNameAttr;
-  SmallVector<OpAsmParser::UnresolvedOperand> srcMems, dstMems, resources;
+  OpAsmParser::UnresolvedOperand source, destination;
+  SmallVector<OpAsmParser::UnresolvedOperand> resources;
   if (parser.parseAttribute(symNameAttr) || parser.parseComma() ||
-      parseMemPairs(parser, srcMems, dstMems))
+      parser.parseKeyword("from") || parser.parseOperand(source) ||
+      parser.parseKeyword("to") || parser.parseOperand(destination))
     return failure();
 
   if (succeeded(parser.parseOptionalComma())) {
@@ -125,14 +83,16 @@ ParseResult ProcessorComputeOp::parse(OpAsmParser &parser,
   }
 
   result.addAttribute("sym_name", symNameAttr);
-  return resolveProcessorOperands(parser, result, srcMems, dstMems, resources);
+  return resolveProcessorOperands(parser, result, source, destination, resources);
 }
 
 void ProcessorComputeOp::print(OpAsmPrinter &p) {
   p << ' ';
   p.printAttribute(getSymNameAttr()); // prints @name
-  p << ", ";
-  printMemPairs(p, getSrcMems(), getDstMems());
+  p << ", from ";
+  p.printOperand(getSource());
+  p << " to ";
+  p.printOperand(getDestination());
   if (!getResources().empty()) {
     p << ", with [";
     llvm::interleaveComma(getResources(), p,
@@ -141,13 +101,6 @@ void ProcessorComputeOp::print(OpAsmPrinter &p) {
   }
 }
 
-
-LogicalResult ProcessorComputeOp::verify() {
-  if (getSrcMems().size() != getDstMems().size())
-    return emitOpError("expected equal number of source and destination "
-                       "memory operands in region pairs");
-  return success();
-}
 
 //--- ProcessorDMoverOp ----------------------------------------------------
 // Name is a FlatSymbolRefAttr (prints/parses as @symbol).
@@ -155,9 +108,11 @@ LogicalResult ProcessorComputeOp::verify() {
 ParseResult ProcessorDMoverOp::parse(OpAsmParser &parser,
                                       OperationState &result) {
   FlatSymbolRefAttr symNameAttr;
-  SmallVector<OpAsmParser::UnresolvedOperand> srcMems, dstMems, resources;
+  OpAsmParser::UnresolvedOperand source, destination;
+  SmallVector<OpAsmParser::UnresolvedOperand> resources;
   if (parser.parseAttribute(symNameAttr) || parser.parseComma() ||
-      parseMemPairs(parser, srcMems, dstMems))
+      parser.parseKeyword("from") || parser.parseOperand(source) ||
+      parser.parseKeyword("to") || parser.parseOperand(destination))
     return failure();
 
   if (succeeded(parser.parseOptionalComma())) {
@@ -174,14 +129,16 @@ ParseResult ProcessorDMoverOp::parse(OpAsmParser &parser,
   }
 
   result.addAttribute("sym_name", symNameAttr);
-  return resolveProcessorOperands(parser, result, srcMems, dstMems, resources);
+  return resolveProcessorOperands(parser, result, source, destination, resources);
 }
 
 void ProcessorDMoverOp::print(OpAsmPrinter &p) {
   p << ' ';
   p.printAttribute(getSymNameAttr()); // prints @name
-  p << ", ";
-  printMemPairs(p, getSrcMems(), getDstMems());
+  p << ", from ";
+  p.printOperand(getSource());
+  p << " to ";
+  p.printOperand(getDestination());
   if (!getResources().empty()) {
     p << ", with [";
     llvm::interleaveComma(getResources(), p,
@@ -190,13 +147,6 @@ void ProcessorDMoverOp::print(OpAsmPrinter &p) {
   }
 }
 
-
-LogicalResult ProcessorDMoverOp::verify() {
-  if (getSrcMems().size() != getDstMems().size())
-    return emitOpError("expected equal number of source and destination "
-                       "memory operands in region pairs");
-  return success();
-}
 
 #define GET_OP_CLASSES
 #include "ADLOps.cpp.inc"

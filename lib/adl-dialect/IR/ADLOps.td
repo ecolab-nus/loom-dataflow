@@ -106,57 +106,52 @@ def ResourceExclusiveOp : ADL_Op<"resource.exclusive", [Symbol]> {
 
 //===----------------------------------------------------------------------===//
 // adl.processor.compute
-//   %6 = adl.processor.compute "matrix_lane", [(%5, %5)]
+//   %6 = adl.processor.compute @matrix_lane, from %5 to %5
 //===----------------------------------------------------------------------===//
 
-def ProcessorComputeOp : ADL_Op<"processor.compute",
-    [AttrSizedOperandSegments]> {
-  let summary = "Declare a compute processor with memory region pairs";
+def ProcessorComputeOp : ADL_Op<"processor.compute"> {
+  let summary = "Declare a compute processor with one memory route";
   let description = [{
-    `adl.processor.compute` declares a named compute processor. Memory region
-    pairs specify which memory regions the processor can access. Round brackets
-    delimit each (src, dst) pair; square brackets delimit the list of pairs.
+    `adl.processor.compute` declares a named compute processor with one source
+    and one destination memory region.
 
     Example:
-      `%6 = adl.processor.compute "matrix_lane", [(%5, %5)]`
+      `%6 = adl.processor.compute @matrix_lane, from %5 to %5`
   }];
 
   let arguments = (ins FlatSymbolRefAttr:$sym_name,
-                       Variadic<MemHandleType>:$src_mems,
-                       Variadic<MemHandleType>:$dst_mems,
+                       MemHandleType:$source,
+                       MemHandleType:$destination,
                        Variadic<ResourceHandleType>:$resources);
 
   let results = (outs ArchHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
 // adl.processor.dmover
-//   %12 = adl.processor.dmover @dram_l1_mover, [(%2, %5), (%5, %2)]
+//   %12 = adl.processor.dmover @dram_l1_mover, from %2 to %5
 //===----------------------------------------------------------------------===//
 
-def ProcessorDMoverOp : ADL_Op<"processor.dmover",
-    [AttrSizedOperandSegments]> {
-  let summary = "Declare a data mover processor with memory region pairs";
+def ProcessorDMoverOp : ADL_Op<"processor.dmover"> {
+  let summary = "Declare a data mover processor with one memory route";
   let description = [{
-    `adl.processor.dmover` declares a named data-mover processor. Memory region
-    pairs specify valid data transfer routes between memory regions.
+    `adl.processor.dmover` declares a named data-mover processor with one
+    directed memory route.
 
     Example:
-      `%12 = adl.processor.dmover @dram_l1_mover, [(%2, %5), (%5, %2)]`
+      `%12 = adl.processor.dmover @dram_l1_mover, from %2 to %5`
   }];
 
   let arguments = (ins FlatSymbolRefAttr:$sym_name,
-                       Variadic<MemHandleType>:$src_mems,
-                       Variadic<MemHandleType>:$dst_mems,
+                       MemHandleType:$source,
+                       MemHandleType:$destination,
                        Variadic<ResourceHandleType>:$resources);
 
   let results = (outs ArchHandleType:$handle);
 
   let hasCustomAssemblyFormat = 1;
-  let hasVerifier = 1;
 }
 
 //===----------------------------------------------------------------------===//
