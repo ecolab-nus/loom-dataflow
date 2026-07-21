@@ -472,7 +472,9 @@ private:
       loom::CopyOp::create(builder, loc, copyOp.getSource(),
                            copyOp.getDestination(),
                            copyOp.getSrcMemSpaceAttr(),
-                           copyOp.getDstMemSpaceAttr(), ValueRange{},
+                           copyOp.getDstMemSpaceAttr(),
+                           copyOp.getSrcMemKindAttr(),
+                           copyOp.getDstMemKindAttr(), ValueRange{},
                            newAreaAttr, ul_x, ul_y, lr_x, lr_y,
                            copyOp.getReclaimAttr());
       copyOp.erase();

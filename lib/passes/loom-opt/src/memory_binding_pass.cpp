@@ -30,6 +30,13 @@ using namespace loom;
 
 namespace {
 
+static IntegerAttr getLocalMemKind(RankedTensorType tensorType) {
+  auto encoding = dyn_cast_or_null<DictionaryAttr>(tensorType.getEncoding());
+  if (!encoding)
+    return {};
+  return encoding.getAs<IntegerAttr>("local_mem_kind");
+}
+
 /// Pattern 1: Lower memref.subview + loom.bufferize_to_tensor
 /// to loom.subview + loom.copy (DRAM→L1) + loom.bufferize_to_tensor
 struct ReadBlockLoadingLowering
@@ -96,11 +103,12 @@ struct ReadBlockLoadingLowering
     // 3. loom.copy: physically move data DRAM→L1 into the semaphore buffer.
     auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "mem_DRAM");
     auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
+    auto dstMemKind = getLocalMemKind(cast<RankedTensorType>(op.getType()));
     auto defaultArea = rewriter.getDenseI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
-                         dramSymbol, l1Symbol, ValueRange{}, defaultArea,
-                         Value{}, Value{}, Value{}, Value{},
-                         rewriter.getBoolAttr(false));
+                         dramSymbol, l1Symbol, IntegerAttr{}, dstMemKind,
+                         ValueRange{}, defaultArea, Value{}, Value{}, Value{},
+                         Value{}, rewriter.getBoolAttr(false));
 
     rewriter.replaceOp(op, loom::BufferizeToTensorOp::create(
                                rewriter, loc, op.getType(), semaphore,
@@ -158,9 +166,10 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
     // 3. loom.copy: physically move data L1→DRAM.
     auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
     auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "mem_DRAM");
+    auto srcMemKind = getLocalMemKind(srcTensorType);
     auto loomCopyOp = loom::CopyOp::create(
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
-        l1Symbol, dramSymbol, ValueRange{},
+        l1Symbol, dramSymbol, srcMemKind, IntegerAttr{}, ValueRange{},
         rewriter.getDenseI64ArrayAttr({1, 1}),
         Value{}, Value{}, Value{}, Value{}, rewriter.getBoolAttr(false));
 
