@@ -18,6 +18,25 @@ namespace lcs {
 
 enum class DataMoverKind { Copy, Gather };
 
+enum class LocalMemKind : int64_t { SRAM = 0, RRAM = 1 };
+
+/// Canonical compute-operand metadata shared by hw_spec registration and
+/// kernel dispatch. The order is DPS inputs followed by DPS inits.
+struct ComputeOpMatchInfo {
+  std::vector<LocalMemKind> operand_mem_kinds;
+
+  bool operator<(const ComputeOpMatchInfo &rhs) const {
+    return operand_mem_kinds < rhs.operand_mem_kinds;
+  }
+};
+
+/// Extract and validate the local memory kind of every Linalg DPS operand.
+mlir::FailureOr<ComputeOpMatchInfo>
+getComputeOpMatchInfo(mlir::linalg::LinalgOp linalg_op);
+
+std::string formatComputeOpMatchInfo(const ComputeOpMatchInfo &info);
+bool hasOnlySRAMOperands(const ComputeOpMatchInfo &info);
+
 /// Per-tensor binding from hardware IR: symbol names for each dimension.
 /// For `loom.bind %A, [%M, %K]`, stores dim_symbols = ["M", "K"].
 struct HWTensorBinding {
@@ -35,6 +54,7 @@ struct HWOpKey {
   // Generic: body arith/math op name + iterator classification
   std::string body_op_name;
   GenericClass generic_class = GenericClass::Parallel;
+  ComputeOpMatchInfo compute_match;
 
   // DataMover: transfer attributes
   DataMoverKind data_mover_kind = DataMoverKind::Copy;
@@ -46,8 +66,9 @@ struct HWOpKey {
 
   bool operator<(const HWOpKey &rhs) const;
 
-  static HWOpKey named(std::string op_name);
-  static HWOpKey generic(std::string body_op, GenericClass cls);
+  static HWOpKey named(std::string op_name, ComputeOpMatchInfo match);
+  static HWOpKey generic(std::string body_op, GenericClass cls,
+                         ComputeOpMatchInfo match);
   static HWOpKey dataMover(DataMoverKind kind, std::string src, std::string dst,
                            std::optional<int64_t> src_kind,
                            std::optional<int64_t> dst_kind,
@@ -61,6 +82,7 @@ struct HWComputeFunc {
   std::string hw_component;   // e.g., "matrix_lane" (from sub-module name)
   std::string body_op_name;   // inner arith/math op (empty for named/data mover ops)
   GenericClass generic_class = GenericClass::Parallel;
+  ComputeOpMatchInfo compute_match;
   std::string parallel_symbol;  // hw symbol for folded parallel product
   std::string reduction_symbol; // hw symbol for folded reduction product
   std::vector<HWTensorBinding> input_bindings;
@@ -125,8 +147,9 @@ private:
 
   /// Index all funcs in a module under the given hw_component name.
   /// If is_data_mover is true, routes to data mover extraction.
-  void indexModule(mlir::ModuleOp module, llvm::StringRef hw_component,
-                   bool is_data_mover);
+  mlir::LogicalResult indexModule(mlir::ModuleOp module,
+                                  llvm::StringRef hw_component,
+                                  bool is_data_mover);
 
   /// Find the unique non-infra linalg op in a func; nullptr if none or ambiguous.
   static mlir::Operation *findComputeOp(mlir::func::FuncOp func);
@@ -145,7 +168,7 @@ private:
       HWComputeFunc &result);
 
   /// Extract HWComputeFunc from a single func.func with a linalg compute op.
-  std::optional<HWComputeFunc>
+  mlir::FailureOr<std::optional<HWComputeFunc>>
   extractFromFunc(mlir::func::FuncOp func, llvm::StringRef hw_component);
 
   /// Extract HWComputeFunc from a single func.func with a loom.copy op.

@@ -1040,7 +1040,21 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
           if (auto linalgOp = llvm::dyn_cast<mlir::linalg::LinalgOp>(op)) {
             if (llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op))
               continue;
+            mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+                getComputeOpMatchInfo(linalgOp);
+            if (mlir::failed(matchInfo)) {
+              valid = false;
+              continue;
+            }
             if (llvm::isa<mlir::linalg::GenericOp>(op)) {
+              if (!hasOnlySRAMOperands(*matchInfo)) {
+                op->emitError()
+                    << "staged-etg: linalg.generic with non-trivial local "
+                       "memory kinds is not supported for dispatch; got "
+                    << formatComputeOpMatchInfo(*matchInfo);
+                valid = false;
+                continue;
+              }
               GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
               for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
                 if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
@@ -1051,10 +1065,12 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
                   continue;
                 std::string bodyOpName = bodyOp.getName().getStringRef().str();
                 if (!hw_registry_->lookup(
-                        HWOpKey::generic(bodyOpName, analysis.generic_class))) {
+                        HWOpKey::generic(bodyOpName, analysis.generic_class,
+                                         *matchInfo))) {
                   bodyOp.emitError()
                       << "staged-etg: no hw_spec registration for linalg.generic "
-                      << "body op '" << bodyOpName << "'";
+                      << "body op '" << bodyOpName
+                      << formatComputeOpMatchInfo(*matchInfo) << "'";
                   valid = false;
                 }
               }
@@ -1062,9 +1078,10 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
             }
 
             std::string opName = op->getName().getStringRef().str();
-            if (!hw_registry_->lookup(HWOpKey::named(opName))) {
+            if (!hw_registry_->lookup(HWOpKey::named(opName, *matchInfo))) {
               op->emitError() << "staged-etg: no hw_spec registration for "
-                              << "linalg op '" << opName << "'";
+                              << "linalg op '" << opName
+                              << formatComputeOpMatchInfo(*matchInfo) << "'";
               valid = false;
             }
             continue;
@@ -1265,15 +1282,20 @@ mlir::LogicalResult VariantETG::dispatchNamedOp(mlir::Operation *op,
                                                 WorkloadStageBody &target,
                                                 mlir::AsmState &asm_state) {
   std::string linalg_op_name = op->getName().getStringRef().str();
+  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+      getComputeOpMatchInfo(linalgOp);
+  if (mlir::failed(matchInfo))
+    return mlir::failure();
   const HWComputeFunc *hwFunc =
-      hw_registry_->lookup(HWOpKey::named(linalg_op_name));
+      hw_registry_->lookup(HWOpKey::named(linalg_op_name, *matchInfo));
   if (!hwFunc) {
     op->emitError() << "staged-etg: no hw_spec registration for linalg op '"
-                    << linalg_op_name << "'";
+                    << linalg_op_name
+                    << formatComputeOpMatchInfo(*matchInfo) << "'";
     return mlir::failure();
   }
 
-  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
   auto inputs = linalgOp.getDpsInputs();
   for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
@@ -1297,6 +1319,17 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
                                                   WorkloadStageBody &target,
                                                   mlir::AsmState &asm_state) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+      getComputeOpMatchInfo(linalgOp);
+  if (mlir::failed(matchInfo))
+    return mlir::failure();
+  if (!hasOnlySRAMOperands(*matchInfo)) {
+    op->emitError()
+        << "staged-etg: linalg.generic with non-trivial local memory kinds "
+           "is not supported for dispatch; got "
+        << formatComputeOpMatchInfo(*matchInfo);
+    return mlir::failure();
+  }
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
@@ -1311,11 +1344,12 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
 
     std::string bodyOpName = bodyOp.getName().getStringRef().str();
     const HWComputeFunc *hwFunc =
-        hw_registry_->lookup(HWOpKey::generic(bodyOpName, analysis.generic_class));
+        hw_registry_->lookup(HWOpKey::generic(
+            bodyOpName, analysis.generic_class, *matchInfo));
     if (!hwFunc) {
       bodyOp.emitError()
           << "staged-etg: no hw_spec registration for linalg.generic body op '"
-          << bodyOpName << "'";
+          << bodyOpName << formatComputeOpMatchInfo(*matchInfo) << "'";
       return mlir::failure();
     }
 
