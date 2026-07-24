@@ -55,6 +55,7 @@ configure_file(
 
 # pybind11 for Python bindings
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+message(STATUS "Using Python3 executable: ${Python3_EXECUTABLE}")
 
 # Ask the active Python interpreter for pybind11's CMake directory.
 # This works correctly when pybind11 is installed via pip/conda into a venv.
