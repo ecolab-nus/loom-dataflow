@@ -4,6 +4,8 @@
 #include "mlir/Pass/Pass.h"
 #include "llvm/ADT/StringMap.h"
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace mlir {
 class ModuleOp;
@@ -12,9 +14,10 @@ class ModuleOp;
 namespace loom {
 namespace passes {
 
-// Map: func_name → {symbol_name → concrete_value}
+// Map: func_name → [{symbol_name → concrete_value}, ...]
 // Used to pass external solver results directly to the materialize pass.
-using BlockSizeMap = llvm::StringMap<llvm::StringMap<int64_t>>;
+using BlockSizeMap = llvm::StringMap<std::vector<llvm::StringMap<int64_t>>>;
+using CandidateOrder = std::vector<std::string>;
 
 #define GEN_PASS_DECL
 #include "Passes.h.inc"
@@ -25,7 +28,9 @@ std::unique_ptr<mlir::Pass> createHoistBlockLoadingPass();
 std::unique_ptr<mlir::Pass> createAnnotateSubviewReusePass();
 std::unique_ptr<mlir::Pass> createEnumerateCopyBroadcastPass();
 std::unique_ptr<mlir::Pass> createMaterializePass();
-std::unique_ptr<mlir::Pass> createMaterializePass(const BlockSizeMap &blockSizes);
+std::unique_ptr<mlir::Pass>
+createMaterializePass(const BlockSizeMap &blockSizes,
+                      const CandidateOrder &candidateOrder);
 std::unique_ptr<mlir::Pass> createBridgeToOSBPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();
 std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();

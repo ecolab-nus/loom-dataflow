@@ -10,7 +10,9 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/IRMapping.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Casting.h"
 
 // Include Loom dialect headers
@@ -119,10 +121,13 @@ public:
   /// Default constructor: uses hardcoded placeholder solver.
   MaterializePass() = default;
 
-  /// Constructor with external block sizes from the SMT solver.
-  /// blockSizes maps each variant function name to its symbol assignments.
-  explicit MaterializePass(const loom::passes::BlockSizeMap &blockSizes)
-      : externalBlockSizes(&blockSizes) {}
+  /// Constructor with external block sizes from the block-size solver.
+  /// blockSizes maps each variant function name to one or more symbol
+  /// assignments.
+  explicit MaterializePass(
+      const loom::passes::BlockSizeMap &blockSizes,
+      const loom::passes::CandidateOrder &candidateOrder)
+      : externalBlockSizes(&blockSizes), candidateOrder(&candidateOrder) {}
 
   StringRef getArgument() const override { return "loom-materialize"; }
 
@@ -145,6 +150,21 @@ public:
       nestedModules.push_back(nestedModule);
     }
 
+    if (externalBlockSizes && candidateOrder) {
+      llvm::StringMap<size_t> ranks;
+      for (auto [rank, name] : llvm::enumerate(*candidateOrder))
+        ranks[name] = rank;
+
+      llvm::stable_sort(nestedModules, [&](ModuleOp lhs, ModuleOp rhs) {
+        auto getRank = [&](ModuleOp candidate) {
+          auto func = *candidate.getOps<func::FuncOp>().begin();
+          auto it = ranks.find(func.getName());
+          return it == ranks.end() ? ranks.size() : it->second;
+        };
+        return getRank(lhs) < getRank(rhs);
+      });
+    }
+
     for (auto nestedModule : nestedModules) {
       // Collect functions to determine bindings
       SmallVector<func::FuncOp, 4> funcs;
@@ -155,7 +175,7 @@ public:
       SmallVector<BlockSizeBinding> bindings;
 
       if (externalBlockSizes) {
-        // --- External path: one binding per function from solver results ---
+        // --- External path: one or more bindings per function from solver results ---
         // Each nested module contains exactly one func.func whose name is
         // the variant name (e.g., "matmul__d0i0_d1i0__f01__d_d").
         for (auto func : funcs) {
@@ -167,14 +187,16 @@ public:
             // current constraints (UNSAT). Emit a diagnostic to aid debugging
             // and skip emission of this function variant from the output IR.
             func.emitWarning()
-                << "No SMT solver result for function '" << funcName
+                << "No block-size solver result for function '" << funcName
                 << "'; skipping materialization for this variant";
             continue;
           }
-          BlockSizeBinding b;
-          for (auto &entry : it->second)
-            b.varValues[entry.first()] = entry.second;
-          bindings.push_back(std::move(b));
+          for (const auto &bindingMap : it->second) {
+            BlockSizeBinding b;
+            for (auto &entry : bindingMap)
+              b.varValues[entry.first()] = entry.second;
+            bindings.push_back(std::move(b));
+          }
         }
       } else {
         // --- Fallback path: use hardcoded placeholder solver ---
@@ -205,7 +227,10 @@ public:
       }
 
       // Create a single nested module in the output to contain all variants
-      builder.setInsertionPoint(nestedModule);
+      if (externalBlockSizes)
+        builder.setInsertionPointToEnd(module.getBody());
+      else
+        builder.setInsertionPoint(nestedModule);
       auto variantsModule = ModuleOp::create(builder, nestedModule->getLoc());
 
       // Copy attributes from the original nested module
@@ -216,8 +241,9 @@ public:
                               builder.getStringAttr("Materialize"));
 
       OpBuilder variantsBuilder(variantsModule.getBodyRegion());
+      llvm::StringSet<> usedNames;
 
-      for (const auto &binding : bindings) {
+      for (auto [bindingIndex, binding] : llvm::enumerate(bindings)) {
         for (auto func : funcs) {
           IRMapping funcMapping;
           auto clonedFunc =
@@ -225,6 +251,15 @@ public:
 
           // Rename with suffix
           std::string newName = func.getName().str() + binding.getSuffix();
+          if (usedNames.contains(newName)) {
+            std::string baseName = newName;
+            unsigned comboIndex = static_cast<unsigned>(bindingIndex);
+            do {
+              ++comboIndex;
+              newName = baseName + "__combo" + std::to_string(comboIndex);
+            } while (usedNames.contains(newName));
+          }
+          usedNames.insert(newName);
           clonedFunc.setName(newName);
 
           // Materialize
@@ -238,9 +273,10 @@ public:
   }
 
 private:
-  // Non-owning pointer to an external block size map (from SMT solver).
+  // Non-owning pointer to an external block size map (from the solver).
   // Null when using the hardcoded placeholder solver.
   const loom::passes::BlockSizeMap *externalBlockSizes = nullptr;
+  const loom::passes::CandidateOrder *candidateOrder = nullptr;
 };
 
 } // namespace
@@ -250,6 +286,7 @@ std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass() {
 }
 
 std::unique_ptr<mlir::Pass> loom::passes::createMaterializePass(
-    const loom::passes::BlockSizeMap &blockSizes) {
-  return std::make_unique<MaterializePass>(blockSizes);
+    const loom::passes::BlockSizeMap &blockSizes,
+    const loom::passes::CandidateOrder &candidateOrder) {
+  return std::make_unique<MaterializePass>(blockSizes, candidateOrder);
 }

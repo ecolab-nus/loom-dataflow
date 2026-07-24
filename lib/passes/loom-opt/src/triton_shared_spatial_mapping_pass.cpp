@@ -34,6 +34,18 @@ struct TritonSharedExploreSpatialMappingsPass
 
   TritonSharedExploreSpatialMappingsPass() = default;
 
+  Option<bool> fullOccupancy{
+      *this, "full_occ",
+      llvm::cl::desc("Use only full hardware occupancy instead of enumerating "
+                     "partial occupancies"),
+      llvm::cl::init(false)};
+
+  TritonSharedExploreSpatialMappingsPass(
+      const TritonSharedExploreSpatialMappingsPass &other)
+      : TritonSharedExploreSpatialMappingsPass() {
+    fullOccupancy = other.fullOccupancy.getValue();
+  }
+
   StringRef getArgument() const override {
     return "loom-triton-shared-explore-spatial-mappings";
   }
@@ -65,7 +77,7 @@ struct TritonSharedExploreSpatialMappingsPass
     // Use EnumerateSpatialMappings to generate the enumerated functions,
     // then insert them directly into the original module.
     OwningOpRef<ModuleOp> enumerated =
-        loom::EnumerateSpatialMappings(module, hardwareInfo);
+        loom::EnumerateSpatialMappings(module, hardwareInfo, fullOccupancy);
 
     // If enumeration produced no functions, keep the original functions.
     bool producedAnyFunc = false;

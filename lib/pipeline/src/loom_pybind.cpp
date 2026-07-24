@@ -25,6 +25,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("hw_spec_file"),
       py::arg("produce_etg") = true,
       py::arg("skip_etg") = false,
+      py::arg("full_occ") = false,
+      py::arg("spatial_reuse") = true,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -36,6 +38,9 @@ PYBIND11_MODULE(_loom_pipeline, m) {
               hardware description and compute/data mover components.
           produce_etg: Whether to produce ETG JSON (default True).
           skip_etg: When True, skip staged ETG generation.
+          full_occ: When True, use only full hardware occupancy.
+          spatial_reuse: When True, run reuse analysis and copy/broadcast
+              enumeration.
 
       Returns:
           Tuple of (error, output_mlir, etg_json).
@@ -55,7 +60,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
 
       Args:
           input_mlir_text: Input MLIR as a string (stage 05).
-          block_sizes_json: JSON string mapping variant names to block sizes.
+          block_sizes_json: JSON string mapping variant names to one or more
+              block-size assignments.
 
       Returns:
           Tuple of (error, output_mlir).

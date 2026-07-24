@@ -90,7 +90,7 @@ struct CopyToTensorOpInterface
 
     loom::CopyOp::create(
         rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(),
-        dramSymbol, l1Symbol, ValueRange{},
+        dramSymbol, l1Symbol, IntegerAttr{}, IntegerAttr{}, ValueRange{},
         toDenseI64ArrayAttr(rewriter, copyOp.getBroadcastAttr()),
         mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{},
         rewriter.getBoolAttr(false));
@@ -134,7 +134,8 @@ struct CopyFromTensorOpInterface
     auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
 
     loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
-                         l1Symbol, dramSymbol, ValueRange{},
+                         l1Symbol, dramSymbol, IntegerAttr{}, IntegerAttr{},
+                         ValueRange{},
                          /*staticArea=*/rewriter.getDenseI64ArrayAttr({1, 1}),
                          mlir::Value{}, mlir::Value{},
                          mlir::Value{}, mlir::Value{},

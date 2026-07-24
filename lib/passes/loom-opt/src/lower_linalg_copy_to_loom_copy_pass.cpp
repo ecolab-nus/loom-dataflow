@@ -74,7 +74,8 @@ struct LowerLinalgCopyToLoomCopyPass
           hasPriorOutsUse(destination, copyOp.getOperation(), dominance));
 
       loom::CopyOp::create(builder, copyOp.getLoc(), source, destination,
-                           l1Symbol, l1Symbol, ValueRange{},
+                           l1Symbol, l1Symbol, IntegerAttr{}, IntegerAttr{},
+                           ValueRange{},
                            builder.getDenseI64ArrayAttr({1, 1}), Value{},
                            Value{}, Value{}, Value{}, reclaimAttr);
       copyOp.erase();

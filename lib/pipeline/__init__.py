@@ -25,6 +25,11 @@ Usage::
         input_mlir=output_mlir,
         block_sizes_json='{"variant": {"BM": 64, "BN": 64, "BK": 64}}',
     )
+
+    final_mlir = run_materialization(
+        input_mlir=output_mlir,
+        block_sizes_json='{"variant": [{"BM": 64}, {"BM": 128}]}',
+    )
 """
 
 from importlib.metadata import version as _pkg_version
@@ -55,6 +60,8 @@ def run_exploration(
     hw_spec_file: str | Path,
     produce_etg: bool = True,
     skip_etg: bool = False,
+    full_occ: bool = False,
+    spatial_reuse: bool = True,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -68,6 +75,9 @@ def run_exploration(
                            hardware description and compute/data mover components.
         produce_etg:       Whether to generate ETG JSON (default True).
         skip_etg:          When True, skip staged ETG generation.
+        full_occ:          When True, use only full hardware occupancy.
+        spatial_reuse:     When True, run reuse analysis and copy/broadcast
+                           enumeration.
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
@@ -77,7 +87,12 @@ def run_exploration(
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir, etg_json = _loom_pipeline.run_exploration_pipeline(
-        input_mlir, str(hw_spec_file), produce_etg, skip_etg
+        input_mlir,
+        str(hw_spec_file),
+        produce_etg,
+        skip_etg,
+        full_occ,
+        spatial_reuse,
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
@@ -95,9 +110,11 @@ def run_materialization(
 
     Args:
         input_mlir:       Input MLIR text (stage 05).
-        block_sizes_json: JSON string mapping variant names to block size
-                          assignments, e.g.
+        block_sizes_json: JSON string mapping variant names to one or more
+                          block size assignments, e.g.
                           ``{"func_name": {"BM": 64, "BN": 128}, ...}``.
+                          or
+                          ``{"func_name": [{"BM": 64}, {"BM": 128}], ...}``.
                           Pass empty string to use placeholder solver.
 
     Returns:

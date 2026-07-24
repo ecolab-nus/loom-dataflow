@@ -148,15 +148,24 @@ void writeETGJson(llvm::raw_ostream &os, const llvm::json::Value &val,
 std::pair<std::string, std::string>
 buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
   llvm::json::Array json_etgs;
+  bool etgFailed = false;
 
   module.walk([&](func::FuncOp func_op) {
+    if (etgFailed)
+      return;
     if (func_op.isExternal() || func_op.empty())
       return;
     loom::lcs::VariantETG etg(func_op.getName(), &registry);
-    etg.buildFromFunc(func_op);
+    if (failed(etg.buildFromFunc(func_op))) {
+      etgFailed = true;
+      return;
+    }
     etg.buildConstraintScope(func_op);
     json_etgs.push_back(etg.toJSON());
   });
+
+  if (etgFailed)
+    return {"ETG construction failed; see MLIR diagnostics above", ""};
 
   std::string result;
   llvm::raw_string_ostream output(result);
@@ -176,7 +185,9 @@ std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
                        bool produce_etg,
-                       bool skip_etg) {
+                       bool skip_etg,
+                       bool full_occ,
+                       bool spatial_reuse) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -270,7 +281,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
 
   // Enumerate spatial mappings — returns a brand new ModuleOp.
   OwningOpRef<ModuleOp> enumerated =
-      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo);
+      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo, full_occ);
 
   // Merge DF declarations and enumerated clones into a single module.
   OwningOpRef<ModuleOp> merged =
@@ -315,10 +326,10 @@ runExplorationPipeline(const std::string &input_mlir_text,
   inputModule = nullptr;
   enumerated = nullptr;
 
-  // ================================================================
-  // Phase B: analyze_reuse + enumerate_copy_broadcast (stages 3→5)
-  // ================================================================
-  {
+  if (spatial_reuse) {
+    // ================================================================
+    // Phase B: analyze_reuse + enumerate_copy_broadcast (stages 3→5)
+    // ================================================================
     PassManager pm(&context);
     pm.addPass(loom::passes::createAnnotateSubviewReusePass());
     pm.addPass(loom::passes::createEnumerateCopyBroadcastPass());

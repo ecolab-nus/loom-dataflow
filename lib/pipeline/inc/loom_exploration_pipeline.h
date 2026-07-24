@@ -19,6 +19,10 @@ namespace pipeline {
 /// @param produce_etg       Whether to generate ETG JSON output.
 /// @param skip_etg          When true, skip staged ETG generation regardless
 ///                          of produce_etg.
+/// @param full_occ          When true, use only full hardware occupancy rather
+///                          than enumerating partial occupancies.
+/// @param spatial_reuse     When true, run reuse analysis and copy/broadcast
+///                          enumeration (stages 3→5).
 /// @return tuple of (error, output_mlir, etg_json).
 ///         error is empty on success; etg_json is empty when produce_etg
 ///         is false or skip_etg is true.
@@ -26,7 +30,9 @@ std::tuple<std::string, std::string, std::string>
 runExplorationPipeline(const std::string &input_mlir_text,
                        const std::string &hw_spec_file,
                        bool produce_etg = true,
-                       bool skip_etg = false);
+                       bool skip_etg = false,
+                       bool full_occ = false,
+                       bool spatial_reuse = true);
 
 } // namespace pipeline
 } // namespace loom

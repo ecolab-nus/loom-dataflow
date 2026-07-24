@@ -13,6 +13,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include <deque>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <set>
@@ -54,6 +55,7 @@ struct VirtualBuffer {
   LivenessRange liveness;
   int color = -1;
   mlir::Operation *definingOp = nullptr;
+  std::optional<int64_t> localMemKind;
 
   VirtualBuffer(int id, VBType t) : id(id), type(t) {}
 
@@ -108,11 +110,13 @@ struct TensorNode {
   mlir::Operation *definingOp;
   int linearIndex;     // Definition time
   int deathIndex = -1; // Last use time
+  std::optional<int64_t> localMemKind;
 
   std::optional<int> mappedVBId;
 
-  TensorNode(mlir::Value v, mlir::Operation *op, int idx)
-      : value(v), definingOp(op), linearIndex(idx) {}
+  TensorNode(mlir::Value v, mlir::Operation *op, int idx,
+             std::optional<int64_t> kind)
+      : value(v), definingOp(op), linearIndex(idx), localMemKind(kind) {}
 };
 
 struct Bucket {
@@ -186,12 +190,14 @@ public:
     int colorId;            ///< Color ID (0, 1, 2...)
     ShapeSignature shape;   ///< Physical shape (for loom.alloc)
     mlir::Type elementType; ///< Element type
+    std::optional<int64_t> localMemKind; ///< Explicit local memory kind, if any
   };
 
   /// Maps an SSA tensor value to its assigned physical buffer.
   struct Assignment {
     ShapeSignature bucketKey; ///< Which bucket this belongs to
     int colorId;              ///< Which color within the bucket
+    std::optional<int64_t> localMemKind; ///< Explicit local memory kind, if any
   };
 
   /// Per-bucket slot allocations: BucketKey -> list of PhysicalBufferSlots
@@ -244,7 +250,7 @@ public:
   // --- Analysis Entry Points ---
   void setOpIndex(mlir::Operation *op, int idx);
   void addTensor(mlir::Value v, ShapeSignature sig, mlir::Operation *defOp,
-                 int idx);
+                 int idx, std::optional<int64_t> localMemKind);
   void computeDeathIndices();
   void collectExclusiveHandoffTargets(mlir::func::FuncOp func);
   void buildVirtualBuffers();
@@ -271,6 +277,7 @@ private:
                            llvm::StringRef reason);
   bool isExclusiveTarget(mlir::Value value) const;
   void assignExclusiveTargetAttributes(Bucket &bucket);
+  void applySpecialLocalMemoryKindAxiom(Bucket &bucket);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);

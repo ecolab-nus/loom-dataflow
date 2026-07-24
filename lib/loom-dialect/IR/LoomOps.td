@@ -618,7 +618,7 @@ def CopyOp : Loom_Op<"copy", [
 
     Example:
     ```mlir
-    loom.copy %src, %dst src_mem_space @DRAM dst_mem_space @L1,
+    loom.copy %src, %dst src_mem_space @DRAM:2 dst_mem_space @L1:3,
               area : [1, 1]
               (UL : [%ul_x, %ul_y], LR : [%lr_x, %lr_y])
               : memref<64x64xf32, strided<[512, 1], offset: ?>>,
@@ -633,7 +633,9 @@ def CopyOp : Loom_Op<"copy", [
       AnyMemRef:$source,
       AnyMemRef:$destination,
       OptionalAttr<SymbolRefAttr>:$src_mem_space,
-      OptionalAttr<SymbolRefAttr>:$dst_mem_space
+      OptionalAttr<SymbolRefAttr>:$dst_mem_space,
+      OptionalAttr<I64Attr>:$src_mem_kind,
+      OptionalAttr<I64Attr>:$dst_mem_kind
     ),
     CopyAreaArgs,
     MeshBoundsArgs,
@@ -644,8 +646,8 @@ def CopyOp : Loom_Op<"copy", [
 
   let assemblyFormat = [{
     $source `,` $destination
-    (`src_mem_space` $src_mem_space^)?
-    (`dst_mem_space` $dst_mem_space^)?
+    (`src_mem_space` $src_mem_space^ (`:` $src_mem_kind^)? )?
+    (`dst_mem_space` $dst_mem_space^ (`:` $dst_mem_kind^)? )?
     `,` `area` `:` custom<DynamicIndexList>($area, $static_area)
     ( `region` `:` `(` `UL` `:` `[` $ul_x^ `,` $ul_y `]` `,`
          `LR` `:` `[` $lr_x `,` $lr_y `]` `)` )?
@@ -701,7 +703,8 @@ def SymOp : Loom_Op<"sym", [
   let arguments = (ins
     SymbolRefAttr:$symbol_ref,
     OptionalAttr<IndexAttr>:$upper_bound,
-    DefaultValuedAttr<BoolAttr, "false">:$is_reduction
+    DefaultValuedAttr<BoolAttr, "false">:$is_reduction,
+    DefaultValuedAttr<BoolAttr, "false">:$asure_divisible
   );
 
   let results = (outs Index:$result);

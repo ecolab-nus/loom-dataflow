@@ -1,44 +1,46 @@
 <img src="assets/loom-logo.svg" alt="Loom Logo" width="250">
 
-**loom-dataflow** is a sub-module of the [loom](https://github.com/anthropics/loom) project. It provides an MLIR-backed compiler pipeline for exploring spatial hardware mappings and generating constraint models for dataflow accelerators. The pipeline lowers tensor-level kernels through a series of analysis and transformation passes, culminating in bufferized IR annotated with hardware mapping and memory allocation decisions.
+**loom-dataflow** is a sub-module of the [loom](https://github.com/anthropics/loom) project. It provides an MLIR-backed compiler pipeline for exploring spatial hardware mappings and generating constraint models for dataflow accelerators. The pipeline lowers tensor-level kernels through analysis and transformation passes, then materializes selected block sizes into bufferized IR with Loom dialect operations.
 
 ## Repository Map
 
 ```
 lib/
-  analysis/         — Static memory analysis library (shared by passes and debug CLI)
-  dataflow-dialect/ — TableGen + C++ for the df MLIR dialect
-  loom-dialect/     — TableGen + C++ for the loom MLIR dialect
-  modules/          — Hardware topology compositions (2D mesh, torus, ring chains)
+  adl-dialect/      - TableGen + C++ for the ADL hardware-description dialect
+  analysis/         - Static memory analysis and hardware-dimension splitting helpers
+  loom-dialect/     - TableGen + C++ for the loom MLIR dialect and bufferization hooks
+  modules/          - Hardware topology compositions (2D mesh, torus, ring chains)
   passes/
-    common/         — Shared analysis utilities (hardware discovery, affine utils, etc.)
-    loom-opt/       — Core transformation passes
-    lcs/            — Loom Compute Schedule: staged ETG builder and constraint expressions
-    tt-opt/         — Post-bufferization TT optimization passes
-  pipeline/         — High-level C++ API and Python bindings (pybind11)
-  resources/        — Primitive hardware resource models (SRAM banks, rings, chains)
+    common/         - Shared utilities for hardware discovery, mapping, affine helpers, and drivers
+    loom-opt/       - Core Loom transformation and exploration passes
+    lcs/            - Loom Compute Schedule: staged ETG builder and constraint expressions
+    tt-opt/         - TT-oriented post-bufferization optimization passes
+  pipeline/         - High-level C++ API and Python bindings (pybind11)
+  resources/        - Primitive hardware resource models (memory, rings, chains)
 tool/
-  loom-opt/single_stage/ — Single-stage CLI drivers for each pipeline pass
-  tt-opt/single_stage/   — CLI driver for tt-opt
-  dataflow-dialect/      — Dataflow dialect utilities
-  resource-system/       — Hardware resource demos
-  loom-lsp-server/       — LSP server for IDE support
+  loom-opt/             - `loom-opt` plus single-stage CLI drivers for each pipeline pass
+  tt-opt/single_stage/  - CLI driver for TT cleanup passes
+  adl-dialect/          - ADL parser utility
+  resource-system/      - Hardware resource demos
+  loom-lsp-server/      - LSP server for IDE support
 test/
-  Passes/mm_2Dmesh/      — Primary regression test (matrix multiply on 2D mesh)
-  Passes/flashattn_2Dmesh/
-  Passes/mm_ibmring/
-  Dialect/               — Dialect syntax and semantics tests
+  Passes/           - Saved pipeline inputs/outputs for kernels such as mm, mqa_decode, flashattn
+  Triton/           - Triton source and IR captures used to create pipeline inputs
+  Dialect/Affine/   - Affine analysis examples
 ```
 
 ## Requirements
 
-- CMake ≥ 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
+- CMake >= 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
 - An installed LLVM/MLIR build that exports CMake packages. The scripts default to `MLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`.
-- `lit` or `llvm-lit` on `PATH` for CTest-driven MLIR tests (`pipx install lit` is the recommended route).
+- Python >= 3.10 with development headers.
+- `pybind11` and `scikit-build-core` for Python bindings and package builds.
+- `lit` or `llvm-lit` on `PATH`; the build scripts require one and accept `--llvm-lit=/path/to/lit`.
 
 Quick install (Linux/Debian):
 ```bash
-sudo apt install cmake build-essential ninja-build lld
+sudo apt install cmake build-essential ninja-build lld python3-dev
+python3 -m pip install pybind11 scikit-build-core lit
 ```
 
 ### Building LLVM/MLIR (quick reference)
@@ -79,33 +81,72 @@ cmake -G Ninja .. \
 cmake --build . --config Release
 ```
 
+### Python package build
+```bash
+python3 -m pip install -e . -v --no-build-isolation
+```
+
+The Python package installs `loom_pipeline`, which wraps the C++ pipeline through pybind11. CMake can fetch pybind11 if it cannot find a local install, but a local Python package is preferred for offline or restricted environments.
+
 ### IDE/Debug setup
 `./setup_ide.sh` performs a clean Debug build and emits `build/compile_commands.json` for IntelliSense.
 
 ## Core Pass Pipeline
 
-All binaries live under `build/tool/` after a build. The full pipeline is exercised by `run_pipeline.sh` (the regression test).
+All binaries live under `build/tool/` after a build. The scripted file-based pipeline is:
+
+```bash
+cd third_party/loom-dataflow
+./run_pipeline.sh mqa_decode
+./run_pipeline.sh mqa_decode "[1,2,3]"
+```
+
+The first argument is the test case under `test/Passes/`. The optional second argument selects which numbered steps to run.
 
 | Step | Tool | Purpose |
 |------|------|---------|
-| 1 | `tensor_canonicalize` | Specialize `linalg` destination operands; fold redundant `tensor.extract_slice` |
-| 2 | `memory_binding` | Bind physical memory to tensor ops via `loom.alloc` annotations |
-| 3 | `enumerate_hw_mapping` | Enumerate spatial mappings from `df.spatial_dim` declarations to `affine.parallel` iterators |
-| 4 | `analyze_reuse` | Annotate each `loom.subview` with `loom.reuse` (spatial / temporal / sequential dims) |
-| 5 | `enumerate_copy_broadcast` | Enumerate per-copy broadcast choices; annotate `memref.alloc` with `loom.alloc` |
-| 6 | `staged_etg` | Build Staged Execution Task Graph → JSON constraint model |
-| 7 | `canonicalize` | Materialize symbolic block sizes into concrete constants; canonicalize IR |
-| 8 | `one_shot_bufferize` | One-shot bufferization: tensor ops → memref ops |
-| 9 | `tt-opt` | Convert zero-initialized linalg matmul ops to Loom ops and fold redundant zero fills |
+| 1 | `tensor_canonicalize` | Normalize tensor IR, specialize linalg destinations, insert handoff helpers, and prepare bufferization anchors |
+| 2 | `memory_binding` | Bind physical memory to tensor-level operations with Loom dialect handoff/copy operations |
+| 3 | `enumerate_hw_mapping` | Enumerate mappings from ADL hardware dimensions to `affine.parallel` iterators |
+| 4 | `analyze_reuse` | Annotate each `loom.subview` with spatial, temporal, and sequential reuse information |
+| 5 | `enumerate_copy_broadcast` | Enumerate local-copy and broadcast candidates for copy-to-tensor operations |
+| 6 | `staged_etg` | Build a Staged Execution Task Graph and emit JSON constraints |
+| 7 | `canonicalize` | Materialize selected block-size values and canonicalize the IR |
+| 8 | `one_shot_bufferize` | Bridge Loom view ops and run MLIR one-shot bufferization |
+| 9 | `tt-opt` | Run TT cleanup: Loom matmul conversion, zero-fill folding, and scalar-chain splitting |
 
-**Not in the default pipeline (under active development):**
-- `hoist_block_loading` — hoist block loading operations from innermost loops to outer loop levels
+`hoist_block_loading` also builds as a standalone tool, but it is not part of `run_pipeline.sh`.
 
-### Running the regression test
-```bash
-cd third_party/loom-dataflow
-./run_pipeline.sh
+### Standalone pass tools
+
+These tools read MLIR with `--input`; tools that need hardware use `--hw_spec`, and `staged_etg` writes JSON with `--output`.
+
+| Tool | Example | Description |
+|------|---------|-------------|
+| `build/tool/loom-opt/single_stage/tensor_canonicalize` | `--input in.mlir > out.mlir` | Runs guarded linalg fusion, destination specialization, extract-slice folding, and bufferization handoff preparation. |
+| `build/tool/loom-opt/single_stage/memory_binding` | `--input in.mlir > out.mlir` | Rewrites tensor/memory handoffs into Loom dialect memory operations. |
+| `build/tool/loom-opt/single_stage/enumerate_hw_mapping` | `--input in.mlir --hw_spec arch.mlir > out.mlir` | Loads an ADL hardware spec, clones mapping candidates, and merges hardware declarations into the output module. |
+| `build/tool/loom-opt/single_stage/hoist_block_loading` | `--input in.mlir > out.mlir` | Hoists recognized block-loading patterns for experimentation outside the default pipeline. |
+| `build/tool/loom-opt/single_stage/analyze_reuse` | `--input in.mlir > out.mlir` | Adds reuse metadata to Loom subviews based on surrounding loop iterators. |
+| `build/tool/loom-opt/single_stage/enumerate_copy_broadcast` | `--input in.mlir > out.mlir` | Enumerates copy placement and broadcast choices from reuse metadata. |
+| `build/tool/loom-opt/single_stage/staged_etg` | `--input in.mlir --hw_spec arch.mlir --output etg.json` | Emits the constraint JSON consumed by the external block-size solver. |
+| `build/tool/loom-opt/single_stage/canonicalize` | `--input in.mlir > out.mlir` | Runs Loom materialization and canonical cleanup. |
+| `build/tool/loom-opt/single_stage/one_shot_bufferize` | `--input in.mlir > out.mlir` | Converts tensor IR to memref IR using Loom bufferization support. |
+| `build/tool/loom-opt/single_stage/static_memory_analyser` | `--input in.mlir` | Dumps the memory analysis plan used by `memory_binding`. |
+| `build/tool/tt-opt/single_stage/tt-opt` | `--input in.mlir > out.mlir` | Applies TT-oriented Loom/linalg cleanup passes after bufferization. |
+
+### Python API
+
+The in-memory API avoids intermediate files:
+
+```python
+from loom_pipeline import run_exploration, run_materialization
+
+explored_mlir, etg_json = run_exploration(input_mlir, "path/to/arch.mlir")
+final_mlir = run_materialization(explored_mlir, block_sizes_json)
 ```
+
+`run_exploration` covers tensor canonicalization through copy-broadcast enumeration and can emit ETG JSON. `run_materialization` applies block-size bindings, bufferization, and TT cleanup.
 
 ### Step-by-step example (mqa_decode)
 
@@ -121,9 +162,11 @@ build/tool/loom-opt/single_stage/memory_binding \
   > test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir
 
 # Step 3
+# Changing the knob full_occ to true skips occupancy enumerating
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
+  --full_occ=false \
   --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
-  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
   > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
 
 # Step 4
@@ -136,10 +179,10 @@ build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
   --input test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir \
   > test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir
 
-# Step 6 — emits JSON constraint model
+# Step 6
 build/tool/loom-opt/single_stage/staged_etg \
   --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
-  --hw_spec /root/loom/third_party/loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+  --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
   --output test/Passes/mqa_decode/constraint_space/staged_etg_dump.json
 
 # Step 7
@@ -152,7 +195,7 @@ build/tool/loom-opt/single_stage/one_shot_bufferize \
   --input test/Passes/mqa_decode/IR/06_after_canonicalize.mlir \
   > test/Passes/mqa_decode/IR/07_after_osb.mlir
 
-# Step 9
+# Step 9 (Hardware specific post-processing pass, Optional)
 build/tool/tt-opt/single_stage/tt-opt \
   --input test/Passes/mqa_decode/IR/07_after_osb.mlir \
   > test/Passes/mqa_decode/IR/08_tt-opt.mlir
@@ -160,80 +203,68 @@ build/tool/tt-opt/single_stage/tt-opt \
 
 ## Pass Reference
 
-### `tensor_canonicalize` (`loom-linalg-destination-specialization` + `loom-fold-redundant-extract-slice`)
-- **Purpose**: Identify and fold redundant elementwise accumulation patterns into `linalg` output operands (e.g., `matmul(A,B,fill(0)) + add(iter_args)` → `matmul(A,B,iter_args)`). Then remove no-op `tensor.extract_slice` operations.
-- **Implementation**: `lib/passes/loom-opt/src/linalg_destination_specialization_pass.cpp`, `fold_redundant_extract_slice_pass.cpp`
+### `tensor_canonicalize`
+- **Purpose**: Run the front of the Loom tensor pipeline: guarded linalg elementwise fusion, linalg destination specialization, redundant extract-slice folding, preparation-op sinking, loop handoff proxy insertion, and canonical bufferization-to-Loom rewrites.
+- **Implementation**: `lib/passes/loom-opt/src/linalg_guarded_elementwise_fusion_pass.cpp`, `linalg_destination_specialization_pass.cpp`, `fold_redundant_extract_slice_pass.cpp`, `sink_preparation_ops_pass.cpp`, `loop_handoff_proxy_copy_insertion_pass.cpp`, `canonical_bufferization_to_loom_pass.cpp`
 
 ### `memory_binding` (`loom-memory-binding`)
-- **Purpose**: Transform bufferization patterns to `loom` dialect operations that bind physical memory allocations to tensor semantics for downstream dataflow analysis.
+- **Purpose**: Transform tensor-level bufferization patterns to Loom dialect operations that explicitly bind physical memory allocations for downstream dataflow analysis.
 - **Implementation**: `lib/passes/loom-opt/src/memory_binding_pass.cpp`
 
 ### `enumerate_hw_mapping` (`loom-triton-shared-explore-spatial-mappings`)
-- **Purpose**: Enumerate all valid assignments of `df.spatial_dim` hardware dimensions to the outermost `affine.parallel` iterators. Clones the function per mapping, annotates inner loops with `loom.mapped_to`, and inserts outer `affine.for` wave loops when the mesh size does not cover the iteration space in one shot.
-- **Implementation**: `lib/passes/loom-opt/src/triton_shared_spatial_mapping_pass.cpp`
+- **Purpose**: Enumerate assignments from ADL hardware dimensions to outer `affine.parallel` iterators, clone functions per candidate, annotate mapped loops, and insert wave loops when needed.
+- **Implementation**: `lib/passes/loom-opt/src/triton_shared_spatial_mapping_pass.cpp`, `lib/passes/common/src/hardware_mapping.cpp`
 
 ### `analyze_reuse` (`loom-annotate-subview-reuse`)
-- **Purpose**: Attach a `loom.reuse` dictionary to each `loom.subview` describing how its offset varies with surrounding iterators (spatial / temporal / sequential). Records `reuse_type` (no\_reuse / total\_reuse) and volume per dimension.
+- **Purpose**: Attach reuse metadata to each `loom.subview`, grouped by spatial, temporal, and sequential iterators.
 - **Implementation**: `lib/passes/loom-opt/src/analyze_reuse.cpp`
 
 ### `enumerate_copy_broadcast` (`loom-enumerate-copy-broadcast`)
-- **Purpose**: For each `loom.copy_to_tensor`, enumerate whether the copy should use local memory or broadcast along dimensions with total spatial reuse. Annotates `memref.alloc` with `loom.alloc` carrying the candidate set. Supports `--analysis-only` mode to annotate without cloning.
+- **Purpose**: Enumerate local-memory and broadcast choices for copies using reuse metadata, then annotate allocation candidates.
 - **Implementation**: `lib/passes/loom-opt/src/enumerate_copy_broadcast.cpp`
 
 ### `staged_etg`
-- **Purpose**: Traverse the annotated IR and construct a Staged Execution Task Graph. Emits a JSON constraint model describing compute and communication schedules for use by the SMT solver in the broader loom pipeline.
+- **Purpose**: Traverse annotated IR and construct a Staged Execution Task Graph JSON constraint model.
 - **Implementation**: `lib/passes/lcs/src/staged_etg_builder.cpp`; CLI driver: `tool/loom-opt/single_stage/staged_etg_main.cpp`
 
-### `canonicalize` (`loom-materialize` + standard canonicalization)
-- **Purpose**: Replace `loom.sym` symbolic block-size variables with concrete `arith.constant` values from the SMT solver result map. Variants for which no feasible solution exists are dropped with a diagnostic warning.
+### `canonicalize` (`loom-materialize` + cleanup)
+- **Purpose**: Replace `loom.get_module_attribute` operations with concrete values from selected block-size bindings and run canonical cleanup.
 - **Implementation**: `lib/passes/loom-opt/src/materialize.cpp`
 
 ### `one_shot_bufferize`
-- **Purpose**: Run MLIR's one-shot bufferization to lower tensor-level IR to memref-based IR in a single pass, using the `loom` dialect's custom bufferization interface.
-- **Implementation**: `lib/loom-dialect/Transforms/BufferizableOpInterfaceImpl.h`; CLI driver: `tool/loom-opt/single_stage/one_shot_bufferize_main.cpp`
+- **Purpose**: Bridge Loom subviews to OSB-compatible memref operations, lower affine with Loom attributes preserved, and run MLIR one-shot bufferization.
+- **Implementation**: `lib/passes/loom-opt/src/view_to_reinterpret_cast.cpp`, `lower_affine_with_attr.cpp`, `lower_linalg_copy_to_loom_copy_pass.cpp`, `lib/loom-dialect/Transforms/bufferizable_op_interface_impl.cpp`
 
-### `tt-opt` (`tt-convert-zero-fill-linalg-matmul-to-loom` + `tt-fold-zero-fill-linalg`)
-- **Purpose**: Convert same-block zero-initialized `linalg.matmul` and `linalg.batch_matmul` ops to `loom.matmul` and `loom.batch_matmul`, then remove redundant zero `linalg.fill` ops feeding remaining destination-style `linalg` ops when there is no intervening use.
-- **Implementation**: `lib/passes/tt-opt/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp`, `lib/passes/tt-opt/src/fold_zero_fill_linalg_pass.cpp`
+### `tt-opt`
+- **Purpose**: Convert zero-initialized `linalg.matmul` and `linalg.batch_matmul` ops to Loom ops, fold redundant zero fills, and split safe fused binary scalar chains.
+- **Implementation**: `lib/passes/tt-opt/src/convert_zero_fill_linalg_matmul_to_loom_pass.cpp`, `fold_zero_fill_linalg_pass.cpp`, `split_binary_scalar_chain_pass.cpp`
 
-### `hoist_block_loading` (`loom-hoist-block-loading`) *(under active development)*
-- **Purpose**: Hoist block loading operations from innermost `affine.for` loops to outer loop levels to reduce redundant memory accesses. Identifies `loom.alloc + loom.copy_to_tensor` loading block patterns and clones the function per loading block.
-- **Status**: Builds but is not part of the default pipeline. Updates pending.
+### `hoist_block_loading` (`loom-hoist-block-loading`)
+- **Purpose**: Hoist recognized block-loading operations from inner loops to outer loop levels for standalone experimentation.
 - **Implementation**: `lib/passes/loom-opt/src/hoist_block_loading.cpp`, `lib/passes/common/src/block_loading_pattern.cpp`
 
 ## Debug Utilities
 
 ### `static_memory_analyser`
-Standalone CLI for the memory analysis pass used internally by `memory_binding`. Parses an MLIR file and dumps the virtual buffer allocation plan (bucket grouping, coloring, liveness).
+Standalone CLI for the memory analysis pass used internally by `memory_binding`. It parses an MLIR file and dumps the virtual buffer allocation plan.
 
 ```bash
 build/tool/loom-opt/single_stage/static_memory_analyser --input <file.mlir>
 ```
 
 ### Performance Benchmarking
-`benchmark.sh` measures tool execution time with statistical analysis (mean, median, min, max, std dev across multiple runs).
+`benchmark.sh` measures tool execution time with statistical analysis.
 
 ```bash
 ./benchmark.sh --warmup=3 --runs=10 -- build/tool/loom-opt/single_stage/tensor_canonicalize \
   --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir
 ```
 
-## Tests
-
-```bash
-# Run all CTest-driven MLIR tests
-cd build && ctest --output-on-failure
-
-# Run the full end-to-end regression pipeline
-cd third_party/loom-dataflow && ./run_pipeline.sh
-```
-
-Test cases are under `test/Passes/` (mm\_2Dmesh, flashattn\_2Dmesh, mm\_ibmring) and `test/Dialect/`.
-
 ## Troubleshooting
 
-- `lit` not found: install via `pipx install lit` (preferred) or provide `--llvm-lit=/path/to/lit`.
+- `lit` not found: install via `python3 -m pip install lit` or provide `--llvm-lit=/path/to/lit`.
 - `MLIRConfig.cmake` missing: export `MLIR_DIR` to point at your LLVM/MLIR installation.
+- `pybind11` not found in a restricted environment: install it into the active Python environment before configuring.
 - IntelliSense gaps: rerun `./setup_ide.sh` so that `compile_commands.json` stays in sync with TableGen-generated headers.
 
 ## License

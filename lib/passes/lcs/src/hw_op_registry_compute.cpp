@@ -3,6 +3,7 @@
 
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/STLExtras.h"
 
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -10,6 +11,98 @@
 
 namespace loom {
 namespace lcs {
+
+namespace {
+
+mlir::FailureOr<LocalMemKind> getLocalMemKind(mlir::Type type,
+                                               mlir::Operation *op,
+                                               unsigned operandIndex) {
+  mlir::Attribute attr;
+  if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(type)) {
+    mlir::Attribute encoding = tensorType.getEncoding();
+    if (!encoding)
+      return LocalMemKind::SRAM;
+    auto dictionary = mlir::dyn_cast<mlir::DictionaryAttr>(encoding);
+    if (!dictionary) {
+      op->emitError() << "staged-etg: tensor operand " << operandIndex
+                      << " has a non-dictionary encoding; expected "
+                         "'local_mem_kind : i64'";
+      return mlir::failure();
+    }
+    attr = dictionary.get("local_mem_kind");
+    if (!attr)
+      return LocalMemKind::SRAM;
+  } else if (auto memrefType = mlir::dyn_cast<mlir::MemRefType>(type)) {
+    attr = memrefType.getMemorySpace();
+    if (!attr)
+      return LocalMemKind::SRAM;
+  } else {
+    return LocalMemKind::SRAM;
+  }
+
+  auto integer = mlir::dyn_cast<mlir::IntegerAttr>(attr);
+  if (!integer) {
+    op->emitError() << "staged-etg: operand " << operandIndex
+                    << " local memory kind must be an integer attribute";
+    return mlir::failure();
+  }
+
+  switch (integer.getInt()) {
+  case 0:
+    return LocalMemKind::SRAM;
+  case 1:
+    return LocalMemKind::RRAM;
+  default:
+    op->emitError() << "staged-etg: operand " << operandIndex
+                    << " has unsupported local memory kind "
+                    << integer.getInt() << "; expected 0 (SRAM) or 1 (RRAM)";
+    return mlir::failure();
+  }
+}
+
+} // namespace
+
+mlir::FailureOr<ComputeOpMatchInfo>
+getComputeOpMatchInfo(mlir::linalg::LinalgOp linalgOp) {
+  ComputeOpMatchInfo result;
+  unsigned operandIndex = 0;
+  auto appendKind = [&](mlir::Value value) -> mlir::LogicalResult {
+    mlir::FailureOr<LocalMemKind> kind =
+        getLocalMemKind(value.getType(), linalgOp.getOperation(), operandIndex);
+    ++operandIndex;
+    if (mlir::failed(kind))
+      return mlir::failure();
+    result.operand_mem_kinds.push_back(*kind);
+    return mlir::success();
+  };
+
+  for (mlir::Value input : linalgOp.getDpsInputs())
+    if (mlir::failed(appendKind(input)))
+      return mlir::failure();
+  for (mlir::Value init : linalgOp.getDpsInits())
+    if (mlir::failed(appendKind(init)))
+      return mlir::failure();
+  return result;
+}
+
+std::string formatComputeOpMatchInfo(const ComputeOpMatchInfo &info) {
+  std::string result;
+  llvm::raw_string_ostream os(result);
+  os << "(";
+  for (size_t i = 0; i < info.operand_mem_kinds.size(); ++i) {
+    if (i)
+      os << ",";
+    os << static_cast<int64_t>(info.operand_mem_kinds[i]);
+  }
+  os << ")";
+  return os.str();
+}
+
+bool hasOnlySRAMOperands(const ComputeOpMatchInfo &info) {
+  return llvm::all_of(info.operand_mem_kinds, [](LocalMemKind kind) {
+    return kind == LocalMemKind::SRAM;
+  });
+}
 
 // ============================================================
 // Extraction helpers: compute ops (linalg-based)
@@ -105,27 +198,33 @@ bool HWOpRegistry::fillGenericDetails(
   return true;
 }
 
-std::optional<HWComputeFunc>
+mlir::FailureOr<std::optional<HWComputeFunc>>
 HWOpRegistry::extractFromFunc(mlir::func::FuncOp func,
                               llvm::StringRef hw_component) {
   auto bindingMap = collectBindingMap(func);
 
   mlir::Operation *computeOp = findComputeOp(func);
   if (!computeOp)
-    return std::nullopt;
+    return std::optional<HWComputeFunc>{};
 
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(computeOp);
+  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+      getComputeOpMatchInfo(linalgOp);
+  if (mlir::failed(matchInfo))
+    return mlir::failure();
+
   HWComputeFunc result;
   result.linalg_op_name = computeOp->getName().getStringRef().str();
   result.hw_func_name = func.getName().str();
   result.hw_component = hw_component.str();
+  result.compute_match = std::move(*matchInfo);
   fillInputOutputBindings(linalgOp, bindingMap, result);
 
   if (llvm::isa<mlir::linalg::GenericOp>(computeOp))
     if (!fillGenericDetails(computeOp, bindingMap, result))
-      return std::nullopt;
+      return std::optional<HWComputeFunc>{};
 
-  return result;
+  return std::optional<HWComputeFunc>{std::move(result)};
 }
 
 } // namespace lcs

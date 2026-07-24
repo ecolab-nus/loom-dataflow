@@ -403,9 +403,9 @@ static LogicalResult applyMappingToFunction(
 
 namespace loom {
 
-OwningOpRef<ModuleOp>
-EnumerateSpatialMappings(ModuleOp affineModule,
-                         const HardwareInfo &hardwareInfo) {
+static OwningOpRef<ModuleOp>
+enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
+                                           const HardwareInfo &hardwareInfo) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(affineModule.getLoc());
@@ -607,6 +607,37 @@ EnumerateSpatialMappings(ModuleOp affineModule,
       for (const auto &mapping : mappings)
         applyOneCandidate(mapping, logicalDimInfos, splitDesc);
     }
+  }
+
+  return out;
+}
+
+OwningOpRef<ModuleOp>
+EnumerateSpatialMappings(ModuleOp affineModule,
+                         const HardwareInfo &hardwareInfo,
+                         bool fullOccupancy) {
+  auto out = ModuleOp::create(affineModule.getLoc());
+  if (!affineModule->getAttrs().empty())
+    out->setAttrs(affineModule->getAttrs());
+
+  OpBuilder builder(out.getBodyRegion());
+  if (fullOccupancy) {
+    OwningOpRef<ModuleOp> fullOccupancyModule =
+        enumerateSpatialMappingsForOneHardwareInfo(affineModule, hardwareInfo);
+    IRMapping mapping;
+    for (Operation &op : *fullOccupancyModule->getBody())
+      builder.clone(op, mapping);
+    return out;
+  }
+
+  for (const HardwareInfo &variant :
+       loom::utils::generateHardwareOccupancyVariants(hardwareInfo)) {
+    OwningOpRef<ModuleOp> variantModule =
+        enumerateSpatialMappingsForOneHardwareInfo(affineModule, variant);
+
+    IRMapping mapping;
+    for (Operation &op : *variantModule->getBody())
+      builder.clone(op, mapping);
   }
 
   return out;

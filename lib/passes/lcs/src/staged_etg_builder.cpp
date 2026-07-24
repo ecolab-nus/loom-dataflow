@@ -5,6 +5,7 @@
 #include "l1_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
+#include "workload_source_label.h"
 #include "ADLDialect.h.inc"
 #define GET_TYPEDEF_CLASSES
 #include "ADLTypes.h.inc"
@@ -17,12 +18,15 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/IR/AsmState.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/JSON.h"
+#include <array>
 #include <cassert>
+#include <cmath>
 #include <optional>
 #include <set>
 #define GET_OP_CLASSES
@@ -57,6 +61,43 @@ std::pair<Expr, Expr> findDivNode(const Expr &e) {
   return findDivNode(e.rhs());
 }
 
+void collectSymbols(const Expr &expr, std::set<std::string> &symbols) {
+  if (expr.isNone())
+    return;
+  if (expr.kind() == Expr::Kind::Sym) {
+    symbols.insert(expr.symbolName());
+    return;
+  }
+  switch (expr.kind()) {
+  case Expr::Kind::Add:
+  case Expr::Kind::Sub:
+  case Expr::Kind::Mul:
+  case Expr::Kind::Div:
+  case Expr::Kind::Min:
+  case Expr::Kind::Max:
+    collectSymbols(expr.lhs(), symbols);
+    collectSymbols(expr.rhs(), symbols);
+    return;
+  case Expr::Kind::None:
+  case Expr::Kind::Const:
+  case Expr::Kind::Sym:
+  case Expr::Kind::IfElse:
+    return;
+  }
+}
+
+bool hasAsureDivisibleTile(
+    const Expr &expr, const std::map<std::string, SymbolInfo> &symbols) {
+  std::set<std::string> participatingSymbols;
+  collectSymbols(expr, participatingSymbols);
+  for (const std::string &name : participatingSymbols) {
+    auto it = symbols.find(name);
+    if (it != symbols.end() && it->second.asure_divisible)
+      return true;
+  }
+  return false;
+}
+
 /// A group of workloads that must execute sequentially (they share resources).
 struct ResourceGroup {
   std::set<std::string> resources;
@@ -76,12 +117,526 @@ std::optional<int64_t> staticIndexFromOfr(mlir::OpFoldResult value) {
   return std::nullopt;
 }
 
+struct DataMoverLookupInfo {
+  DataMoverKind kind;
+  std::string op_name;
+  std::string src_mem_space;
+  std::string dst_mem_space;
+  std::optional<int64_t> src_mem_kind;
+  std::optional<int64_t> dst_mem_kind;
+  std::vector<int64_t> area;
+  mlir::Value source;
+  mlir::Value destination;
+};
+
+std::optional<DataMoverLookupInfo> getDataMoverLookupInfo(mlir::Operation *op) {
+  auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
+  auto gatherOp = llvm::dyn_cast<loom::GatherOp>(op);
+  if (!copyOp && !gatherOp)
+    return std::nullopt;
+
+  DataMoverLookupInfo info;
+  mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
+  if (copyOp) {
+    info.kind = DataMoverKind::Copy;
+    info.op_name = "loom.copy";
+    info.source = copyOp.getSource();
+    info.destination = copyOp.getDestination();
+    mixedArea = copyOp.getMixedArea();
+    if (auto attr = copyOp.getSrcMemSpaceAttr())
+      info.src_mem_space = attr.getLeafReference().str();
+    if (auto attr = copyOp.getDstMemSpaceAttr())
+      info.dst_mem_space = attr.getLeafReference().str();
+    if (auto attr = copyOp.getSrcMemKindAttr())
+      info.src_mem_kind = attr.getInt();
+    if (auto attr = copyOp.getDstMemKindAttr())
+      info.dst_mem_kind = attr.getInt();
+  } else {
+    info.kind = DataMoverKind::Gather;
+    info.op_name = "loom.gather";
+    info.source = gatherOp.getSource();
+    info.destination = gatherOp.getDestination();
+    mixedArea = gatherOp.getMixedArea();
+    if (auto attr = gatherOp.getSrcMemSpaceAttr())
+      info.src_mem_space = attr.getLeafReference().str();
+    if (auto attr = gatherOp.getDstMemSpaceAttr())
+      info.dst_mem_space = attr.getLeafReference().str();
+  }
+
+  for (mlir::OpFoldResult area : mixedArea) {
+    if (std::optional<int64_t> value = staticIndexFromOfr(area))
+      info.area.push_back(*value);
+    else
+      info.area.push_back(mlir::ShapedType::kDynamic);
+  }
+  return info;
+}
+
+std::string dataMoverKeyDescription(const DataMoverLookupInfo &info) {
+  std::string result;
+  llvm::raw_string_ostream os(result);
+  auto printKind = [&](std::optional<int64_t> kind) {
+    if (kind)
+      os << *kind;
+    else
+      os << "unset";
+  };
+  os << "kind=" << (info.kind == DataMoverKind::Copy ? "copy" : "gather")
+     << ", src_mem_space=" << info.src_mem_space << ", src_mem_kind=";
+  printKind(info.src_mem_kind);
+  os << ", dst_mem_space=" << info.dst_mem_space << ", dst_mem_kind=";
+  printKind(info.dst_mem_kind);
+  os << ", broadcast=[";
+  for (size_t i = 0; i < info.area.size(); ++i) {
+    if (i)
+      os << ", ";
+    if (mlir::ShapedType::isDynamic(info.area[i]))
+      os << "?";
+    else
+      os << info.area[i];
+  }
+  os << "]";
+  return os.str();
+}
+
+bool isNonExecutableLoomOp(llvm::StringRef opName) {
+  // Keep this list explicit: a new Loom op must either be modelled by ETG or
+  // deliberately classified as non-executable before it can be ignored.
+  static const std::set<std::string> kNonExecutableOps = {
+      "loom.alloc", "loom.placeholder", "loom.semaphore_take",
+      "loom.semaphore_give", "loom.copy_to_tensor",
+      "loom.copy_from_tensor", "loom.bufferize_to_tensor",
+      "loom.bufferize_to_memref", "loom.init_tensor", "loom.pack_to_tensor",
+      "loom.subview", "loom.sym", "loom.bind", "loom.bind_shape",
+      "loom.bind_mem", "loom.broadcast", "loom.sync"};
+  return kNonExecutableOps.count(opName.str()) != 0;
+}
+
+int64_t ceilDivNonNegative(int64_t numerator, int64_t denominator) {
+  assert(numerator >= 0 && denominator > 0);
+  return numerator == 0 ? 0 : (numerator + denominator - 1) / denominator;
+}
+
+int64_t ceilLog2Positive(int64_t value) {
+  if (value <= 1)
+    return 0;
+  int64_t log = 0;
+  int64_t threshold = 1;
+  while (threshold < value) {
+    threshold <<= 1;
+    ++log;
+  }
+  return log;
+}
+
+std::optional<std::array<int64_t, 2>>
+extractTrailing2DStrides(mlir::Value value) {
+  auto type = mlir::dyn_cast<mlir::MemRefType>(value.getType());
+  if (!type || type.getRank() < 2)
+    return std::nullopt;
+
+  llvm::SmallVector<int64_t, 4> strides(type.getRank(),
+                                        mlir::ShapedType::kDynamic);
+  if (auto stridedLayout =
+          mlir::dyn_cast<mlir::StridedLayoutAttr>(type.getLayout())) {
+    llvm::ArrayRef<int64_t> layoutStrides = stridedLayout.getStrides();
+    if (layoutStrides.size() != static_cast<size_t>(type.getRank()))
+      return std::nullopt;
+    strides.assign(layoutStrides.begin(), layoutStrides.end());
+  } else {
+    int64_t stride = 1;
+    for (int64_t i = type.getRank() - 1; i >= 0; --i) {
+      strides[i] = stride;
+      if (type.isDynamicDim(i)) {
+        stride = mlir::ShapedType::kDynamic;
+      } else if (stride != mlir::ShapedType::kDynamic) {
+        stride *= type.getDimSize(i);
+      }
+    }
+  }
+
+  int64_t xStride = strides[type.getRank() - 2];
+  int64_t yStride = strides[type.getRank() - 1];
+  if (mlir::ShapedType::isDynamic(xStride) ||
+      mlir::ShapedType::isDynamic(yStride))
+    return std::nullopt;
+  return std::array<int64_t, 2>{xStride, yStride};
+}
+
+std::optional<llvm::StringRef> getPhysicalDimName(mlir::Operation *op) {
+  auto dimAttr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.physical_dim");
+  if (!dimAttr)
+    return std::nullopt;
+  return dimAttr.getLeafReference();
+}
+
+std::optional<int64_t> getLogicalLevel(mlir::Operation *op) {
+  if (auto levelAttr =
+          op->getAttrOfType<mlir::IntegerAttr>("loom.logical_level"))
+    return levelAttr.getInt();
+  return std::nullopt;
+}
+
+std::optional<std::string> getBlockSymName(mlir::Operation *op) {
+  if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
+    return attr.getLeafReference().str();
+  return std::nullopt;
+}
+
+std::optional<int64_t>
+getSingleConstantUpperBound(mlir::affine::AffineParallelOp parOp) {
+  mlir::AffineMap ubMap = parOp.getUpperBoundsMap();
+  if (ubMap.getNumResults() != 1)
+    return std::nullopt;
+  auto constExpr = mlir::dyn_cast<mlir::AffineConstantExpr>(ubMap.getResult(0));
+  if (!constExpr)
+    return std::nullopt;
+  return constExpr.getValue();
+}
+
+struct SubmeshSize2D {
+  int64_t x = 1;
+  int64_t y = 1;
+};
+
+SubmeshSize2D getCurrentSubmeshSize2D(mlir::Operation *op) {
+  SubmeshSize2D submesh;
+  std::set<int64_t> seenXLevels;
+  std::set<int64_t> seenYLevels;
+
+  for (mlir::Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent);
+    if (!parOp)
+      continue;
+
+    std::optional<llvm::StringRef> dimName = getPhysicalDimName(parent);
+    if (!dimName || (*dimName != "dim_x" && *dimName != "dim_y"))
+      continue;
+    std::optional<int64_t> level = getLogicalLevel(parent);
+    if (!level)
+      continue;
+    std::optional<int64_t> ub = getSingleConstantUpperBound(parOp);
+    if (!ub || *ub <= 0)
+      continue;
+
+    if (*dimName == "dim_x") {
+      if (seenXLevels.insert(*level).second)
+        submesh.x *= *ub;
+    } else {
+      if (seenYLevels.insert(*level).second)
+        submesh.y *= *ub;
+    }
+  }
+
+  return submesh;
+}
+
+std::optional<int64_t> getSpatialTilingFactor(mlir::scf::ForOp forOp) {
+  std::optional<std::string> loopBlockSym = getBlockSymName(forOp);
+  if (!loopBlockSym)
+    return std::nullopt;
+
+  int64_t factor = 1;
+  std::set<std::pair<std::string, int64_t>> seenLevels;
+
+  for (mlir::Operation *parent = forOp->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent);
+    if (!parOp)
+      continue;
+
+    std::optional<std::string> parBlockSym = getBlockSymName(parent);
+    if (!parBlockSym || *parBlockSym != *loopBlockSym)
+      continue;
+
+    if (auto iterAttr =
+            parent->getAttrOfType<loom::IterTypeAttr>("loom.iter_type"))
+      if (iterAttr.getValue() != loom::IterType::Spatial)
+        continue;
+
+    std::optional<llvm::StringRef> dimName = getPhysicalDimName(parent);
+    std::optional<int64_t> level = getLogicalLevel(parent);
+    std::optional<int64_t> ub = getSingleConstantUpperBound(parOp);
+    if (!dimName || !level || !ub || *ub <= 0)
+      continue;
+
+    std::pair<std::string, int64_t> key{dimName->str(), *level};
+    if (seenLevels.insert(key).second)
+      factor *= *ub;
+  }
+
+  if (seenLevels.empty())
+    return std::nullopt;
+  return factor;
+}
+
+Expr rebuildBinaryExpr(Expr::Kind kind, Expr lhs, Expr rhs) {
+  switch (kind) {
+  case Expr::Kind::Add:
+    return std::move(lhs) + std::move(rhs);
+  case Expr::Kind::Sub:
+    return std::move(lhs) - std::move(rhs);
+  case Expr::Kind::Mul:
+    return std::move(lhs) * std::move(rhs);
+  case Expr::Kind::Div:
+    return std::move(lhs) / std::move(rhs);
+  case Expr::Kind::Min:
+    return min_expr(std::move(lhs), std::move(rhs));
+  case Expr::Kind::Max:
+    return max_expr(std::move(lhs), std::move(rhs));
+  default:
+    return Expr::none();
+  }
+}
+
+Expr replaceFirstConstPreferDivDenom(const Expr &expr, int64_t oldValue,
+                                     int64_t newValue, bool &replaced) {
+  if (expr.isNone() || replaced)
+    return expr;
+
+  if (expr.kind() == Expr::Kind::Const) {
+    if (expr.constValue() == oldValue) {
+      replaced = true;
+      return Expr::con(newValue);
+    }
+    return expr;
+  }
+
+  switch (expr.kind()) {
+  case Expr::Kind::Add:
+  case Expr::Kind::Sub:
+  case Expr::Kind::Mul:
+  case Expr::Kind::Div:
+  case Expr::Kind::Min:
+  case Expr::Kind::Max: {
+    Expr lhs = expr.lhs();
+    Expr rhs = expr.rhs();
+    if (expr.kind() == Expr::Kind::Div) {
+      rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
+      if (!replaced)
+        lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
+    } else {
+      lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
+      if (!replaced)
+        rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
+    }
+    return rebuildBinaryExpr(expr.kind(), std::move(lhs), std::move(rhs));
+  }
+  case Expr::Kind::IfElse:
+    return expr;
+  case Expr::Kind::None:
+  case Expr::Kind::Const:
+  case Expr::Kind::Sym:
+    return expr;
+  }
+  return expr;
+}
+
+Expr relaxTripCountForConstraints(mlir::scf::ForOp forOp,
+                                  const Expr &tripCount) {
+  std::optional<int64_t> meshFactor = getSpatialTilingFactor(forOp);
+  if (!meshFactor)
+    return tripCount;
+  if (*meshFactor <= 1)
+    return tripCount;
+
+  bool replaced = false;
+  Expr relaxed = replaceFirstConstPreferDivDenom(
+      tripCount, *meshFactor, *meshFactor - 1, replaced);
+  if (!replaced)
+    forOp.emitWarning() << "could not find temporal mesh divisor "
+                        << *meshFactor
+                        << " in trip-count expression for relaxed iter_num";
+  return replaced ? relaxed : tripCount;
+}
+
+int64_t computeEffectiveBandwidthBase(std::array<int64_t, 2> area,
+                                      mlir::Operation *op) {
+  SubmeshSize2D submesh = getCurrentSubmeshSize2D(op);
+  int64_t ratioX = submesh.x / area[0];
+  int64_t ratioY = submesh.y / area[1];
+  int64_t factor = std::max<int64_t>(1, std::min(ratioX, ratioY));
+  return 10 * factor;
+}
+
+bool shouldApplyNoCBandwidthPenalty(std::array<int64_t, 2> srcStrides,
+                                    std::array<int64_t, 2> area) {
+  double strideNorm = std::hypot(static_cast<double>(srcStrides[0]),
+                                 static_cast<double>(srcStrides[1]));
+  double areaNorm =
+      std::hypot(static_cast<double>(area[0]), static_cast<double>(area[1]));
+  if (strideNorm == 0.0 || areaNorm == 0.0)
+    return false;
+
+  double dot = static_cast<double>(srcStrides[0]) * area[0] +
+               static_cast<double>(srcStrides[1]) * area[1];
+  double cosine = dot / (strideNorm * areaNorm);
+
+  // Workaround: only penalize broadcast patterns whose multicast direction is
+  // poorly aligned with the source layout direction. The cutoff is empirical
+  // and intentionally local to this policy so the NoC model can be replaced.
+  constexpr double kCosineSimilarityThreshold = 0.7;
+  return cosine <= kCosineSimilarityThreshold;
+}
+
+int64_t extractUniqueNonUnitStride(std::array<int64_t, 2> srcStrides) {
+  int nonUnitCount = 0;
+  int64_t activeStride = 1;
+  for (int64_t stride : srcStrides) {
+    if (stride == 1)
+      continue;
+    ++nonUnitCount;
+    activeStride = stride;
+  }
+  assert(nonUnitCount == 1 &&
+         "expected exactly one non-unit stride in the trailing 2D source "
+         "layout for NoC bandwidth penalty");
+  return activeStride;
+}
+
+int64_t computeStrideLogBandwidthBucket(std::array<int64_t, 2> srcStrides) {
+  int64_t activeStride = extractUniqueNonUnitStride(srcStrides);
+  return ceilDivNonNegative(ceilLog2Positive(activeStride), 2);
+}
+
+bool isSequentialScfFor(mlir::scf::ForOp forOp) {
+  auto iterAttr =
+      forOp->getAttrOfType<loom::IterTypeAttr>("loom.iter_type");
+  return iterAttr && iterAttr.getValue() == loom::IterType::Sequential;
+}
+
+mlir::scf::ForOp getNearestSequentialScfFor(mlir::Operation *op) {
+  for (mlir::Operation *parent = op->getParentOp(); parent;
+       parent = parent->getParentOp()) {
+    auto forOp = mlir::dyn_cast<mlir::scf::ForOp>(parent);
+    if (!forOp)
+      continue;
+    return isSequentialScfFor(forOp) ? forOp : mlir::scf::ForOp();
+  }
+  return mlir::scf::ForOp();
+}
+
+std::optional<unsigned>
+getUniqueTrailingOffsetDimDependingOnIV(loom::SubviewOp subviewOp,
+                                        mlir::Value iv) {
+  llvm::SmallVector<mlir::OpFoldResult, 4> offsets =
+      subviewOp.getMixedOffsets();
+  if (offsets.size() < 2)
+    return std::nullopt;
+
+  std::optional<unsigned> dependentDim;
+  unsigned firstTrailingDim = offsets.size() - 2;
+  for (unsigned dim = 0; dim < 2; ++dim) {
+    mlir::Value offsetValue =
+        offsets[firstTrailingDim + dim].dyn_cast<mlir::Value>();
+    if (!offsetValue || !loom::utils::dependsOn(offsetValue, iv))
+      continue;
+    if (dependentDim)
+      return std::nullopt;
+    dependentDim = dim;
+  }
+  return dependentDim;
+}
+
+std::optional<unsigned> getUniqueLargerAreaDim(std::array<int64_t, 2> area) {
+  if (area[0] == area[1])
+    return std::nullopt;
+  return area[0] > area[1] ? std::optional<unsigned>(0)
+                           : std::optional<unsigned>(1);
+}
+
+int64_t computeSubviewReadBandwidthBucket(loom::CopyOp copyOp,
+                                          loom::SubviewOp sourceSubview,
+                                          std::array<int64_t, 2> area) {
+  mlir::scf::ForOp sequentialFor = getNearestSequentialScfFor(copyOp);
+  if (!sequentialFor)
+    return 0;
+
+  std::optional<unsigned> offsetDim =
+      getUniqueTrailingOffsetDimDependingOnIV(sourceSubview,
+                                              sequentialFor.getInductionVar());
+  if (!offsetDim)
+    return 0;
+
+  std::optional<unsigned> areaDim = getUniqueLargerAreaDim(area);
+  if (!areaDim || *areaDim != *offsetDim)
+    return 0;
+
+  return 2;
+}
+
+void applyNoCBandwidthPenaltyWorkaround(
+    loom::CopyOp copyOp, llvm::ArrayRef<int64_t> bcastVec,
+    const HWOpRegistry *hwRegistry, std::map<std::string, Expr> &dimMap) {
+  if (!hwRegistry || dimMap.empty() || bcastVec.size() < 2 ||
+      mlir::ShapedType::isDynamic(bcastVec[0]) ||
+      mlir::ShapedType::isDynamic(bcastVec[1]) || bcastVec[0] <= 0 ||
+      bcastVec[1] <= 0)
+    return;
+
+  std::array<int64_t, 2> area{bcastVec[0], bcastVec[1]};
+  int64_t effectiveBandwidthBase =
+      computeEffectiveBandwidthBase(area, copyOp.getOperation());
+  dimMap["effective_bandwidth"] = Expr::con(effectiveBandwidthBase);
+
+  if (area[0] == 1 && area[1] == 1) {
+    // Workaround: unicast DRAM->L1 copies still contend with the currently
+    // enabled submesh. The common base helper already accounts for the current
+    // dim_x/dim_y occupancy, so no extra broadcast-specific bucket is applied.
+    return;
+  }
+
+  auto sourceSubview = copyOp.getSource().getDefiningOp<loom::SubviewOp>();
+  assert(sourceSubview &&
+         "broadcast copy source is expected to be produced by loom.subview");
+
+  int64_t penaltyBucket =
+      computeSubviewReadBandwidthBucket(copyOp, sourceSubview, area);
+
+  auto srcStrides = extractTrailing2DStrides(copyOp.getSource());
+  if (srcStrides && shouldApplyNoCBandwidthPenalty(*srcStrides, area))
+    penaltyBucket += computeStrideLogBandwidthBucket(*srcStrides);
+
+  if (penaltyBucket == 0)
+    return;
+
+  // Workaround: NoC read+multicast effective bandwidth depends on source
+  // memory layout. Keep the penalty isolated behind the effective_bandwidth
+  // symbol so normal loom.copy data-volume binding stays unchanged. The factor
+  // is deliberately coarse and small. First add the stride-layout bucket when
+  // the broadcast direction fails the cosine-similarity check; then add the
+  // subview-read bucket when the sequential-loop moving offset is aligned with
+  // the larger broadcast area axis. The hardware performance model divides
+  // bandwidth by 10 to preserve this fixed-point penalty without losing it to
+  // local ceildiv folding in the solver.
+  dimMap["effective_bandwidth"] =
+      Expr::con(effectiveBandwidthBase) + Expr::con(penaltyBucket);
+}
+
 void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
                              std::map<std::string, Expr> &dimMap) {
   loom::AllocOp allocOp = loom::utils::traceToRootAllocOp(value);
   if (!allocOp)
     return;
   std::vector<Expr> opDims = formatAllocDims(allocOp);
+  size_t bindingRank = binding.dim_symbols.size();
+  if (bindingRank >= 2 && opDims.size() > bindingRank) {
+    std::vector<Expr> foldedDims;
+    foldedDims.reserve(bindingRank);
+
+    size_t prefixRank = bindingRank - 2;
+    for (size_t d = 0; d < prefixRank; ++d)
+      foldedDims.push_back(opDims[d]);
+
+    Expr foldedM = opDims[prefixRank];
+    for (size_t d = prefixRank + 1; d + 1 < opDims.size(); ++d)
+      foldedM = std::move(foldedM) * opDims[d];
+    foldedDims.push_back(std::move(foldedM));
+    foldedDims.push_back(opDims.back());
+
+    opDims = std::move(foldedDims);
+  }
   for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
     if (dimMap.count(binding.dim_symbols[d]) == 0)
       dimMap[binding.dim_symbols[d]] = opDims[d];
@@ -161,6 +716,16 @@ resourcesForComputePipelineMode(const std::vector<std::string> &resources) {
   return result;
 }
 
+std::vector<std::string> resourcesForDataMover(const HWComputeFunc &hwFunc) {
+  std::vector<std::string> result = hwFunc.resources;
+  // Data mover processor declarations may not have explicit `with` resources.
+  // Treat the hardware module that registered the data-mover function as the
+  // resource identity so transfers using the same processor serialize.
+  if (!hwFunc.hw_component.empty())
+    result.push_back(hwFunc.hw_component);
+  return result;
+}
+
 } // namespace
 
 // ==========================================
@@ -182,6 +747,8 @@ llvm::json::Value Workload::toJSON() const {
   func_inner["symbols"] = std::move(symbols_json);
   func_inner["sym_map"] =
       llvm::json::Object{{"entries", std::move(entries_json)}};
+  if (op_label)
+    func_inner["op_label"] = *op_label;
 
   llvm::json::Object func_envelope;
   func_envelope["func"] = std::move(func_inner);
@@ -219,11 +786,13 @@ void HardwareQueue::dump(llvm::raw_ostream &os, int indent) const {
 void WorkloadStageBody::pushWorkload(const std::string &unit_name,
                                      const std::string &op,
                                      std::map<std::string, Expr> dims,
-                                     std::vector<std::string> resources) {
+                                     std::vector<std::string> resources,
+                                     std::optional<std::string> op_label) {
   if (queues_.find(unit_name) == queues_.end())
     queues_[unit_name] = HardwareQueue{unit_name, {}};
   queues_[unit_name].workloads.push_back(
-      Workload{op, std::move(dims), std::move(resources)});
+      Workload{op, std::move(dims), std::move(resources),
+               std::move(op_label)});
 }
 
 llvm::json::Object WorkloadStageBody::toJSONFragment() const {
@@ -378,7 +947,8 @@ llvm::json::Value ConstraintScope::toJSON() const {
 
   llvm::json::Array temp_iter_json;
   for (const auto &t : temp_iter)
-    temp_iter_json.push_back(t.toJSON());
+    temp_iter_json.push_back(
+        llvm::json::Array{t.expr.toJSON(), t.asure_divisible});
 
   auto footprintArray = [](const std::vector<Expr> &terms) {
     llvm::json::Array arr;
@@ -401,7 +971,8 @@ llvm::json::Value ConstraintScope::toJSON() const {
   metadata_json["L1_footprint"] = std::move(footprint_json);
   metadata_json["datatype"] = datatype;
   metadata_json["iter_num"] = llvm::json::Object{
-      {"seq_iter", seq_iter.toJSON()},
+      {"seq_iter",
+       llvm::json::Array{seq_iter.expr.toJSON(), seq_iter.asure_divisible}},
       {"temp_iter", std::move(temp_iter_json)}};
   metadata_json["booleans"] = std::move(booleans_json);
 
@@ -427,21 +998,147 @@ VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
 // ==========================================
 // VariantETG — ETG building
 // ==========================================
-void VariantETG::buildFromFunc(mlir::func::FuncOp func_op) {
+mlir::LogicalResult VariantETG::buildFromFunc(mlir::func::FuncOp func_op) {
   if (func_op.isExternal() || func_op.empty())
-    return;
-  populateScopesFromRegion(func_op.getRegion(),
-                           kernel_block_.body.load_scope,
-                           kernel_block_.body.compute_scope,
-                           kernel_block_.body.store_scope);
+    return mlir::success();
+  std::set<std::string> skippedOps;
+  mlir::LogicalResult validation = validateDispatches(func_op, skippedOps);
+  if (!skippedOps.empty()) {
+    llvm::errs() << "staged-etg: skipped non-Loom/Linalg operations:";
+    for (const std::string &opName : skippedOps)
+      llvm::errs() << " " << opName;
+    llvm::errs() << "\n";
+  }
+  if (mlir::failed(validation))
+    return mlir::failure();
+
+  mlir::AsmState asm_state(func_op.getOperation());
+  return populateScopesFromRegion(func_op.getRegion(),
+                                  kernel_block_.body.load_scope,
+                                  kernel_block_.body.compute_scope,
+                                  kernel_block_.body.store_scope, asm_state);
 }
 
-void VariantETG::populateScopesFromRegion(mlir::Region &region,
-                                          Scope &load_scope,
-                                          Scope &compute_scope,
-                                          Scope &store_scope) {
+mlir::LogicalResult
+VariantETG::validateDispatches(mlir::func::FuncOp func_op,
+                               std::set<std::string> &skipped_ops) {
+  assert(hw_registry_ && "HWOpRegistry must be provided");
+  bool valid = true;
+
+  std::function<void(mlir::Block &)> validateBlock =
+      [&](mlir::Block &block) {
+        for (mlir::Operation &opRef : block) {
+          mlir::Operation *op = &opRef;
+          if (llvm::isa<mlir::scf::ForOp, mlir::scf::IfOp,
+                        mlir::affine::AffineParallelOp>(op)) {
+            for (mlir::Region &region : op->getRegions())
+              for (mlir::Block &child : region)
+                validateBlock(child);
+            continue;
+          }
+
+          if (auto linalgOp = llvm::dyn_cast<mlir::linalg::LinalgOp>(op)) {
+            if (llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op))
+              continue;
+            mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+                getComputeOpMatchInfo(linalgOp);
+            if (mlir::failed(matchInfo)) {
+              valid = false;
+              continue;
+            }
+            if (llvm::isa<mlir::linalg::GenericOp>(op)) {
+              if (!hasOnlySRAMOperands(*matchInfo)) {
+                op->emitError()
+                    << "staged-etg: linalg.generic with non-trivial local "
+                       "memory kinds is not supported for dispatch; got "
+                    << formatComputeOpMatchInfo(*matchInfo);
+                valid = false;
+                continue;
+              }
+              GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
+              for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
+                if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
+                  continue;
+                mlir::Dialect *dialect = bodyOp.getDialect();
+                if (!dialect || (dialect->getNamespace() != "arith" &&
+                                 dialect->getNamespace() != "math"))
+                  continue;
+                std::string bodyOpName = bodyOp.getName().getStringRef().str();
+                if (!hw_registry_->lookup(
+                        HWOpKey::generic(bodyOpName, analysis.generic_class,
+                                         *matchInfo))) {
+                  bodyOp.emitError()
+                      << "staged-etg: no hw_spec registration for linalg.generic "
+                      << "body op '" << bodyOpName
+                      << formatComputeOpMatchInfo(*matchInfo) << "'";
+                  valid = false;
+                }
+              }
+              continue;
+            }
+
+            std::string opName = op->getName().getStringRef().str();
+            if (!hw_registry_->lookup(HWOpKey::named(opName, *matchInfo))) {
+              op->emitError() << "staged-etg: no hw_spec registration for "
+                              << "linalg op '" << opName
+                              << formatComputeOpMatchInfo(*matchInfo) << "'";
+              valid = false;
+            }
+            continue;
+          }
+
+          if (std::optional<DataMoverLookupInfo> info =
+                  getDataMoverLookupInfo(op)) {
+            if (info->kind == DataMoverKind::Copy &&
+                loom::utils::classifyCopyMemoryDirection(op) ==
+                    loom::utils::CopyMemoryDirection::Other) {
+              op->emitError()
+                  << "staged-etg: cannot classify loom.copy as a load or store";
+              valid = false;
+              continue;
+            }
+            if (!hw_registry_->lookupDataMover(
+                    info->kind, info->src_mem_space, info->dst_mem_space,
+                    info->src_mem_kind, info->dst_mem_kind, info->area)) {
+              op->emitError() << "staged-etg: no hw_spec registration for "
+                              << info->op_name << " ("
+                              << dataMoverKeyDescription(*info) << ")";
+              valid = false;
+            }
+            continue;
+          }
+
+          if (mlir::Dialect *dialect = op->getDialect()) {
+            llvm::StringRef ns = dialect->getNamespace();
+            if (ns == "loom" &&
+                isNonExecutableLoomOp(op->getName().getStringRef()))
+              continue;
+            if (ns == "loom" || ns == "linalg") {
+              op->emitError() << "staged-etg: unsupported executable op '"
+                              << op->getName().getStringRef()
+                              << "' has no ETG dispatch registration";
+              valid = false;
+              continue;
+            }
+          }
+
+          skipped_ops.insert(op->getName().getStringRef().str());
+          for (mlir::Region &region : op->getRegions())
+            for (mlir::Block &child : region)
+              validateBlock(child);
+        }
+      };
+
+  for (mlir::Block &block : func_op.getRegion())
+    validateBlock(block);
+  return valid ? mlir::success() : mlir::failure();
+}
+
+mlir::LogicalResult VariantETG::populateScopesFromRegion(
+    mlir::Region &region, Scope &load_scope, Scope &compute_scope,
+    Scope &store_scope, mlir::AsmState &asm_state) {
   if (region.empty())
-    return;
+    return mlir::success();
 
   // Per-region readiness map; seeded with this region's block arguments at
   // stage 0 (matching the original walk semantics).
@@ -454,7 +1151,10 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
   // and recurse with fresh scopes. For affine.parallel, walk through
   // transparently into the same target scopes (spatial loops are not modelled
   // — confirmed in the design plan).
+  bool failed = false;
   std::function<void(mlir::Block &)> walkBlock = [&](mlir::Block &block) {
+    if (failed)
+      return;
     for (mlir::Operation &op_ref : block) {
       mlir::Operation *op = &op_ref;
 
@@ -474,8 +1174,12 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
             extractLoopTripCount(for_op));
         // Recurse into the loop body with fresh scopes (a fresh region walk
         // re-seeds its own value_ready_stage from the for_op block args).
-        populateScopesFromRegion(for_op.getRegion(), child->loadScope(),
-                                 child->computeScope(), child->storeScope());
+        if (mlir::failed(populateScopesFromRegion(
+                for_op.getRegion(), child->loadScope(), child->computeScope(),
+                child->storeScope(), asm_state))) {
+          failed = true;
+          return;
+        }
         compute_scope.placeStage(required_stage, std::move(child));
         dispatched = true;
         // for_op result tensors are visible to siblings; treat them as
@@ -504,14 +1208,20 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         advances_stage = false; // parallel op itself produces no modelled work
       } else {
         bool is_compute = llvm::isa<mlir::linalg::LinalgOp>(op);
-        bool is_data_mover = op->getName().getStringRef() == "loom.copy";
+        bool is_copy = llvm::isa<loom::CopyOp>(op);
+        bool is_gather = llvm::isa<loom::GatherOp>(op);
+        bool is_data_mover = is_copy || is_gather;
         bool is_linalg_infra =
             is_compute &&
             llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
         if (is_compute && !is_linalg_infra) {
-          dispatchToComputeQueues(
-              op, compute_scope.getOrCreateWorkloadStage(required_stage));
+          if (mlir::failed(dispatchToComputeQueues(
+                  op, compute_scope.getOrCreateWorkloadStage(required_stage),
+                  asm_state))) {
+            failed = true;
+            return;
+          }
           dispatched = true;
 #if !ComputeKernelPipeline
           advances_stage = false;
@@ -519,12 +1229,26 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
         } else if (is_data_mover) {
           loom::utils::CopyMemoryDirection direction =
               loom::utils::classifyCopyMemoryDirection(op);
-          if (direction == loom::utils::CopyMemoryDirection::Load) {
-            dispatchToDataMoverQueues(
-                op, load_scope.getOrCreateWorkloadStage(required_stage));
-          } else if (direction == loom::utils::CopyMemoryDirection::Store) {
-            dispatchToDataMoverQueues(
-                op, store_scope.getOrCreateWorkloadStage(required_stage));
+          if (is_gather ||
+              direction == loom::utils::CopyMemoryDirection::Store) {
+            if (mlir::failed(dispatchToDataMoverQueues(
+                    op, store_scope.getOrCreateWorkloadStage(required_stage),
+                    asm_state))) {
+              failed = true;
+              return;
+            }
+          } else if (direction == loom::utils::CopyMemoryDirection::Load) {
+            if (mlir::failed(dispatchToDataMoverQueues(
+                    op, load_scope.getOrCreateWorkloadStage(required_stage),
+                    asm_state))) {
+              failed = true;
+              return;
+            }
+          } else {
+            op->emitError()
+                << "staged-etg: cannot classify loom.copy as a load or store";
+            failed = true;
+            return;
           }
           dispatched = true;
           advances_stage = false; // data-mover ops are non-blocking
@@ -542,30 +1266,36 @@ void VariantETG::populateScopesFromRegion(mlir::Region &region,
 
   for (mlir::Block &block : region)
     walkBlock(block);
+  return failed ? mlir::failure() : mlir::success();
 }
 
-void VariantETG::dispatchToComputeQueues(mlir::Operation *op,
-                                         WorkloadStageBody &target) {
+mlir::LogicalResult VariantETG::dispatchToComputeQueues(
+    mlir::Operation *op, WorkloadStageBody &target,
+    mlir::AsmState &asm_state) {
   assert(hw_registry_ && "HWOpRegistry must be provided");
   if (llvm::isa<mlir::linalg::GenericOp>(op))
-    dispatchGenericOp(op, target);
-  else
-    dispatchNamedOp(op, target);
+    return dispatchGenericOp(op, target, asm_state);
+  return dispatchNamedOp(op, target, asm_state);
 }
 
-void VariantETG::dispatchNamedOp(mlir::Operation *op,
-                                 WorkloadStageBody &target) {
+mlir::LogicalResult VariantETG::dispatchNamedOp(mlir::Operation *op,
+                                                WorkloadStageBody &target,
+                                                mlir::AsmState &asm_state) {
   std::string linalg_op_name = op->getName().getStringRef().str();
+  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+      getComputeOpMatchInfo(linalgOp);
+  if (mlir::failed(matchInfo))
+    return mlir::failure();
   const HWComputeFunc *hwFunc =
-      hw_registry_->lookup(HWOpKey::named(linalg_op_name));
+      hw_registry_->lookup(HWOpKey::named(linalg_op_name, *matchInfo));
   if (!hwFunc) {
-    auto ph = HWOpRegistry::makePlaceholder(linalg_op_name);
-    target.pushWorkload(ph.hw_component, ph.hw_func_name, {},
-                        resourcesForComputePipelineMode(ph.resources));
-    return;
+    op->emitError() << "staged-etg: no hw_spec registration for linalg op '"
+                    << linalg_op_name
+                    << formatComputeOpMatchInfo(*matchInfo) << "'";
+    return mlir::failure();
   }
 
-  auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
   std::map<std::string, Expr> dimMap;
   auto inputs = linalgOp.getDpsInputs();
   for (size_t i = 0; i < inputs.size() && i < hwFunc->input_bindings.size();
@@ -580,12 +1310,26 @@ void VariantETG::dispatchNamedOp(mlir::Operation *op,
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap),
-                      resourcesForComputePipelineMode(hwFunc->resources));
+                        resourcesForComputePipelineMode(hwFunc->resources),
+                        makeNamedLinalgWorkloadLabel(linalgOp, asm_state));
+  return mlir::success();
 }
 
-void VariantETG::dispatchGenericOp(mlir::Operation *op,
-                                   WorkloadStageBody &target) {
+mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
+                                                  WorkloadStageBody &target,
+                                                  mlir::AsmState &asm_state) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
+  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
+      getComputeOpMatchInfo(linalgOp);
+  if (mlir::failed(matchInfo))
+    return mlir::failure();
+  if (!hasOnlySRAMOperands(*matchInfo)) {
+    op->emitError()
+        << "staged-etg: linalg.generic with non-trivial local memory kinds "
+           "is not supported for dispatch; got "
+        << formatComputeOpMatchInfo(*matchInfo);
+    return mlir::failure();
+  }
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
@@ -600,12 +1344,13 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
 
     std::string bodyOpName = bodyOp.getName().getStringRef().str();
     const HWComputeFunc *hwFunc =
-        hw_registry_->lookup(HWOpKey::generic(bodyOpName, analysis.generic_class));
+        hw_registry_->lookup(HWOpKey::generic(
+            bodyOpName, analysis.generic_class, *matchInfo));
     if (!hwFunc) {
-      auto ph = HWOpRegistry::makePlaceholder(bodyOpName);
-      target.pushWorkload(ph.hw_component, ph.hw_func_name, {},
-                          resourcesForComputePipelineMode(ph.resources));
-      continue;
+      bodyOp.emitError()
+          << "staged-etg: no hw_spec registration for linalg.generic body op '"
+          << bodyOpName << formatComputeOpMatchInfo(*matchInfo) << "'";
+      return mlir::failure();
     }
 
     std::map<std::string, Expr> dimMap;
@@ -617,66 +1362,55 @@ void VariantETG::dispatchGenericOp(mlir::Operation *op,
 
     target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                         std::move(dimMap),
-                        resourcesForComputePipelineMode(hwFunc->resources));
+                        resourcesForComputePipelineMode(hwFunc->resources),
+                        makeGenericPayloadWorkloadLabel(&bodyOp, linalgOp,
+                                                        asm_state));
   }
+  return mlir::success();
 }
 
-void VariantETG::dispatchToDataMoverQueues(mlir::Operation *op,
-                                           WorkloadStageBody &target) {
+mlir::LogicalResult VariantETG::dispatchToDataMoverQueues(
+    mlir::Operation *op, WorkloadStageBody &target,
+    mlir::AsmState &asm_state) {
   auto copyOp = llvm::dyn_cast<loom::CopyOp>(op);
-  if (!copyOp)
-    return;
+  std::optional<DataMoverLookupInfo> info = getDataMoverLookupInfo(op);
+  if (!info)
+    return mlir::success();
 
-  std::string srcMem, dstMem;
-  mlir::Value source;
-  mlir::Value destination;
-  mlir::SmallVector<mlir::OpFoldResult, 4> mixedArea;
-  DataMoverKind kind = DataMoverKind::Copy;
-  std::string opName = "loom.copy";
-
-  source = copyOp.getSource();
-  destination = copyOp.getDestination();
-  mixedArea = copyOp.getMixedArea();
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    srcMem = attr.getLeafReference().str();
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    dstMem = attr.getLeafReference().str();
-
-  std::vector<int64_t> bcastVec;
-  for (mlir::OpFoldResult area : mixedArea) {
-    if (std::optional<int64_t> value = staticIndexFromOfr(area)) {
-      bcastVec.push_back(*value);
-    } else {
-      bcastVec.push_back(mlir::ShapedType::kDynamic);
-    }
-  }
-
-  const HWComputeFunc *hwFunc =
-      hw_registry_->lookupDataMover(kind, srcMem, dstMem, bcastVec);
+  const HWComputeFunc *hwFunc = hw_registry_->lookupDataMover(
+      info->kind, info->src_mem_space, info->dst_mem_space,
+      info->src_mem_kind, info->dst_mem_kind, info->area);
   if (!hwFunc) {
-    auto ph = HWOpRegistry::makePlaceholder(
-        opName + "[" + srcMem + "->" + dstMem + "]", "data_movers");
-    target.pushWorkload(ph.hw_component, ph.hw_func_name, {}, {});
-    return;
+    op->emitError() << "staged-etg: no hw_spec registration for "
+                    << info->op_name << " ("
+                    << dataMoverKeyDescription(*info) << ")";
+    return mlir::failure();
   }
 
   std::map<std::string, Expr> dimMap;
 
-  for (size_t i = 0; i < bcastVec.size() && i < hwFunc->area_symbols.size();
+  for (size_t i = 0; i < info->area.size() && i < hwFunc->area_symbols.size();
        ++i) {
     const std::string &symbol = hwFunc->area_symbols[i];
     if (!symbol.empty() && symbol != "?" &&
-        !mlir::ShapedType::isDynamic(bcastVec[i]))
-      dimMap[symbol] = Expr::con(bcastVec[i]);
+        !mlir::ShapedType::isDynamic(info->area[i]))
+      dimMap[symbol] = Expr::con(info->area[i]);
   }
 
   if (!hwFunc->input_bindings.empty())
-    addBindingDimsFromValue(source, hwFunc->input_bindings[0], dimMap);
+    addBindingDimsFromValue(info->source, hwFunc->input_bindings[0], dimMap);
   if (!hwFunc->output_bindings.empty())
-    addBindingDimsFromValue(destination, hwFunc->output_bindings[0], dimMap);
+    addBindingDimsFromValue(info->destination, hwFunc->output_bindings[0], dimMap);
+
+  dimMap["effective_bandwidth"] = Expr::con(10);
+
+  if (copyOp)
+    applyNoCBandwidthPenaltyWorkaround(copyOp, info->area, hw_registry_, dimMap);
 
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
-                      std::move(dimMap), hwFunc->resources);
+                      std::move(dimMap), resourcesForDataMover(*hwFunc),
+                      makeDataMoverWorkloadLabel(op, asm_state));
+  return mlir::success();
 }
 
 // ==========================================
@@ -689,6 +1423,7 @@ void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
     info.type = "int";
     if (auto ubAttr = op.getUpperBound())
       info.natural_ub = ubAttr->getSExtValue();
+    info.asure_divisible = op.getAsureDivisible();
     constraint_scope_.symbols[name] = std::move(info);
   });
 }
@@ -702,10 +1437,18 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
     Expr tripCount = extractLoopTripCount(forOp);
     if (tripCount.isNone())
       return;
-    if (iterAttr.getValue() == loom::IterType::Sequential)
-      constraint_scope_.seq_iter = tripCount;
-    else if (iterAttr.getValue() == loom::IterType::Temporal)
-      constraint_scope_.temp_iter.push_back(tripCount);
+    bool asureDivisible =
+        hasAsureDivisibleTile(tripCount, constraint_scope_.symbols);
+    Expr constraintTripCount =
+        asureDivisible ? tripCount
+                       : relaxTripCountForConstraints(forOp, tripCount);
+    if (iterAttr.getValue() == loom::IterType::Sequential) {
+      constraint_scope_.seq_iter = {std::move(constraintTripCount),
+                                    asureDivisible};
+    } else if (iterAttr.getValue() == loom::IterType::Temporal) {
+      constraint_scope_.temp_iter.push_back(
+          {std::move(constraintTripCount), asureDivisible});
+    }
   });
 }
 
@@ -723,9 +1466,9 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
   analyzeLoopIterations(func_op);
-  // addIterDivisibilityConstraints(constraint_scope_.seq_iter);
-  // for (const Expr &t : constraint_scope_.temp_iter)
-    // addIterDivisibilityConstraints(t);
+  // addIterDivisibilityConstraints(constraint_scope_.seq_iter.expr);
+  // for (const IterNumInfo &t : constraint_scope_.temp_iter)
+  //   addIterDivisibilityConstraints(t.expr);
   L1FootprintResult l1Result =
       L1FootprintEstimator::estimateFromFunc(func_op, hw_registry_);
   constraint_scope_.datatype = std::move(l1Result.datatype);

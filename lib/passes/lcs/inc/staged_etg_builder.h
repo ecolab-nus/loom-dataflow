@@ -8,12 +8,18 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Operation.h"
 #include "mlir/IR/Value.h"
+#include "llvm/Support/LogicalResult.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
+namespace mlir {
+class AsmState;
+}
 
 namespace loom {
 namespace lcs {
@@ -28,6 +34,7 @@ struct Workload {
   std::string op;
   std::map<std::string, Expr> dims;
   std::vector<std::string> resources;
+  std::optional<std::string> op_label;
 
   llvm::json::Value toJSON() const;
 };
@@ -72,7 +79,8 @@ public:
 
   void pushWorkload(const std::string &unit_name, const std::string &op,
                     std::map<std::string, Expr> dims,
-                    std::vector<std::string> resources);
+                    std::vector<std::string> resources,
+                    std::optional<std::string> op_label = std::nullopt);
 
   llvm::json::Object toJSONFragment() const override;
   void dump(llvm::raw_ostream &os, int indent) const override;
@@ -196,6 +204,13 @@ struct SymbolInfo {
   std::string type;        // always "int" for now
   int64_t natural_ub = -1; // -1 = unknown / not provided by loom.sym
   int64_t alignment = 1;   // hardware alignment factor for this symbol
+  bool asure_divisible = false;
+};
+
+/// A loop trip-count expression and whether its dividend is known divisible.
+struct IterNumInfo {
+  Expr expr;
+  bool asure_divisible = false;
 };
 
 /// ConstraintScope: Captures constraint metadata from a computation variant.
@@ -208,14 +223,14 @@ struct ConstraintScope {
   L1FootprintByScope l1_footprint;
   // metadata.datatype: element type shared by all @L1 allocations (e.g., "f32")
   std::string datatype;
-  // metadata.iter_num.seq_iter: symbolic trip count of the sequential loop
-  Expr seq_iter;
-  // metadata.iter_num.temp_iter: symbolic trip counts of temporal loops
-  std::vector<Expr> temp_iter;
+  // metadata.iter_num.seq_iter: [symbolic trip count, asure_divisible]
+  IterNumInfo seq_iter;
+  // metadata.iter_num.temp_iter: lists of [trip count, asure_divisible]
+  std::vector<IterNumInfo> temp_iter;
   // hard_constraints: constraints that every valid block-size assignment must satisfy
   std::vector<ConstraintExpr> hard_constraints;
   // metadata.booleans: symbolic boolean variables to be optimized by the solver.
-  // Represented as integer symbols constrained to {0, 1} in the SMT model.
+  // Represented as integer symbols constrained to {0, 1} in the solver model.
   std::vector<std::string> booleans;
 
   /// Public API for appending a new hard constraint to the ETG.
@@ -243,7 +258,7 @@ public:
   /// Build the kernel's ETG by walking the function body, recursing into
   /// scf.for loops to produce nested for_loop_block stages and walking
   /// through affine.parallel loops transparently.
-  void buildFromFunc(mlir::func::FuncOp func_op);
+  mlir::LogicalResult buildFromFunc(mlir::func::FuncOp func_op);
 
   /// Build constraint scope from a func operation.
   /// Extracts symbolic block sizes and global loop iteration counts.
@@ -263,15 +278,25 @@ private:
 
   // Recursive scope population. Walks `region`'s direct ops, dispatching
   // each into the given load / compute / store scope according to its kind.
-  void populateScopesFromRegion(mlir::Region &region, Scope &load_scope,
-                                Scope &compute_scope, Scope &store_scope);
+  mlir::LogicalResult populateScopesFromRegion(
+      mlir::Region &region, Scope &load_scope, Scope &compute_scope,
+      Scope &store_scope, mlir::AsmState &asm_state);
 
-  void dispatchToComputeQueues(mlir::Operation *op,
-                               WorkloadStageBody &target);
-  void dispatchNamedOp(mlir::Operation *op, WorkloadStageBody &target);
-  void dispatchGenericOp(mlir::Operation *op, WorkloadStageBody &target);
-  void dispatchToDataMoverQueues(mlir::Operation *op,
-                                 WorkloadStageBody &target);
+  mlir::LogicalResult dispatchToComputeQueues(mlir::Operation *op,
+                                              WorkloadStageBody &target,
+                                              mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchNamedOp(mlir::Operation *op,
+                                      WorkloadStageBody &target,
+                                      mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchGenericOp(mlir::Operation *op,
+                                        WorkloadStageBody &target,
+                                        mlir::AsmState &asm_state);
+  mlir::LogicalResult dispatchToDataMoverQueues(mlir::Operation *op,
+                                                WorkloadStageBody &target,
+                                                mlir::AsmState &asm_state);
+
+  mlir::LogicalResult validateDispatches(mlir::func::FuncOp func_op,
+                                         std::set<std::string> &skipped_ops);
 
   void collectSymbols(mlir::func::FuncOp func_op);
   void analyzeLoopIterations(mlir::func::FuncOp func_op);
