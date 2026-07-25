@@ -5,6 +5,8 @@
 
 set -e
 
+ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
+
 echo "🔧 Setting up IDE configuration for C++ project..."
 
 # Clean and rebuild to generate compile_commands.json
@@ -30,11 +32,11 @@ if [[ -z "$LLVM_EXTERNAL_LIT" ]]; then
         LLVM_EXTERNAL_LIT=$(command -v llvm-lit)
     elif [[ -x "$HOME/llvm-project/build/bin/llvm-lit" ]]; then
         LLVM_EXTERNAL_LIT="$HOME/llvm-project/build/bin/llvm-lit"
+    elif [[ -x "$ROOT_DIR/../../.venv/bin/lit" ]]; then
+        LLVM_EXTERNAL_LIT="$ROOT_DIR/../../.venv/bin/lit"
     else
-        echo "ERROR: lit/llvm-lit not found. Install one of:"
-        # Removed apt python3-lit as it may not exist on Ubuntu
-        echo "  - pipx install lit (preferred); then run: pipx ensurepath and open a new shell"
-        echo "  - python3 -m venv ~/.venvs/lit && ~/.venvs/lit/bin/pip install lit"
+        echo "ERROR: lit/llvm-lit not found."
+        echo "Run 'uv sync --locked --package loom-dataflow' from the Loom repository."
         exit 1
     fi
 fi

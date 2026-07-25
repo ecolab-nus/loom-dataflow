@@ -47,7 +47,7 @@ if _loom_pipeline.__version__ != _EXPECTED_VERSION:
         f"Loom pipeline version mismatch: Python package expects "
         f"{_EXPECTED_VERSION}, but the C++ module reports "
         f"{_loom_pipeline.__version__}. Please rebuild the C++ module:\n"
-        f"  pip install -e . -v --no-build-isolation"
+        f"  uv sync --extra dataflow --reinstall-package loom-dataflow"
     )
 
 

@@ -38,6 +38,11 @@ include(AddLLVM)
 include(AddMLIR)
 include(HandleLLVMOptions)
 
+# A build-tree MLIR package exposes MLIR and LLVM source headers as separate
+# include lists. Installed packages often place both under one prefix, which
+# previously hid the missing LLVM include path here.
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS} ${MLIR_INCLUDE_DIRS})
+
 # Configure Python support if needed
 if(MLIR_ENABLE_BINDINGS_PYTHON)
     include(MLIRDetectPythonEnv)

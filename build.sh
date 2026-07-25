@@ -58,11 +58,11 @@ if [[ -z "$LLVM_EXTERNAL_LIT" ]]; then
     LLVM_EXTERNAL_LIT=$(command -v llvm-lit)
   elif [[ -x "$HOME/llvm-project/build/bin/llvm-lit" ]]; then
     LLVM_EXTERNAL_LIT="$HOME/llvm-project/build/bin/llvm-lit"
+  elif [[ -x "$ROOT_DIR/../../.venv/bin/lit" ]]; then
+    LLVM_EXTERNAL_LIT="$ROOT_DIR/../../.venv/bin/lit"
   else
     echo "ERROR: llvm-lit not found."
-    echo "Install lit via one of:"
-    echo "  - pipx install lit (preferred); then run: pipx ensurepath and open a new shell"
-    echo "  - python3 -m venv ~/.venvs/lit && ~/.venvs/lit/bin/pip install lit"
+    echo "Run 'uv sync --locked --package loom-dataflow' from the Loom repository."
     echo "Then ensure it is on your PATH, or pass --llvm-lit=/path/to/lit"
     exit 1
   fi

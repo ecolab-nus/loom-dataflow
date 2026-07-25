@@ -32,33 +32,27 @@ test/
 ## Requirements
 
 - CMake >= 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
-- An installed LLVM/MLIR build that exports CMake packages. The scripts default to `MLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir`.
-- Python >= 3.10 with development headers.
+- The LLVM/MLIR 22 snapshot pinned by the Loom monorepo, with exported CMake packages.
+- uv; the Loom workspace pins and manages Python 3.10.
 - `pybind11` and `scikit-build-core` for Python bindings and package builds.
 - `lit` or `llvm-lit` on `PATH`; the build scripts require one and accept `--llvm-lit=/path/to/lit`.
 
 Quick install (Linux/Debian):
 ```bash
-sudo apt install cmake build-essential ninja-build lld python3-dev
-python3 -m pip install pybind11 scikit-build-core lit
+sudo apt install cmake build-essential ninja-build lld
+cd ../..
+bash install-dev.sh
 ```
 
-### Building LLVM/MLIR (quick reference)
+When this project is used from the Loom monorepo, `install-dev.sh` builds the
+pinned `third_party/llvm-project` submodule and supplies its `MLIR_DIR`
+automatically. The standalone scripts still accept an external `MLIR_DIR`.
+
+### Building LLVM/MLIR from the Loom monorepo
 ```bash
-git clone https://github.com/llvm/llvm-project.git $HOME/llvm-project
-cd $HOME/llvm-project && mkdir build && cd build
-cmake -G Ninja ../llvm \
-  -DLLVM_ENABLE_PROJECTS=mlir \
-  -DLLVM_BUILD_EXAMPLES=ON \
-  -DLLVM_TARGETS_TO_BUILD="Native" \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DLLVM_ENABLE_ASSERTIONS=ON \
-  -DLLVM_ENABLE_LLD=ON \
-  -DMLIR_INCLUDE_INTEGRATION_TESTS=ON \
-  -DCMAKE_INSTALL_PREFIX=/opt/llvm-mlir \
-  -DLLVM_BUILD_UTILS=ON -DLLVM_INSTALL_UTILS=ON
-cmake --build . --target check-mlir
-ninja install
+cd ../..
+git submodule update --init third_party/llvm-project
+bash scripts/build-llvm.sh
 ```
 
 ## Build & Configure
@@ -83,10 +77,13 @@ cmake --build . --config Release
 
 ### Python package build
 ```bash
-python3 -m pip install -e . -v --no-build-isolation
+uv sync --locked --package loom-dataflow --reinstall-package loom-dataflow
 ```
 
-The Python package installs `loom_pipeline`, which wraps the C++ pipeline through pybind11. CMake can fetch pybind11 if it cannot find a local install, but a local Python package is preferred for offline or restricted environments.
+uv installs the package editably in the workspace `.venv`. The Python package
+installs `loom_pipeline`, which wraps the C++ pipeline through pybind11.
+Build-system dependencies are declared in `pyproject.toml`, and exact Python
+dependency versions come from the workspace `uv.lock`.
 
 ### IDE/Debug setup
 `./setup_ide.sh` performs a clean Debug build and emits `build/compile_commands.json` for IntelliSense.
@@ -262,9 +259,9 @@ build/tool/loom-opt/single_stage/static_memory_analyser --input <file.mlir>
 
 ## Troubleshooting
 
-- `lit` not found: install via `python3 -m pip install lit` or provide `--llvm-lit=/path/to/lit`.
+- `lit` not found: run `uv sync --locked --package loom-dataflow`, or provide `--llvm-lit=/path/to/lit`.
 - `MLIRConfig.cmake` missing: export `MLIR_DIR` to point at your LLVM/MLIR installation.
-- `pybind11` not found in a restricted environment: install it into the active Python environment before configuring.
+- `pybind11` not found in a restricted environment: rerun the locked uv sync after restoring package-index access.
 - IntelliSense gaps: rerun `./setup_ide.sh` so that `compile_commands.json` stays in sync with TableGen-generated headers.
 
 ## License
