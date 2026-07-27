@@ -23,8 +23,8 @@ tool/
   adl-dialect/          - ADL parser utility
   resource-system/      - Hardware resource demos
   loom-lsp-server/      - LSP server for IDE support
+examples/           - Saved pipeline inputs/outputs for kernels such as mm, mqa_decode, flashattn
 test/
-  Passes/           - Saved pipeline inputs/outputs for kernels such as mm, mqa_decode, flashattn
   Triton/           - Triton source and IR captures used to create pipeline inputs
   Dialect/Affine/   - Affine analysis examples
 ```
@@ -98,7 +98,7 @@ cd third_party/loom-dataflow
 ./run_pipeline.sh mqa_decode "[1,2,3]"
 ```
 
-The first argument is the test case under `test/Passes/`. The optional second argument selects which numbered steps to run.
+The first argument is the example under `examples/`. The optional second argument selects which numbered steps to run.
 
 | Step | Tool | Purpose |
 |------|------|---------|
@@ -150,52 +150,52 @@ final_mlir = run_materialization(explored_mlir, block_sizes_json)
 ```bash
 # Step 1
 build/tool/loom-opt/single_stage/tensor_canonicalize \
-  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir \
-  > test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir
+  --input examples/mqa_decode/IR/00_from_helion_frontend.mlir \
+  > examples/mqa_decode/IR/01_tensor_canonicalized.mlir
 
 # Step 2
 build/tool/loom-opt/single_stage/memory_binding \
-  --input test/Passes/mqa_decode/IR/01_tensor_canonicalized.mlir \
-  > test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir
+  --input examples/mqa_decode/IR/01_tensor_canonicalized.mlir \
+  > examples/mqa_decode/IR/02_explicit_memory_access.mlir
 
 # Step 3
 # Changing the knob full_occ to true skips occupancy enumerating
 build/tool/loom-opt/single_stage/enumerate_hw_mapping \
   --full_occ=false \
-  --input test/Passes/mqa_decode/IR/02_explicit_memory_access.mlir \
+  --input examples/mqa_decode/IR/02_explicit_memory_access.mlir \
   --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  > test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir
+  > examples/mqa_decode/IR/03_after_hardware_mapping.mlir
 
 # Step 4
 build/tool/loom-opt/single_stage/analyze_reuse \
-  --input test/Passes/mqa_decode/IR/03_after_hardware_mapping.mlir \
-  > test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir
+  --input examples/mqa_decode/IR/03_after_hardware_mapping.mlir \
+  > examples/mqa_decode/IR/04_after_reuse_analyzation.mlir
 
 # Step 5
 build/tool/loom-opt/single_stage/enumerate_copy_broadcast \
-  --input test/Passes/mqa_decode/IR/04_after_reuse_analyzation.mlir \
-  > test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir
+  --input examples/mqa_decode/IR/04_after_reuse_analyzation.mlir \
+  > examples/mqa_decode/IR/05_after_enumerate_broadcast.mlir
 
 # Step 6
 build/tool/loom-opt/single_stage/staged_etg \
-  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  --input examples/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
   --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
-  --output test/Passes/mqa_decode/constraint_space/staged_etg_dump.json
+  --output examples/mqa_decode/constraint_space/staged_etg_dump.json
 
 # Step 7
 build/tool/loom-opt/single_stage/canonicalize \
-  --input test/Passes/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
-  > test/Passes/mqa_decode/IR/06_after_canonicalize.mlir
+  --input examples/mqa_decode/IR/05_after_enumerate_broadcast.mlir \
+  > examples/mqa_decode/IR/06_after_canonicalize.mlir
 
 # Step 8
 build/tool/loom-opt/single_stage/one_shot_bufferize \
-  --input test/Passes/mqa_decode/IR/06_after_canonicalize.mlir \
-  > test/Passes/mqa_decode/IR/07_after_osb.mlir
+  --input examples/mqa_decode/IR/06_after_canonicalize.mlir \
+  > examples/mqa_decode/IR/07_after_osb.mlir
 
 # Step 9 (Hardware specific post-processing pass, Optional)
 build/tool/tt-opt/single_stage/tt-opt \
-  --input test/Passes/mqa_decode/IR/07_after_osb.mlir \
-  > test/Passes/mqa_decode/IR/08_tt-opt.mlir
+  --input examples/mqa_decode/IR/07_after_osb.mlir \
+  > examples/mqa_decode/IR/08_tt-opt.mlir
 ```
 
 ## Pass Reference
@@ -254,7 +254,7 @@ build/tool/loom-opt/single_stage/static_memory_analyser --input <file.mlir>
 
 ```bash
 ./benchmark.sh --warmup=3 --runs=10 -- build/tool/loom-opt/single_stage/tensor_canonicalize \
-  --input test/Passes/mqa_decode/IR/00_from_helion_frontend.mlir
+  --input examples/mqa_decode/IR/00_from_helion_frontend.mlir
 ```
 
 ## Troubleshooting
