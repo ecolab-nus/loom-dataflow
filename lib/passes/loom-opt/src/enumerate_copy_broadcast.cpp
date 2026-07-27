@@ -42,10 +42,8 @@
 #include "LoomOps.h.inc"
 
 // Include ADL dialect headers for adl.spatial_dim, adl.arch.scale
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 
 using namespace mlir;
 
@@ -120,9 +118,9 @@ static int64_t getConstantUpperBound(affine::AffineParallelOp par) {
  */
 static SmallVector<std::string> collectMeshDimNames(ModuleOp outerModule) {
   SmallVector<std::string> dimNames;
-  outerModule.walk([&](adl::ArchScaleOp scaleOp) {
+  outerModule.walk([&](mlir::adl::ArchScaleOp scaleOp) {
     for (Value operand : scaleOp.getSpatialDims()) {
-      if (auto dimOp = operand.getDefiningOp<adl::SpatialDimOp>())
+      if (auto dimOp = operand.getDefiningOp<mlir::adl::SpatialDimOp>())
         dimNames.push_back(dimOp.getSymName().str());
     }
   });

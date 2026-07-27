@@ -3,11 +3,9 @@
 #include "mlir/IR/Operation.h"
 #include "mlir/Support/LogicalResult.h"
 
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 
 using namespace mlir;
 
@@ -16,8 +14,8 @@ namespace loom {
 LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp hwModule,
                                             HardwareInfo &hardwareInfo) {
   // Find all adl.arch.scale ops in the module. Assert exactly one exists.
-  llvm::SmallVector<adl::ArchScaleOp> scaleOps;
-  hwModule.walk([&](adl::ArchScaleOp op) { scaleOps.push_back(op); });
+  llvm::SmallVector<mlir::adl::ArchScaleOp> scaleOps;
+  hwModule.walk([&](mlir::adl::ArchScaleOp op) { scaleOps.push_back(op); });
 
   if (scaleOps.size() != 1) {
     hwModule.emitError()
@@ -25,11 +23,11 @@ LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp hwModule,
     return failure();
   }
 
-  adl::ArchScaleOp scaleOp = scaleOps[0];
+  mlir::adl::ArchScaleOp scaleOp = scaleOps[0];
 
   // Extract spatial dimensions from the arch.scale operands.
   for (Value dimValue : scaleOp.getSpatialDims()) {
-    auto sdOp = dimValue.getDefiningOp<adl::SpatialDimOp>();
+    auto sdOp = dimValue.getDefiningOp<mlir::adl::SpatialDimOp>();
     if (!sdOp) {
       scaleOp.emitError()
           << "spatial dimension operand is not defined by adl.spatial_dim";

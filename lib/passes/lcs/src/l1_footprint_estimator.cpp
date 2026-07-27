@@ -13,11 +13,9 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
@@ -205,7 +203,7 @@ int64_t extractL1SizeFromPlatform(const HWOpRegistry *registry) {
     return 0;
 
   int64_t l1_size = 0;
-  platformModule.walk([&](adl::MemoryArrayOp arrayOp) {
+  platformModule.walk([&](mlir::adl::MemoryArrayOp arrayOp) {
     if (arrayOp->getParentOp() != platformModule.getOperation())
       return mlir::WalkResult::skip();
     if (arrayOp.getSymName() != "mem_L1")
@@ -213,10 +211,10 @@ int64_t extractL1SizeFromPlatform(const HWOpRegistry *registry) {
 
     int64_t spatial_product = 1;
     for (mlir::Value spatialVal : arrayOp.getSpatialDims())
-      if (auto dimOp = spatialVal.getDefiningOp<adl::SpatialDimOp>())
+      if (auto dimOp = spatialVal.getDefiningOp<mlir::adl::SpatialDimOp>())
         spatial_product *= static_cast<int64_t>(dimOp.getSize());
 
-    if (auto bankOp = arrayOp.getBank().getDefiningOp<adl::MemoryBankOp>()) {
+    if (auto bankOp = arrayOp.getBank().getDefiningOp<mlir::adl::MemoryBankOp>()) {
       int64_t bsize = static_cast<int64_t>(bankOp.getBsize());
       int64_t nblk = static_cast<int64_t>(bankOp.getNblk());
       l1_size = spatial_product * bsize * nblk;

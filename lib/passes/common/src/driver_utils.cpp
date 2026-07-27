@@ -18,7 +18,7 @@
 #include "llvm/Support/WithColor.h"
 
 // Dialect headers
-#include "ADLDialect.h.inc"
+#include "ADL/IR/ADLDialect.h"
 #include "LoomDialect.h.inc"
 
 using namespace mlir;
@@ -44,7 +44,7 @@ void registerLoomDialects(MLIRContext &context) {
 
 void registerLoomAndADLDialects(MLIRContext &context) {
   registerLoomDialects(context);
-  context.loadDialect<adl::ADLDialect>();
+  context.loadDialect<mlir::adl::ADLDialect>();
 }
 
 OwningOpRef<ModuleOp> parseMLIRFile(llvm::StringRef path, MLIRContext &context) {

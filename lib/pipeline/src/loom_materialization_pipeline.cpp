@@ -44,12 +44,10 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLOps.h"
 #include "LoomDialect.h.inc"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -227,7 +225,7 @@ runMaterializationCore(const char *input_mlir_text,
   context.appendDialectRegistry(registry);
 
   context.loadDialect<loom::LoomDialect,
-                      adl::ADLDialect,
+                      mlir::adl::ADLDialect,
                       func::FuncDialect,
                       arith::ArithDialect,
                       affine::AffineDialect,

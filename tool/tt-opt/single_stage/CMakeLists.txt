@@ -27,7 +27,7 @@ target_link_libraries(tt-opt PRIVATE
   MLIRPass
   MLIRAsmParser
   MLIRBytecodeReader
-  loomADLDialect
+  ADLDialect::IR
   loomDialect
 )
 mlir_check_all_link_libraries(tt-opt)

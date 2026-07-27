@@ -33,12 +33,10 @@
 #include "mlir/Support/FileUtilities.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLOps.h"
 #include "LoomDialect.h.inc"
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
@@ -73,7 +71,7 @@ int main(int argc, char **argv) {
   context.appendDialectRegistry(registry);
 
   // Load necessary dialects
-  context.loadDialect<LoomDialect, adl::ADLDialect, func::FuncDialect,
+  context.loadDialect<LoomDialect, mlir::adl::ADLDialect, func::FuncDialect,
                       memref::MemRefDialect, scf::SCFDialect,
                       arith::ArithDialect, linalg::LinalgDialect,
                       tensor::TensorDialect, affine::AffineDialect,

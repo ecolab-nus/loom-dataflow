@@ -16,11 +16,9 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/Pass.h"
 
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 
 using namespace mlir;
 

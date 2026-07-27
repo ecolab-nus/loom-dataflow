@@ -5,7 +5,6 @@ add_executable(loom-lsp-server
 target_include_directories(loom-lsp-server PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
-  ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
 )
 
 target_link_libraries(loom-lsp-server PRIVATE
@@ -15,7 +14,7 @@ target_link_libraries(loom-lsp-server PRIVATE
   LLVMSupport
   MLIRRegisterAllDialects
   MLIRLspServerLib
-  loomADLDialect
+  ADLDialect::IR
   loomDialect
 )
 

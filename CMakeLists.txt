@@ -19,9 +19,11 @@ endif()
 
 # Find MLIR package
 find_package(MLIR REQUIRED CONFIG)
+find_package(ADLDialect REQUIRED CONFIG)
 
 message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "Using ADLDialectConfig.cmake in: ${ADLDialect_DIR}")
 
 # Set LLVM/MLIR paths
 set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)

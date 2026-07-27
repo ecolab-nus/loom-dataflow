@@ -23,8 +23,6 @@ target_include_directories(LoomPassesCommon
     ${CMAKE_SOURCE_DIR}/lib/lcs/inc
     # Include the generated Loom dialect headers
     ${CMAKE_BINARY_DIR}/lib/loom-dialect/IR
-    # Include the generated ADL dialect headers
-    ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
     # Include the source directory for other Loom internal headers
     ${PROJECT_SOURCE_DIR}/lib/passes/loom-opt/inc
 )
@@ -50,7 +48,7 @@ target_link_libraries(LoomPassesCommon
     MLIRLinalgDialect
     MLIRControlFlowDialect
     loomDialect
-    loomADLDialect
+    ADLDialect::IR
 )
 
 # Depend on the generated Loom dialect headers

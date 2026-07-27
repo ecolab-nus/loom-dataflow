@@ -7,11 +7,9 @@
 #include "hw_op_registry.h"
 #include "hw_op_registry_detail.h"
 #include "utils.h"
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Support/FileUtilities.h"
 #include "llvm/ADT/DenseMap.h"
@@ -129,15 +127,15 @@ void HWOpRegistry::buildResourceMap(mlir::ModuleOp platformModule) {
       auto &res = module_resource_map_[moduleName.str()];
       for (mlir::Value resourceVal : resources) {
         if (auto ResourceExclusiveOp =
-                resourceVal.getDefiningOp<adl::ResourceExclusiveOp>()) {
+                resourceVal.getDefiningOp<mlir::adl::ResourceExclusiveOp>()) {
           res.push_back(ResourceExclusiveOp.getSymName().str());
         }
       }
     };
 
-    if (auto computeOp = llvm::dyn_cast<adl::ProcessorComputeOp>(&op)) {
+    if (auto computeOp = llvm::dyn_cast<mlir::adl::ProcessorComputeOp>(&op)) {
       extractResources(computeOp.getSymName(), computeOp.getResources());
-    } else if (auto dmoverOp = llvm::dyn_cast<adl::ProcessorDMoverOp>(&op)) {
+    } else if (auto dmoverOp = llvm::dyn_cast<mlir::adl::ProcessorDMoverOp>(&op)) {
       extractResources(dmoverOp.getSymName(), dmoverOp.getResources());
     }
   }

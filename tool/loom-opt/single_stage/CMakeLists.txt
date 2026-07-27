@@ -49,31 +49,31 @@ add_loom_single_stage_tool(memory_binding
 # Step 3: Enumerate spatial mappings from adl.arch.scale to affine.parallel
 add_loom_single_stage_tool(enumerate_hw_mapping
   ${CMAKE_CURRENT_LIST_DIR}/enumerate_hw_mapping_main.cpp
-  loomADLDialect
+  ADLDialect::IR
 )
 
 # Step 4 (optional): Hoist block loading operations from innermost loops
 add_loom_single_stage_tool(hoist_block_loading
   ${CMAKE_CURRENT_LIST_DIR}/hoist_block_loading_main.cpp
-  loomADLDialect
+  ADLDialect::IR
 )
 
 # Step 5: Annotate loom.subview with reuse patterns
 add_loom_single_stage_tool(analyze_reuse
   ${CMAKE_CURRENT_LIST_DIR}/analyze_reuse_main.cpp
-  loomADLDialect
+  ADLDialect::IR
 )
 
 # Step 6: Enumerate per-copy broadcast choices and annotate allocs
 add_loom_single_stage_tool(enumerate_copy_broadcast
   ${CMAKE_CURRENT_LIST_DIR}/enumerate_copy_broadcast_main.cpp
-  loomADLDialect
+  ADLDialect::IR
 )
 
 # Step 7: Build Staged Execution Task Graph and emit JSON constraint model
 add_loom_single_stage_tool(staged_etg
   ${CMAKE_CURRENT_LIST_DIR}/staged_etg_main.cpp
-  loomADLDialect
+  ADLDialect::IR
   loomLCS
   MLIRMathDialect
 )
@@ -81,7 +81,7 @@ add_loom_single_stage_tool(staged_etg
 # Step 8: Materialize symbolic block sizes and canonicalize IR
 add_loom_single_stage_tool(canonicalize
   ${CMAKE_CURRENT_LIST_DIR}/canonicalize_main.cpp
-  loomADLDialect
+  ADLDialect::IR
 )
 
 # Step 9: One-Shot Bufferization — tensor ops → memref ops
@@ -93,12 +93,11 @@ target_include_directories(one_shot_bufferize PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
   ${PROJECT_SOURCE_DIR}/lib/loom-dialect/Transforms
-  ${PROJECT_SOURCE_DIR}/build/lib/adl-dialect/IR
 )
 target_link_libraries(one_shot_bufferize PRIVATE
   loomTritonSharedPasses
   loomDialectTransforms
-  loomADLDialect
+  ADLDialect::IR
   loomDialect
   MLIRIR
   MLIRParser

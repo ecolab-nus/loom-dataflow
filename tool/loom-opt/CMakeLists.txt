@@ -5,7 +5,6 @@ add_executable(loom-opt
 target_include_directories(loom-opt PRIVATE
   ${MLIR_INCLUDE_DIRS}
   ${LOOM_PASSES_INC}
-  ${CMAKE_BINARY_DIR}/lib/adl-dialect/IR
 )
 
 target_link_libraries(loom-opt PRIVATE
@@ -16,7 +15,7 @@ target_link_libraries(loom-opt PRIVATE
   MLIRRegisterAllDialects
   MLIRRegisterAllPasses
   MLIROptLib
-  loomADLDialect
+  ADLDialect::IR
   loomDialect
 )
 

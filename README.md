@@ -6,7 +6,6 @@
 
 ```
 lib/
-  adl-dialect/      - TableGen + C++ for the ADL hardware-description dialect
   analysis/         - Static memory analysis and hardware-dimension splitting helpers
   loom-dialect/     - TableGen + C++ for the loom MLIR dialect and bufferization hooks
   modules/          - Hardware topology compositions (2D mesh, torus, ring chains)
@@ -20,7 +19,6 @@ lib/
 tool/
   loom-opt/             - `loom-opt` plus single-stage CLI drivers for each pipeline pass
   tt-opt/single_stage/  - CLI driver for TT cleanup passes
-  adl-dialect/          - ADL parser utility
   resource-system/      - Hardware resource demos
   loom-lsp-server/      - LSP server for IDE support
 examples/           - Saved pipeline inputs/outputs for kernels such as mm, mqa_decode, flashattn
@@ -33,6 +31,8 @@ test/
 
 - CMake >= 3.20, Ninja, a C++17 compiler, and `lld` (or another linker if you override `LLVM_USE_LINKER`).
 - The LLVM/MLIR 22 snapshot pinned by the Loom monorepo, with exported CMake packages.
+- The standalone ADL dialect package, built from `../adl-dialect` and exposing
+  the `ADLDialect::IR` CMake target.
 - uv; the Loom workspace pins and manages Python 3.10.
 - `pybind11` and `scikit-build-core` for Python bindings and package builds.
 - `lit` or `llvm-lit` on `PATH`; the build scripts require one and accept `--llvm-lit=/path/to/lit`.
@@ -68,6 +68,7 @@ Flags such as `--mlir-dir=/path/to/mlir` and `--llvm-lit=/path/to/lit` override 
 ```bash
 mkdir -p build && cd build
 cmake -G Ninja .. \
+  -DADLDialect_DIR=/path/to/adl/install/lib/cmake/ADLDialect \
   -DCMAKE_BUILD_TYPE=Release \
   -DMLIR_DIR=/opt/llvm-mlir/lib/cmake/mlir \
   -DLLVM_EXTERNAL_LIT=$(command -v lit || command -v llvm-lit) \

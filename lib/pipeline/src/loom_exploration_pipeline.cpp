@@ -37,11 +37,9 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 
-#include "ADLDialect.h.inc"
-#define GET_TYPEDEF_CLASSES
-#include "ADLTypes.h.inc"
-#define GET_OP_CLASSES
-#include "ADLOps.h.inc"
+#include "ADL/IR/ADLDialect.h"
+#include "ADL/IR/ADLTypes.h"
+#include "ADL/IR/ADLOps.h"
 #include "LoomDialect.h.inc"
 
 #include "llvm/Support/JSON.h"
@@ -195,7 +193,7 @@ runExplorationPipeline(const std::string &input_mlir_text,
                   tensor::TensorDialect, linalg::LinalgDialect,
                   scf::SCFDialect, bufferization::BufferizationDialect,
                   cf::ControlFlowDialect, math::MathDialect,
-                  adl::ADLDialect, loom::LoomDialect>();
+                  mlir::adl::ADLDialect, loom::LoomDialect>();
 
   // Explicitly register missing tensor op external models
   mlir::tensor::registerInferTypeOpInterfaceExternalModels(registry);
