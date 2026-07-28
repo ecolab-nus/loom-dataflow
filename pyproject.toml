@@ -22,6 +22,7 @@ wheel.packages = []
 
 [tool.scikit-build.cmake.define]
 MLIR_DIR = {env = "MLIR_DIR", default = "/opt/llvm-mlir/lib/cmake/mlir"}
+ADLDialect_DIR = {env = "ADLDialect_DIR"}
 LLVM_USE_LINKER = "lld"
 
 [tool.scikit-build.metadata.version]

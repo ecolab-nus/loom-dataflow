@@ -62,7 +62,10 @@ bash scripts/build-llvm.sh
 ./build.sh
 ```
 
-Flags such as `--mlir-dir=/path/to/mlir` and `--llvm-lit=/path/to/lit` override defaults. Run `./build.sh --help` for the full list.
+Pass `--adl-dialect-dir=/path/to/adl/install/lib/cmake/ADLDialect` for the
+required standalone ADL package. Flags such as `--mlir-dir=/path/to/mlir` and
+`--llvm-lit=/path/to/lit` override defaults. Run `./build.sh --help` for the
+full list.
 
 ### Manual CMake invocation
 ```bash
@@ -78,6 +81,7 @@ cmake --build . --config Release
 
 ### Python package build
 ```bash
+export ADLDialect_DIR=/path/to/adl/install/lib/cmake/ADLDialect
 uv sync --locked --package loom-dataflow --reinstall-package loom-dataflow
 ```
 

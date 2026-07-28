@@ -6,6 +6,7 @@ set -e
 
 # Set default MLIR path (can be overridden via environment variables)
 MLIR_DIR=${MLIR_DIR:-/opt/llvm-mlir/lib/cmake/mlir}
+ADLDialect_DIR=${ADLDialect_DIR:-}
 # Do not hardcode a default for LIT; auto-detect later unless provided
 LLVM_EXTERNAL_LIT=${LLVM_EXTERNAL_LIT:-}
 
@@ -16,6 +17,10 @@ while [[ $# -gt 0 ]]; do
       MLIR_DIR="${1#*=}"
       shift
       ;;
+    --adl-dialect-dir=*)
+      ADLDialect_DIR="${1#*=}"
+      shift
+      ;;
     --llvm-lit=*)
       LLVM_EXTERNAL_LIT="${1#*=}"
       shift
@@ -24,6 +29,7 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: $0 [options]"
       echo "Options:"
       echo "  --mlir-dir=PATH        Path to MLIR cmake files (default: /opt/llvm-mlir/lib/cmake/mlir)"
+      echo "  --adl-dialect-dir=PATH Path to ADLDialectConfig.cmake"
       echo "  --llvm-lit=PATH        Path to llvm-lit executable (default: auto-detect from PATH)"
       echo "  -h, --help            Show this help message"
       exit 0
@@ -70,11 +76,17 @@ fi
 
 echo "LLVM External Lit: $LLVM_EXTERNAL_LIT"
 
-cmake -G Ninja .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DMLIR_DIR="$MLIR_DIR" \
-    -DLLVM_EXTERNAL_LIT="$LLVM_EXTERNAL_LIT" \
+CMAKE_ARGS=(
+    -G Ninja ..
+    -DCMAKE_BUILD_TYPE=Release
+    "-DMLIR_DIR=$MLIR_DIR"
+    "-DLLVM_EXTERNAL_LIT=$LLVM_EXTERNAL_LIT"
     -DLLVM_USE_LINKER=lld
+)
+if [[ -n "$ADLDialect_DIR" ]]; then
+  CMAKE_ARGS+=("-DADLDialect_DIR=$ADLDialect_DIR")
+fi
+cmake "${CMAKE_ARGS[@]}"
 
 # Build the project
 echo "Building project..."
