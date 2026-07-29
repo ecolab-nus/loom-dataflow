@@ -315,14 +315,16 @@ void MemoryAnalysisContext::assignExclusiveTargetAttributes(Bucket &bucket) {
   }
 }
 
-void MemoryAnalysisContext::applySpecialLocalMemoryKindAxiom(Bucket &bucket) {
+void MemoryAnalysisContext::applyNonDefaultLocalMemoryKindAxiom(
+    Bucket &bucket) {
   for (auto &node : bucket.nodes) {
-    if (node.mappedVBId.has_value() || !node.localMemKind.has_value())
+    if (node.mappedVBId.has_value() || !node.localMemKind.has_value() ||
+        *node.localMemKind == 0)
       continue;
 
-    // TODO: This conservative policy is currently designed for RRAM-backed
-    // weights. RRAM should become read-only within a wave to minimize writes;
-    // replace this fixed rule with memory-space capabilities once available.
+    // Non-default local memory kinds may have capabilities that are not
+    // represented by the generic reuse analysis. Keep each such value in its
+    // own non-reusable buffer until those capabilities are modeled explicitly.
     VirtualBuffer *vb = bucket.createVB(nextVBId_++, VBType::Standard);
     vb->addMember(&node);
     vb->liveness = {node.linearIndex, node.deathIndex};
@@ -470,7 +472,7 @@ void MemoryAnalysisContext::buildVirtualBuffers() {
   auto loopOpt = findLoopContext();
 
   for (auto &[sig, bucket] : buckets_) {
-    applySpecialLocalMemoryKindAxiom(bucket);
+    applyNonDefaultLocalMemoryKindAxiom(bucket);
     if (loopOpt) {
       applyPhiFusionAxiom(bucket, *loopOpt);
       applyExternalEternityAxiom(bucket, *loopOpt);

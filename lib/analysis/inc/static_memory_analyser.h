@@ -277,7 +277,7 @@ private:
                            llvm::StringRef reason);
   bool isExclusiveTarget(mlir::Value value) const;
   void assignExclusiveTargetAttributes(Bucket &bucket);
-  void applySpecialLocalMemoryKindAxiom(Bucket &bucket);
+  void applyNonDefaultLocalMemoryKindAxiom(Bucket &bucket);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);

@@ -14,14 +14,14 @@ namespace lcs {
 
 namespace {
 
-mlir::FailureOr<LocalMemKind> getLocalMemKind(mlir::Type type,
-                                               mlir::Operation *op,
-                                               unsigned operandIndex) {
+mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
+                                        mlir::Operation *op,
+                                        unsigned operandIndex) {
   mlir::Attribute attr;
   if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(type)) {
     mlir::Attribute encoding = tensorType.getEncoding();
     if (!encoding)
-      return LocalMemKind::SRAM;
+      return 0;
     auto dictionary = mlir::dyn_cast<mlir::DictionaryAttr>(encoding);
     if (!dictionary) {
       op->emitError() << "staged-etg: tensor operand " << operandIndex
@@ -31,13 +31,13 @@ mlir::FailureOr<LocalMemKind> getLocalMemKind(mlir::Type type,
     }
     attr = dictionary.get("local_mem_kind");
     if (!attr)
-      return LocalMemKind::SRAM;
+      return 0;
   } else if (auto memrefType = mlir::dyn_cast<mlir::MemRefType>(type)) {
     attr = memrefType.getMemorySpace();
     if (!attr)
-      return LocalMemKind::SRAM;
+      return 0;
   } else {
-    return LocalMemKind::SRAM;
+    return 0;
   }
 
   auto integer = mlir::dyn_cast<mlir::IntegerAttr>(attr);
@@ -47,17 +47,7 @@ mlir::FailureOr<LocalMemKind> getLocalMemKind(mlir::Type type,
     return mlir::failure();
   }
 
-  switch (integer.getInt()) {
-  case 0:
-    return LocalMemKind::SRAM;
-  case 1:
-    return LocalMemKind::RRAM;
-  default:
-    op->emitError() << "staged-etg: operand " << operandIndex
-                    << " has unsupported local memory kind "
-                    << integer.getInt() << "; expected 0 (SRAM) or 1 (RRAM)";
-    return mlir::failure();
-  }
+  return integer.getInt();
 }
 
 } // namespace
@@ -67,7 +57,7 @@ getComputeOpMatchInfo(mlir::linalg::LinalgOp linalgOp) {
   ComputeOpMatchInfo result;
   unsigned operandIndex = 0;
   auto appendKind = [&](mlir::Value value) -> mlir::LogicalResult {
-    mlir::FailureOr<LocalMemKind> kind =
+    mlir::FailureOr<int64_t> kind =
         getLocalMemKind(value.getType(), linalgOp.getOperation(), operandIndex);
     ++operandIndex;
     if (mlir::failed(kind))
@@ -92,15 +82,15 @@ std::string formatComputeOpMatchInfo(const ComputeOpMatchInfo &info) {
   for (size_t i = 0; i < info.operand_mem_kinds.size(); ++i) {
     if (i)
       os << ",";
-    os << static_cast<int64_t>(info.operand_mem_kinds[i]);
+    os << info.operand_mem_kinds[i];
   }
   os << ")";
   return os.str();
 }
 
-bool hasOnlySRAMOperands(const ComputeOpMatchInfo &info) {
-  return llvm::all_of(info.operand_mem_kinds, [](LocalMemKind kind) {
-    return kind == LocalMemKind::SRAM;
+bool hasOnlyDefaultMemoryOperands(const ComputeOpMatchInfo &info) {
+  return llvm::all_of(info.operand_mem_kinds, [](int64_t kind) {
+    return kind == 0;
   });
 }
 

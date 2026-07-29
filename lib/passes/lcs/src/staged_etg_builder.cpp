@@ -1045,14 +1045,6 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
               continue;
             }
             if (llvm::isa<mlir::linalg::GenericOp>(op)) {
-              if (!hasOnlySRAMOperands(*matchInfo)) {
-                op->emitError()
-                    << "staged-etg: linalg.generic with non-trivial local "
-                       "memory kinds is not supported for dispatch; got "
-                    << formatComputeOpMatchInfo(*matchInfo);
-                valid = false;
-                continue;
-              }
               GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
               for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
                 if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
@@ -1321,13 +1313,6 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
       getComputeOpMatchInfo(linalgOp);
   if (mlir::failed(matchInfo))
     return mlir::failure();
-  if (!hasOnlySRAMOperands(*matchInfo)) {
-    op->emitError()
-        << "staged-etg: linalg.generic with non-trivial local memory kinds "
-           "is not supported for dispatch; got "
-        << formatComputeOpMatchInfo(*matchInfo);
-    return mlir::failure();
-  }
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
 
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {

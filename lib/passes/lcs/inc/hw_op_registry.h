@@ -18,12 +18,10 @@ namespace lcs {
 
 enum class DataMoverKind { Copy, Gather };
 
-enum class LocalMemKind : int64_t { SRAM = 0, RRAM = 1 };
-
 /// Canonical compute-operand metadata shared by hw_spec registration and
 /// kernel dispatch. The order is DPS inputs followed by DPS inits.
 struct ComputeOpMatchInfo {
-  std::vector<LocalMemKind> operand_mem_kinds;
+  std::vector<int64_t> operand_mem_kinds;
 
   bool operator<(const ComputeOpMatchInfo &rhs) const {
     return operand_mem_kinds < rhs.operand_mem_kinds;
@@ -35,7 +33,7 @@ mlir::FailureOr<ComputeOpMatchInfo>
 getComputeOpMatchInfo(mlir::linalg::LinalgOp linalg_op);
 
 std::string formatComputeOpMatchInfo(const ComputeOpMatchInfo &info);
-bool hasOnlySRAMOperands(const ComputeOpMatchInfo &info);
+bool hasOnlyDefaultMemoryOperands(const ComputeOpMatchInfo &info);
 
 /// Per-tensor binding from hardware IR: symbol names for each dimension.
 /// For `loom.bind %A, [%M, %K]`, stores dim_symbols = ["M", "K"].

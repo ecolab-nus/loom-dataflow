@@ -41,11 +41,12 @@ bool HWOpKey::operator<(const HWOpKey &rhs) const {
       return body_op_name < rhs.body_op_name;
     if (generic_class != rhs.generic_class)
       return generic_class < rhs.generic_class;
-    // Preserve the legacy Generic matching contract for unannotated/all-SRAM
+    // Preserve the legacy Generic matching contract for unannotated/default
     // kernels: compound kernel generics and single-body hw_spec generics can
-    // have different DPS arities. Any non-SRAM signature remains fully exact.
-    if (hasOnlySRAMOperands(compute_match) &&
-        hasOnlySRAMOperands(rhs.compute_match))
+    // have different DPS arities. Any non-default signature remains fully
+    // exact.
+    if (hasOnlyDefaultMemoryOperands(compute_match) &&
+        hasOnlyDefaultMemoryOperands(rhs.compute_match))
       return false;
     return compute_match < rhs.compute_match;
   case DataMover:
