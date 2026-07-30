@@ -12,8 +12,6 @@
 namespace loom {
 namespace lcs {
 
-namespace {
-
 mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
                                         mlir::Operation *op,
                                         unsigned operandIndex) {
@@ -49,8 +47,6 @@ mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
 
   return integer.getInt();
 }
-
-} // namespace
 
 mlir::FailureOr<ComputeOpMatchInfo>
 getComputeOpMatchInfo(mlir::linalg::LinalgOp linalgOp) {

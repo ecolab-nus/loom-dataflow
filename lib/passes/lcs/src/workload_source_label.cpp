@@ -1,4 +1,5 @@
 #include "workload_source_label.h"
+#include "hw_op_registry.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -20,6 +21,10 @@ std::string makeWorkloadLabel(mlir::Operation *label_op,
     if (idx != 0)
       os << ", ";
     operand.printAsOperand(os, asm_state);
+    mlir::FailureOr<int64_t> localMemKind =
+        getLocalMemKind(operand.getType(), label_op, idx);
+    if (mlir::succeeded(localMemKind) && *localMemKind != 0)
+      os << ": " << *localMemKind;
   }
   os << ")";
   return os.str();
