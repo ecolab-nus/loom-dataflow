@@ -197,43 +197,6 @@ std::string dataMoverKeyDescription(const DataMoverLookupInfo &info) {
   return os.str();
 }
 
-std::vector<MemoryAccess>
-getDataMoverMemoryAccesses(const DataMoverLookupInfo &info) {
-  mlir::Value localValue;
-  std::string access;
-  int64_t memKind = 0;
-  unsigned operandIndex = 0;
-
-  if (info.src_mem_space == "mem_DRAM" &&
-      info.dst_mem_space == "mem_L1") {
-    localValue = info.destination;
-    access = "write";
-    memKind = info.dst_mem_kind.value_or(0);
-    operandIndex = 1;
-  } else if (info.src_mem_space == "mem_L1" &&
-             info.dst_mem_space == "mem_DRAM") {
-    localValue = info.source;
-    access = "read";
-    memKind = info.src_mem_kind.value_or(0);
-    operandIndex = 0;
-  } else {
-    return {};
-  }
-
-  auto shapedType = mlir::dyn_cast<mlir::ShapedType>(localValue.getType());
-  if (!shapedType)
-    return {};
-
-  MemoryAccess result;
-  result.access = std::move(access);
-  result.memory_space = "mem_L1";
-  result.mem_kind = memKind;
-  result.operand_index = operandIndex;
-  result.shape = traceAllocDimsFromTensor(localValue);
-  result.element_type = formatElementType(shapedType.getElementType());
-  return {std::move(result)};
-}
-
 bool isNonExecutableLoomOp(llvm::StringRef opName) {
   // Keep this list explicit: a new Loom op must either be modelled by ETG or
   // deliberately classified as non-executable before it can be ignored.
@@ -766,20 +729,6 @@ std::vector<std::string> resourcesForDataMover(const HWComputeFunc &hwFunc) {
 // ==========================================
 // Workload
 // ==========================================
-llvm::json::Value MemoryAccess::toJSON() const {
-  llvm::json::Array shapeJson;
-  for (const Expr &dim : shape)
-    shapeJson.push_back(dim.toJSON());
-  return llvm::json::Object{
-      {"access", access},
-      {"memory_space", memory_space},
-      {"mem_kind", mem_kind},
-      {"operand_index", operand_index},
-      {"shape", std::move(shapeJson)},
-      {"element_type", element_type},
-  };
-}
-
 llvm::json::Value Workload::toJSON() const {
   llvm::json::Array symbols_json;
   llvm::json::Array entries_json;
@@ -798,12 +747,8 @@ llvm::json::Value Workload::toJSON() const {
       llvm::json::Object{{"entries", std::move(entries_json)}};
   if (op_label)
     func_inner["op_label"] = *op_label;
-  if (!memory_accesses.empty()) {
-    llvm::json::Array accessesJson;
-    for (const MemoryAccess &access : memory_accesses)
-      accessesJson.push_back(access.toJSON());
-    func_inner["memory_accesses"] = std::move(accessesJson);
-  }
+  func_inner["read"] = read;
+  func_inner["write"] = write;
 
   llvm::json::Object func_envelope;
   func_envelope["func"] = std::move(func_inner);
@@ -843,12 +788,12 @@ void WorkloadStageBody::pushWorkload(const std::string &unit_name,
                                      std::map<std::string, Expr> dims,
                                      std::vector<std::string> resources,
                                      std::optional<std::string> op_label,
-                                     std::vector<MemoryAccess> memoryAccesses) {
+                                     std::string read, std::string write) {
   if (queues_.find(unit_name) == queues_.end())
     queues_[unit_name] = HardwareQueue{unit_name, {}};
   queues_[unit_name].workloads.push_back(
       Workload{op, std::move(dims), std::move(resources),
-               std::move(op_label), std::move(memoryAccesses)});
+               std::move(op_label), std::move(read), std::move(write)});
 }
 
 llvm::json::Object WorkloadStageBody::toJSONFragment() const {
@@ -1356,10 +1301,15 @@ mlir::LogicalResult VariantETG::dispatchNamedOp(mlir::Operation *op,
         dimMap[hwBinding.dim_symbols[d]] = opDims[d];
   }
 
+  mlir::FailureOr<OperandAccessMetadata> accessMetadata =
+      makeLinalgOperandAccessMetadata(linalgOp, asm_state);
+  if (mlir::failed(accessMetadata))
+    return mlir::failure();
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap),
-                        resourcesForComputePipelineMode(hwFunc->resources),
-                        makeNamedLinalgWorkloadLabel(linalgOp, asm_state));
+                      resourcesForComputePipelineMode(hwFunc->resources),
+                      makeNamedLinalgWorkloadLabel(linalgOp, asm_state),
+                      accessMetadata->read, accessMetadata->write);
   return mlir::success();
 }
 
@@ -1372,6 +1322,10 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
   if (mlir::failed(matchInfo))
     return mlir::failure();
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
+  mlir::FailureOr<OperandAccessMetadata> accessMetadata =
+      makeLinalgOperandAccessMetadata(linalgOp, asm_state);
+  if (mlir::failed(accessMetadata))
+    return mlir::failure();
 
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
     if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
@@ -1405,7 +1359,8 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
                         std::move(dimMap),
                         resourcesForComputePipelineMode(hwFunc->resources),
                         makeGenericPayloadWorkloadLabel(&bodyOp, linalgOp,
-                                                        asm_state));
+                                                        asm_state),
+                        accessMetadata->read, accessMetadata->write);
   }
   return mlir::success();
 }
@@ -1448,10 +1403,14 @@ mlir::LogicalResult VariantETG::dispatchToDataMoverQueues(
   if (copyOp)
     applyNoCBandwidthPenaltyWorkaround(copyOp, info->area, hw_registry_, dimMap);
 
+  mlir::FailureOr<OperandAccessMetadata> accessMetadata =
+      makeDataMoverOperandAccessMetadata(op, asm_state);
+  if (mlir::failed(accessMetadata))
+    return mlir::failure();
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap), resourcesForDataMover(*hwFunc),
                       makeDataMoverWorkloadLabel(op, asm_state),
-                      getDataMoverMemoryAccesses(*info));
+                      accessMetadata->read, accessMetadata->write);
   return mlir::success();
 }
 

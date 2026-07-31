@@ -86,5 +86,76 @@ std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
                            operandMemKinds);
 }
 
+namespace {
+
+mlir::FailureOr<std::string> formatOperandAccessList(
+    mlir::Operation *op, llvm::ArrayRef<mlir::Value> operands,
+    mlir::AsmState &asmState,
+    llvm::ArrayRef<std::optional<int64_t>> operandMemKinds = {}) {
+  std::string result;
+  llvm::raw_string_ostream os(result);
+  for (auto [index, operand] : llvm::enumerate(operands)) {
+    if (index)
+      os << ";";
+    operand.printAsOperand(os, asmState);
+    mlir::FailureOr<int64_t> typeMemKind =
+        getLocalMemKind(operand.getType(), op, index);
+    if (mlir::failed(typeMemKind))
+      return mlir::failure();
+    int64_t memKind =
+        index < operandMemKinds.size() && operandMemKinds[index]
+            ? *operandMemKinds[index]
+            : *typeMemKind;
+    os << ": " << memKind;
+  }
+  return result;
+}
+
+} // namespace
+
+mlir::FailureOr<OperandAccessMetadata>
+makeLinalgOperandAccessMetadata(mlir::linalg::LinalgOp op,
+                                mlir::AsmState &asmState) {
+  mlir::SmallVector<mlir::Value> inputs = op.getDpsInputs();
+  mlir::OperandRange dpsInits = op.getDpsInits();
+  mlir::SmallVector<mlir::Value> inits(dpsInits.begin(), dpsInits.end());
+  auto read = formatOperandAccessList(op.getOperation(), inputs, asmState);
+  auto write = formatOperandAccessList(op.getOperation(), inits, asmState);
+  if (mlir::failed(read) || mlir::failed(write))
+    return mlir::failure();
+  return OperandAccessMetadata{*read, *write};
+}
+
+mlir::FailureOr<OperandAccessMetadata>
+makeDataMoverOperandAccessMetadata(mlir::Operation *op,
+                                   mlir::AsmState &asmState) {
+  mlir::Value source;
+  mlir::Value destination;
+  std::optional<int64_t> sourceKind;
+  std::optional<int64_t> destinationKind;
+  if (auto copy = llvm::dyn_cast<loom::CopyOp>(op)) {
+    source = copy.getSource();
+    destination = copy.getDestination();
+    if (copy.getSrcMemKindAttr())
+      sourceKind = copy.getSrcMemKindAttr().getInt();
+    if (copy.getDstMemKindAttr())
+      destinationKind = copy.getDstMemKindAttr().getInt();
+  } else if (auto gather = llvm::dyn_cast<loom::GatherOp>(op)) {
+    source = gather.getSource();
+    destination = gather.getDestination();
+  } else {
+    op->emitError() << "staged-etg: executable data mover has no operand "
+                       "access adapter";
+    return mlir::failure();
+  }
+
+  auto read = formatOperandAccessList(op, {source}, asmState, {sourceKind});
+  auto write =
+      formatOperandAccessList(op, {destination}, asmState, {destinationKind});
+  if (mlir::failed(read) || mlir::failed(write))
+    return mlir::failure();
+  return OperandAccessMetadata{*read, *write};
+}
+
 } // namespace lcs
 } // namespace loom

@@ -13,6 +13,11 @@
 namespace loom {
 namespace lcs {
 
+struct OperandAccessMetadata {
+  std::string read;
+  std::string write;
+};
+
 std::string makeWorkloadLabel(mlir::Operation *label_op,
                               llvm::ArrayRef<mlir::Value> operands,
                               mlir::AsmState &asm_state,
@@ -31,6 +36,14 @@ std::string makeGenericPayloadWorkloadLabel(mlir::Operation *payload_op,
 
 std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
                                        mlir::AsmState &asm_state);
+
+mlir::FailureOr<OperandAccessMetadata>
+makeLinalgOperandAccessMetadata(mlir::linalg::LinalgOp op,
+                                mlir::AsmState &asm_state);
+
+mlir::FailureOr<OperandAccessMetadata>
+makeDataMoverOperandAccessMetadata(mlir::Operation *data_mover_op,
+                                   mlir::AsmState &asm_state);
 
 } // namespace lcs
 } // namespace loom

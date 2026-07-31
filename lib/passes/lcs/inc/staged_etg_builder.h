@@ -30,17 +30,6 @@ class WorkloadStageBody;
 
 /// One logical memory access performed by a workload. The shape remains
 /// symbolic until a solver assignment is selected.
-struct MemoryAccess {
-  std::string access;
-  std::string memory_space;
-  int64_t mem_kind = 0;
-  unsigned operand_index = 0;
-  std::vector<Expr> shape;
-  std::string element_type;
-
-  llvm::json::Value toJSON() const;
-};
-
 /// Workload record: operation name, symbolic dimensions, and resource usage.
 /// dims maps hardware symbol names to operator IR symbolic expressions.
 struct Workload {
@@ -48,7 +37,8 @@ struct Workload {
   std::map<std::string, Expr> dims;
   std::vector<std::string> resources;
   std::optional<std::string> op_label;
-  std::vector<MemoryAccess> memory_accesses;
+  std::string read;
+  std::string write;
 
   llvm::json::Value toJSON() const;
 };
@@ -95,7 +85,7 @@ public:
                     std::map<std::string, Expr> dims,
                     std::vector<std::string> resources,
                     std::optional<std::string> op_label = std::nullopt,
-                    std::vector<MemoryAccess> memory_accesses = {});
+                    std::string read = {}, std::string write = {});
 
   llvm::json::Object toJSONFragment() const override;
   void dump(llvm::raw_ostream &os, int indent) const override;
