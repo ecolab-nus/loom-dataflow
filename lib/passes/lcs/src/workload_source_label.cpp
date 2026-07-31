@@ -13,7 +13,9 @@ namespace lcs {
 
 std::string makeWorkloadLabel(mlir::Operation *label_op,
                               llvm::ArrayRef<mlir::Value> operands,
-                              mlir::AsmState &asm_state) {
+                              mlir::AsmState &asm_state,
+                              llvm::ArrayRef<std::optional<int64_t>>
+                                  operandMemKinds) {
   std::string label;
   llvm::raw_string_ostream os(label);
   os << label_op->getName().getStringRef() << "(";
@@ -21,9 +23,16 @@ std::string makeWorkloadLabel(mlir::Operation *label_op,
     if (idx != 0)
       os << ", ";
     operand.printAsOperand(os, asm_state);
-    mlir::FailureOr<int64_t> localMemKind =
-        getLocalMemKind(operand.getType(), label_op, idx);
-    if (mlir::succeeded(localMemKind) && *localMemKind != 0)
+    std::optional<int64_t> localMemKind;
+    if (idx < operandMemKinds.size() && operandMemKinds[idx]) {
+      localMemKind = operandMemKinds[idx];
+    } else {
+      mlir::FailureOr<int64_t> typeMemKind =
+          getLocalMemKind(operand.getType(), label_op, idx);
+      if (mlir::succeeded(typeMemKind))
+        localMemKind = *typeMemKind;
+    }
+    if (localMemKind && *localMemKind != 0)
       os << ": " << *localMemKind;
   }
   os << ")";
@@ -56,14 +65,25 @@ std::string makeGenericPayloadWorkloadLabel(mlir::Operation *payload_op,
 std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
                                        mlir::AsmState &asm_state) {
   mlir::SmallVector<mlir::Value> operands;
+  mlir::SmallVector<std::optional<int64_t>> operandMemKinds;
   if (auto copyOp = llvm::dyn_cast<loom::CopyOp>(data_mover_op)) {
     operands = {copyOp.getSource(), copyOp.getDestination()};
+    operandMemKinds = {
+        copyOp.getSrcMemKindAttr()
+            ? std::optional<int64_t>(copyOp.getSrcMemKindAttr().getInt())
+            : std::nullopt,
+        copyOp.getDstMemKindAttr()
+            ? std::optional<int64_t>(copyOp.getDstMemKindAttr().getInt())
+            : std::nullopt,
+    };
   } else if (auto gatherOp = llvm::dyn_cast<loom::GatherOp>(data_mover_op)) {
     operands = {gatherOp.getSource(), gatherOp.getDestination()};
+    operandMemKinds.resize(operands.size());
   } else {
     llvm_unreachable("expected loom.copy or loom.gather");
   }
-  return makeWorkloadLabel(data_mover_op, operands, asm_state);
+  return makeWorkloadLabel(data_mover_op, operands, asm_state,
+                           operandMemKinds);
 }
 
 } // namespace lcs

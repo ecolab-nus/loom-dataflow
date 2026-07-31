@@ -7,6 +7,7 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include <optional>
 #include <string>
 
 namespace loom {
@@ -14,7 +15,9 @@ namespace lcs {
 
 std::string makeWorkloadLabel(mlir::Operation *label_op,
                               llvm::ArrayRef<mlir::Value> operands,
-                              mlir::AsmState &asm_state);
+                              mlir::AsmState &asm_state,
+                              llvm::ArrayRef<std::optional<int64_t>>
+                                  operand_mem_kinds = {});
 
 mlir::SmallVector<mlir::Value>
 getLinalgCompactOperands(mlir::linalg::LinalgOp op);
