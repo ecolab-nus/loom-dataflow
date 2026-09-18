@@ -158,7 +158,10 @@ buildETGString(ModuleOp module, const loom::lcs::HWOpRegistry &registry) {
       etgFailed = true;
       return;
     }
-    etg.buildConstraintScope(func_op);
+    if (failed(etg.buildConstraintScope(func_op))) {
+      etgFailed = true;
+      return;
+    }
     json_etgs.push_back(etg.toJSON());
   });
 

@@ -58,7 +58,10 @@ int main(int argc, char **argv) {
       etgFailed = true;
       return;
     }
-    etg.buildConstraintScope(func_op);
+    if (mlir::failed(etg.buildConstraintScope(func_op))) {
+      etgFailed = true;
+      return;
+    }
     etg.buildHardConstraints(func_op);
     json_etgs.push_back(etg.toJSON());
   });

@@ -5,7 +5,7 @@ add_library(loomLCS STATIC
     src/expr.cpp
     src/hard_constraint_pipeline.cpp
     src/hw_alignment.cpp
-    src/l1_footprint_estimator.cpp
+    src/memory_footprint_estimator.cpp
     src/staged_etg_builder.cpp
     src/workload_source_label.cpp
     src/lcs_utils.cpp

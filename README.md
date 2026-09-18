@@ -228,6 +228,11 @@ build/tool/tt-opt/single_stage/tt-opt \
 ### `staged_etg`
 - **Purpose**: Traverse annotated IR and construct a Staged Execution Task Graph JSON constraint model.
 - **Implementation**: `lib/passes/lcs/src/staged_etg_builder.cpp`; CLI driver: `tool/loom-opt/single_stage/staged_etg_main.cpp`
+- **Memory capacity metadata**: `metadata.memory_footprints` contains one
+  byte-valued record per flat allocation memory symbol. The solver applies the
+  shared `is_double_buffer` choice to each record's `load_bytes` terms. Run
+  `python3 test/lcs/check_per_memory_capacity.py` after building `staged_etg` for
+  the focused producer regression.
 
 ### `canonicalize` (`loom-materialize` + cleanup)
 - **Purpose**: Replace `loom.get_module_attribute` operations with concrete values from selected block-size bindings and run canonical cleanup.

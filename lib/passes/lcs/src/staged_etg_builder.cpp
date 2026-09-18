@@ -2,7 +2,7 @@
 #include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
-#include "l1_footprint_estimator.h"
+#include "memory_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
 #include "workload_source_label.h"
@@ -957,11 +957,16 @@ llvm::json::Value ConstraintScope::toJSON() const {
       arr.push_back(term.toJSON());
     return arr;
   };
-  llvm::json::Object footprint_json;
-  footprint_json["load"] = footprintArray(l1_footprint.load);
-  footprint_json["compute"] = footprintArray(l1_footprint.compute);
-  footprint_json["store"] = footprintArray(l1_footprint.store);
-  footprint_json["capacity"] = l1_footprint.capacity;
+  llvm::json::Array memory_footprints_json;
+  for (const MemoryFootprint &footprint : memory_footprints) {
+    memory_footprints_json.push_back(llvm::json::Object{
+        {"memory", footprint.memory},
+        {"capacity_bytes", footprint.capacity_bytes},
+        {"load_bytes", footprintArray(footprint.load_bytes)},
+        {"compute_bytes", footprintArray(footprint.compute_bytes)},
+        {"store_bytes", footprintArray(footprint.store_bytes)},
+    });
+  }
 
   llvm::json::Array booleans_json;
   for (const auto &name : booleans)
@@ -969,8 +974,7 @@ llvm::json::Value ConstraintScope::toJSON() const {
 
   llvm::json::Object metadata_json;
   metadata_json["symbols"] = std::move(symbols_json);
-  metadata_json["L1_footprint"] = std::move(footprint_json);
-  metadata_json["datatype"] = datatype;
+  metadata_json["memory_footprints"] = std::move(memory_footprints_json);
   metadata_json["iter_num"] = llvm::json::Object{
       {"seq_iter",
        llvm::json::Array{seq_iter.expr.toJSON(), seq_iter.asure_divisible}},
@@ -1462,7 +1466,8 @@ void VariantETG::addIterDivisibilityConstraints(const Expr &iter) {
     constraint_scope_.pushHardConstraint(ConstraintExpr::divisible(num, den));
 }
 
-void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
+mlir::LogicalResult
+VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   collectSymbols(func_op);
   applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
@@ -1470,10 +1475,13 @@ void VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // addIterDivisibilityConstraints(constraint_scope_.seq_iter.expr);
   // for (const IterNumInfo &t : constraint_scope_.temp_iter)
   //   addIterDivisibilityConstraints(t.expr);
-  L1FootprintResult l1Result =
-      L1FootprintEstimator::estimateFromFunc(func_op, hw_registry_);
-  constraint_scope_.datatype = std::move(l1Result.datatype);
-  constraint_scope_.l1_footprint = std::move(l1Result.l1_footprint);
+  auto footprintResult =
+      MemoryFootprintEstimator::estimateFromFunc(func_op, hw_registry_);
+  if (mlir::failed(footprintResult))
+    return mlir::failure();
+  constraint_scope_.memory_footprints =
+      std::move(footprintResult->memory_footprints);
+  return mlir::success();
 }
 
 // ==========================================
