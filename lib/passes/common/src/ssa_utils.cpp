@@ -5,8 +5,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/IR/Operation.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -178,6 +178,15 @@ CopyMemoryDirection classifyCopyMemoryDirection(Operation *op) {
   if (!copyOp)
     return CopyMemoryDirection::Other;
 
+  bool sourceIsAllocation =
+      static_cast<bool>(traceToRootAllocOp(copyOp.getSource()));
+  bool destinationIsAllocation =
+      static_cast<bool>(traceToRootAllocOp(copyOp.getDestination()));
+  if (!sourceIsAllocation && destinationIsAllocation)
+    return CopyMemoryDirection::Load;
+  if (sourceIsAllocation && !destinationIsAllocation)
+    return CopyMemoryDirection::Store;
+
   std::string srcMem, dstMem;
   if (auto attr = copyOp.getSrcMemSpaceAttr())
     srcMem = canonicalMemSpace(attr.getLeafReference());
@@ -191,7 +200,7 @@ CopyMemoryDirection classifyCopyMemoryDirection(Operation *op) {
   return CopyMemoryDirection::Other;
 }
 
-loom::AllocOp traceCopyL1EndpointRootAlloc(Operation *op) {
+loom::AllocOp traceCopyAllocationEndpoint(Operation *op) {
   auto copyOp = dyn_cast_or_null<loom::CopyOp>(op);
   if (!copyOp)
     return nullptr;

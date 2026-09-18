@@ -37,16 +37,18 @@ mlir::Value traceToRootAlloc(mlir::Value value);
 loom::AllocOp traceToRootAllocOp(mlir::Value value);
 
 /**
- * @brief Classify a `loom.copy` direction using canonical memory-space names.
- * @details DRAM->L1 is Load, L1->DRAM is Store, everything else is Other.
+ * @brief Classify a `loom.copy` direction from its allocation endpoint.
+ * @details A non-allocation source copied into an allocation is a Load; the
+ * reverse is a Store. Canonical DRAM/L1 names remain a fallback for IR where
+ * allocation provenance is unavailable.
  */
 CopyMemoryDirection classifyCopyMemoryDirection(mlir::Operation *op);
 
 /**
- * @brief Trace the L1 endpoint of a load/store `loom.copy` to its root alloc.
+ * @brief Trace the allocation endpoint of a load/store `loom.copy`.
  * @details For Load this traces the destination. For Store this traces the
  * source. Other directions return null.
  */
-loom::AllocOp traceCopyL1EndpointRootAlloc(mlir::Operation *op);
+loom::AllocOp traceCopyAllocationEndpoint(mlir::Operation *op);
 
 } // namespace loom::utils
