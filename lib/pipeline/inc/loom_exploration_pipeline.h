@@ -32,7 +32,9 @@ runExplorationPipeline(const std::string &input_mlir_text,
                        bool produce_etg = true,
                        bool skip_etg = false,
                        bool full_occ = false,
-                       bool spatial_reuse = true);
+                       bool spatial_reuse = true,
+                       bool explicit_memory = false,
+                       bool enumerate_bindings = false);
 
 } // namespace pipeline
 } // namespace loom

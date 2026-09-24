@@ -1,6 +1,7 @@
 #include "staged_etg_builder.h"
 #include "hw_op_registry.h"
 #include "driver_utils.h"
+#include "target.h"
 
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -41,6 +42,18 @@ int main(int argc, char **argv) {
   auto module = loom::driver::parseMLIRFile(clInput, context);
   if (!module) return 1;
 
+  std::string targetError;
+  auto target = loom::lcs::parseTargetEnvironment(targetError);
+  if (mlir::failed(target)) {
+    llvm::errs() << targetError << "\n";
+    return 1;
+  }
+  if (mlir::failed(
+          loom::lcs::resolveModuleTarget(*module, *target, targetError))) {
+    llvm::errs() << targetError << "\n";
+    return 1;
+  }
+
   llvm::json::Array json_etgs;
   bool etgFailed = false;
 
@@ -53,7 +66,7 @@ int main(int argc, char **argv) {
       return;
     if (func_op.isExternal() || func_op.empty())
       return;
-    VariantETG etg(func_op.getName(), &registry);
+    VariantETG etg(func_op.getName(), &registry, *target);
     if (mlir::failed(etg.buildFromFunc(func_op))) {
       etgFailed = true;
       return;

@@ -110,6 +110,19 @@ def MemoryBindingPass : Pass<"loom-memory-binding", "mlir::ModuleOp"> {
   let constructor = "loom::passes::createMemoryBindingPass()";
 }
 
+def SpecializeMemorySpacesPass : Pass<"loom-specialize-memory-spaces", "mlir::ModuleOp"> {
+  let summary = "Resolve authored processor memory spaces from port bindings";
+  let description = [{
+    Assign integer memory spaces to space-free native processor memrefs using
+    loom.bind_mem port symbols and a frontend-supplied port-to-kind map.
+  }];
+  let constructor = "loom::passes::createSpecializeMemorySpacesPass()";
+  let options = [
+    ListOption<"bindings", "binding", "std::string",
+               "Port-to-kind binding in the form port=kind">
+  ];
+}
+
 def CanonicalBufferizationToLoomPass : Pass<"loom-canonical-bufferization-to-loom", "mlir::ModuleOp"> {
   let summary = "Rewrite canonical bufferization handoff ops to loom dialect";
   let description = [{

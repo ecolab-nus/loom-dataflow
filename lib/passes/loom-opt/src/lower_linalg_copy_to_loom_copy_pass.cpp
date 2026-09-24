@@ -8,6 +8,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "mlir/Pass/Pass.h"
+#include "ssa_utils.h"
 
 #include "LoomDialect.h.inc"
 #include "LoomInterfaces.h.inc"
@@ -69,15 +70,30 @@ struct LowerLinalgCopyToLoomCopyPass
         continue;
 
       OpBuilder builder(copyOp);
-      auto l1Symbol = SymbolRefAttr::get(copyOp.getContext(), "mem_L1");
+      loom::AllocOp sourceAlloc = loom::utils::traceToRootAllocOp(source);
+      loom::AllocOp destinationAlloc =
+          loom::utils::traceToRootAllocOp(destination);
+      if (!sourceAlloc || !destinationAlloc) {
+        copyOp.emitError()
+            << "cannot lower copy without loom.alloc endpoint provenance";
+        signalPassFailure();
+        return;
+      }
+      auto physicalMemory = [&](loom::AllocOp alloc) {
+        return SymbolRefAttr::get(
+            copyOp.getContext(),
+            ("mem_" + alloc.getMemory().getLeafReference().getValue()).str());
+      };
       auto reclaimAttr = builder.getBoolAttr(
           hasPriorOutsUse(destination, copyOp.getOperation(), dominance));
 
-      loom::CopyOp::create(builder, copyOp.getLoc(), source, destination,
-                           l1Symbol, l1Symbol, IntegerAttr{}, IntegerAttr{},
-                           ValueRange{},
-                           builder.getDenseI64ArrayAttr({1, 1}), Value{},
-                           Value{}, Value{}, Value{}, reclaimAttr);
+      loom::CopyOp lowered = loom::CopyOp::create(
+          builder, copyOp.getLoc(), source, destination,
+          physicalMemory(sourceAlloc), physicalMemory(destinationAlloc),
+          IntegerAttr{}, IntegerAttr{}, ValueRange{},
+          builder.getDenseI64ArrayAttr({}), Value{}, Value{}, Value{}, Value{},
+          reclaimAttr);
+      lowered->setAttr("loom.unicast_area_unresolved", builder.getUnitAttr());
       copyOp.erase();
     }
   }

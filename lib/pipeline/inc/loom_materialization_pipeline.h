@@ -18,10 +18,13 @@ namespace pipeline {
 ///                          Format: {"func_name": {"SYM": value, ...}, ...}
 ///                          or {"func_name": [{"SYM": value, ...}, ...], ...}
 ///                          Pass empty string to use placeholder solver.
+/// @param hw_spec_file      Hardware specification used to validate and bind
+///                          direct movers after materialization.
 /// @return pair of (error, output_mlir). error is empty on success.
 std::pair<std::string, std::string>
 runMaterializationPipeline(const std::string &input_mlir_text,
-                           const std::string &block_sizes_json);
+                           const std::string &block_sizes_json,
+                           const std::string &hw_spec_file);
 
 } // namespace pipeline
 } // namespace loom

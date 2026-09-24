@@ -8,6 +8,8 @@
 #include "loom_materialization_pipeline.h"
 #include "Passes.h"
 #include "Transforms/BufferizableOpInterfaceImpl.h"
+#include "hw_op_registry.h"
+#include "target.h"
 // Forward-declare the tt-opt pass to avoid pulling in its full Passes.h
 // (which re-includes GEN_PASS_REGISTRATION and causes redefinition conflicts).
 // TODO: distinguish per-backend pass sets when multiple backends are supported.
@@ -25,11 +27,13 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 #include "mlir/Dialect/Bufferization/Transforms/FuncBufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Bufferization/Transforms/OneShotAnalysis.h"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Linalg/Transforms/SubsetInsertionOpInterfaceImpl.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -54,11 +58,14 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 #include "LoomOps.h.inc"
 
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -191,10 +198,115 @@ bool parseBlockSizesJson(const char *json_str,
   return true;
 }
 
+bool compatibleElementTypes(Type workload, Type hardware) {
+  auto workloadShaped = dyn_cast<ShapedType>(workload);
+  auto hardwareShaped = dyn_cast<ShapedType>(hardware);
+  return workloadShaped && hardwareShaped &&
+         workloadShaped.getElementType() == hardwareShaped.getElementType();
+}
+
+LogicalResult bindAndValidateCopies(
+    ModuleOp module, const loom::lcs::HWOpRegistry &registry,
+    std::string &error) {
+  bool valid = true;
+  module.walk([&](loom::CopyOp copy) {
+    if (!valid)
+      return;
+    auto src = copy.getSrcMemSpaceAttr();
+    auto dst = copy.getDstMemSpaceAttr();
+    if (!src || !dst || !copy.getArea().empty()) {
+      error = "materialized copy has incomplete endpoints or dynamic area";
+      valid = false;
+      return;
+    }
+
+    std::vector<const loom::lcs::HWComputeFunc *> candidates;
+    if (copy->hasAttr("loom.unicast_area_unresolved")) {
+      candidates = registry.lookupUnicastDataMoverCandidates(
+          loom::lcs::DataMoverKind::Copy, src.getLeafReference(),
+          dst.getLeafReference());
+    } else {
+      std::vector<int64_t> area(copy.getStaticArea().begin(),
+                                copy.getStaticArea().end());
+      candidates = registry.lookupDataMoverCandidates(
+          loom::lcs::DataMoverKind::Copy, src.getLeafReference(),
+          dst.getLeafReference(), area);
+    }
+    candidates.erase(
+        std::remove_if(candidates.begin(), candidates.end(),
+                       [&](const auto *candidate) {
+                         return !compatibleElementTypes(
+                                    copy.getSource().getType(),
+                                    candidate->src_type) ||
+                                !compatibleElementTypes(
+                                    copy.getDestination().getType(),
+                                    candidate->dst_type);
+                       }),
+        candidates.end());
+    llvm::sort(candidates, [](const auto *lhs, const auto *rhs) {
+      return lhs->registration_order < rhs->registration_order;
+    });
+    candidates.erase(std::unique(candidates.begin(), candidates.end()),
+                     candidates.end());
+
+    auto array = copy->getAttrOfType<StringAttr>("loom.processor_array");
+    auto function =
+        copy->getAttrOfType<StringAttr>("loom.processor_function");
+    if (static_cast<bool>(array) != static_cast<bool>(function)) {
+      error = "materialized copy selection requires both processor array and "
+              "function";
+      valid = false;
+      return;
+    }
+    const loom::lcs::HWComputeFunc *selected = nullptr;
+    if (array) {
+      selected = registry.lookupExact(array.getValue(), function.getValue());
+      if (!selected || !selected->is_data_mover ||
+          !llvm::is_contained(candidates, selected)) {
+        error = "materialized copy selection no longer matches its endpoints";
+        valid = false;
+        return;
+      }
+    } else if (!candidates.empty()) {
+      selected = candidates.back();
+    }
+    if (!selected) {
+      error = "no architect-declared direct mover implements materialized "
+              "copy " +
+              src.getLeafReference().str() + " -> " +
+              dst.getLeafReference().str();
+      valid = false;
+      return;
+    }
+
+    OpBuilder builder(copy);
+    if (copy->hasAttr("loom.unicast_area_unresolved")) {
+      SmallVector<int64_t> unicastArea(selected->broadcast.size(), 1);
+      copy->setAttr("static_area",
+                    builder.getDenseI64ArrayAttr(unicastArea));
+      copy->removeAttr("loom.unicast_area_unresolved");
+    }
+    auto setKind = [&](StringRef name, std::optional<int64_t> kind) {
+      if (kind)
+        copy->setAttr(name, builder.getI64IntegerAttr(*kind));
+      else
+        copy->removeAttr(name);
+    };
+    setKind("src_mem_kind", selected->src_mem_kind);
+    setKind("dst_mem_kind", selected->dst_mem_kind);
+    copy->setAttr("loom.processor_array",
+                  builder.getStringAttr(selected->hw_component));
+    copy->setAttr("loom.processor_function",
+                  builder.getStringAttr(selected->hw_func_name));
+  });
+  return success(valid);
+}
+
 /// Core materialization pipeline logic.
 std::pair<std::string, std::string>
 runMaterializationCore(const char *input_mlir_text,
-                       const char *block_sizes_json) {
+                       const char *block_sizes_json,
+                       const char *hw_spec_file) {
   // --- Parse block sizes JSON ---
   loom::passes::BlockSizeMap blockSizeMap;
   loom::passes::CandidateOrder candidateOrder;
@@ -233,6 +345,8 @@ runMaterializationCore(const char *input_mlir_text,
                       linalg::LinalgDialect,
                       memref::MemRefDialect,
                       scf::SCFDialect,
+                      cf::ControlFlowDialect,
+                      math::MathDialect,
                       bufferization::BufferizationDialect>();
 
   // Register Loom's BufferizableOpInterface models
@@ -247,6 +361,22 @@ runMaterializationCore(const char *input_mlir_text,
   auto module = parseSourceFile<ModuleOp>(sourceMgr, &context);
   if (!module)
     return {"Failed to parse input MLIR text", ""};
+
+  std::string targetError;
+  auto target = loom::lcs::parseTargetEnvironment(targetError);
+  if (failed(target))
+    return {targetError, ""};
+  if (failed(loom::lcs::resolveModuleTarget(*module, *target, targetError)))
+    return {targetError, ""};
+  const bool bindingsFinalized =
+      (*module)->hasAttr("loom.bindings_finalized");
+
+  if (!hw_spec_file || hw_spec_file[0] == '\0')
+    return {"materialization requires a hardware specification", ""};
+  loom::lcs::HWOpRegistry hardwareRegistry;
+  if (failed(hardwareRegistry.loadFromPlatformFile(hw_spec_file, context)))
+    return {"Failed to load platform IR from: " + std::string(hw_spec_file),
+            ""};
 
   // Expand special "ALL" binding to every candidate function in the input MLIR.
   // Explicit per-function bindings take precedence over "ALL".
@@ -302,20 +432,23 @@ runMaterializationCore(const char *input_mlir_text,
   // Stage 5: Final cleanup (matches one_shot_bufferize single-stage driver)
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createCSEPass());
-  pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
+  if (!bindingsFinalized)
+    pm.addPass(loom::passes::createLowerLinalgCopyToLoomCopyPass());
 
   // Stage 6: Backend-specific TT optimizations
   // (matches tt-opt single-stage driver).
-  // TODO: gate these passes on a backend enum once multiple backends are
-  //       supported (e.g. TT-Metal vs. others).
-  pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
-  pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
-  pm.addPass(loom::passes::createSplitBinaryScalarChainPass());
-  pm.addPass(mlir::createCanonicalizerPass());
+  if (*target == loom::lcs::Target::TT) {
+    pm.addPass(loom::passes::createConvertZeroFillLinalgMatmulToLoomPass());
+    pm.addPass(loom::passes::createFoldZeroFillLinalgPass());
+    pm.addPass(loom::passes::createSplitBinaryScalarChainPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+  }
 
   // --- Run pipeline ---
   if (failed(pm.run(*module)))
     return {"Pipeline execution failed", ""};
+  if (failed(bindAndValidateCopies(*module, hardwareRegistry, errMsg)))
+    return {errMsg, ""};
 
   // --- Serialize output MLIR to string ---
   std::string output_mlir;
@@ -340,9 +473,11 @@ namespace pipeline {
 
 std::pair<std::string, std::string>
 runMaterializationPipeline(const std::string &input_mlir_text,
-                           const std::string &block_sizes_json) {
+                           const std::string &block_sizes_json,
+                           const std::string &hw_spec_file) {
   return runMaterializationCore(input_mlir_text.c_str(),
-                                block_sizes_json.c_str());
+                                block_sizes_json.c_str(),
+                                hw_spec_file.c_str());
 }
 
 } // namespace pipeline

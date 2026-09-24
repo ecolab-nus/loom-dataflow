@@ -612,6 +612,7 @@ private:
             builder, bucket.scopeOp->getLoc(), allocType, dynamicSizes,
             builder.getDenseI64ArrayAttr(allocAttrSizes), nullptr,
             builder.getI64IntegerAttr(1), SymbolRefAttr::get(context, "L1"));
+        allocOp->setAttr("loom.inferred_residency", builder.getUnitAttr());
         colorToAlloc[{sig, c}] = allocOp.getResult();
       }
     }

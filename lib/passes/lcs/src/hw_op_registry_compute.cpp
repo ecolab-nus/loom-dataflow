@@ -12,14 +12,14 @@
 namespace loom {
 namespace lcs {
 
-mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
-                                        mlir::Operation *op,
-                                        unsigned operandIndex) {
+mlir::FailureOr<std::optional<int64_t>>
+getExplicitLocalMemKind(mlir::Type type, mlir::Operation *op,
+                        unsigned operandIndex) {
   mlir::Attribute attr;
   if (auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(type)) {
     mlir::Attribute encoding = tensorType.getEncoding();
     if (!encoding)
-      return 0;
+      return std::optional<int64_t>{};
     auto dictionary = mlir::dyn_cast<mlir::DictionaryAttr>(encoding);
     if (!dictionary) {
       op->emitError() << "staged-etg: tensor operand " << operandIndex
@@ -29,13 +29,13 @@ mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
     }
     attr = dictionary.get("local_mem_kind");
     if (!attr)
-      return 0;
+      return std::optional<int64_t>{};
   } else if (auto memrefType = mlir::dyn_cast<mlir::MemRefType>(type)) {
     attr = memrefType.getMemorySpace();
     if (!attr)
-      return 0;
+      return std::optional<int64_t>{};
   } else {
-    return 0;
+    return std::optional<int64_t>{};
   }
 
   auto integer = mlir::dyn_cast<mlir::IntegerAttr>(attr);
@@ -45,7 +45,16 @@ mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
     return mlir::failure();
   }
 
-  return integer.getInt();
+  return std::optional<int64_t>{integer.getInt()};
+}
+
+mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,
+                                        mlir::Operation *op,
+                                        unsigned operandIndex) {
+  auto kind = getExplicitLocalMemKind(type, op, operandIndex);
+  if (mlir::failed(kind))
+    return mlir::failure();
+  return kind->value_or(0);
 }
 
 mlir::FailureOr<ComputeOpMatchInfo>
@@ -146,7 +155,33 @@ bool HWOpRegistry::fillGenericDetails(
     return false;
 
   result.body_op_name = singleBodyOp->getName().getStringRef().str();
+  result.body_attributes = singleBodyOp->getAttrDictionary();
   result.generic_class = classifyIteratorTypes(linalgOp.getIteratorTypesArray());
+
+  mlir::Block &body = computeOp->getRegion(0).front();
+  for (mlir::Value operand : singleBodyOp->getOperands()) {
+    auto argument = mlir::dyn_cast<mlir::BlockArgument>(operand);
+    if (!argument || argument.getOwner() != &body)
+      return false;
+    result.scalar_operand_dps_indices.push_back(argument.getArgNumber());
+    result.scalar_operand_types.push_back(operand.getType());
+  }
+  auto yield = llvm::dyn_cast<mlir::linalg::YieldOp>(body.getTerminator());
+  if (!yield)
+    return false;
+  for (mlir::Value scalarResult : singleBodyOp->getResults()) {
+    bool found = false;
+    for (auto [index, yielded] : llvm::enumerate(yield.getValues()))
+      if (yielded == scalarResult) {
+        result.scalar_result_dps_indices.push_back(
+            linalgOp.getNumDpsInputs() + index);
+        result.scalar_result_types.push_back(scalarResult.getType());
+        found = true;
+        break;
+      }
+    if (!found)
+      return false;
+  }
 
   auto indexingMaps = linalgOp.getIndexingMapsArray();
   llvm::SmallVector<mlir::Value> allOperands;
@@ -186,7 +221,9 @@ bool HWOpRegistry::fillGenericDetails(
 
 mlir::FailureOr<std::optional<HWComputeFunc>>
 HWOpRegistry::extractFromFunc(mlir::func::FuncOp func,
-                              llvm::StringRef hw_component) {
+                              llvm::StringRef module_symbol,
+                              llvm::StringRef processor_array,
+                              llvm::StringRef processor_definition) {
   auto bindingMap = collectBindingMap(func);
 
   mlir::Operation *computeOp = findComputeOp(func);
@@ -202,8 +239,27 @@ HWOpRegistry::extractFromFunc(mlir::func::FuncOp func,
   HWComputeFunc result;
   result.linalg_op_name = computeOp->getName().getStringRef().str();
   result.hw_func_name = func.getName().str();
-  result.hw_component = hw_component.str();
+  result.hw_component = processor_array.str();
+  result.processor_definition = processor_definition.str();
+  result.module_symbol = module_symbol.str();
   result.compute_match = std::move(*matchInfo);
+  llvm::DenseMap<mlir::Value, std::string> memoryBindings;
+  func.walk([&](loom::BindMemOp op) {
+    memoryBindings[op.getMemref()] = op.getMemory().str();
+  });
+  for (mlir::OpOperand *operand : linalgOp.getDpsInputOperands()) {
+    result.operand_mem_spaces.push_back(memoryBindings.lookup(operand->get()));
+    result.operand_types.push_back(operand->get().getType());
+  }
+  for (mlir::Value operand : linalgOp.getDpsInits()) {
+    result.operand_mem_spaces.push_back(memoryBindings.lookup(operand));
+    result.operand_types.push_back(operand.getType());
+  }
+  if (llvm::any_of(result.operand_mem_spaces,
+                   [](const std::string &memory) { return memory.empty(); })) {
+    func.emitError() << "every compute DPS operand must have loom.bind_mem";
+    return mlir::failure();
+  }
   fillInputOutputBindings(linalgOp, bindingMap, result);
 
   if (llvm::isa<mlir::linalg::GenericOp>(computeOp))

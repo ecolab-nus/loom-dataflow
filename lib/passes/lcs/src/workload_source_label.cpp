@@ -1,5 +1,6 @@
 #include "workload_source_label.h"
 #include "hw_op_registry.h"
+#include "compute_binding.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -121,6 +122,26 @@ makeLinalgOperandAccessMetadata(mlir::linalg::LinalgOp op,
   mlir::SmallVector<mlir::Value> inits(dpsInits.begin(), dpsInits.end());
   auto read = formatOperandAccessList(op.getOperation(), inputs, asmState);
   auto write = formatOperandAccessList(op.getOperation(), inits, asmState);
+  if (mlir::failed(read) || mlir::failed(write))
+    return mlir::failure();
+  return OperandAccessMetadata{*read, *write};
+}
+
+mlir::FailureOr<OperandAccessMetadata>
+makeGenericSiteAccessMetadata(const ComputeBindingSite &site,
+                              mlir::AsmState &asmState) {
+  auto linalgOp = mlir::cast<mlir::linalg::LinalgOp>(site.enclosing_op);
+  mlir::SmallVector<mlir::Value> operands = getLinalgCompactOperands(linalgOp);
+  mlir::SmallVector<mlir::Value> reads;
+  mlir::SmallVector<mlir::Value> writes;
+  for (const BindingSiteValue &input : site.inputs)
+    if (input.kind == BindingSiteValue::ExternalOperand)
+      reads.push_back(operands[input.dps_index]);
+  for (const BindingSiteValue &output : site.outputs)
+    for (unsigned dpsIndex : output.external_dps_indices)
+      writes.push_back(operands[dpsIndex]);
+  auto read = formatOperandAccessList(site.payload_op, reads, asmState);
+  auto write = formatOperandAccessList(site.payload_op, writes, asmState);
   if (mlir::failed(read) || mlir::failed(write))
     return mlir::failure();
   return OperandAccessMetadata{*read, *write};

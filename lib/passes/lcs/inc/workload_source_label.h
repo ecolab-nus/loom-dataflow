@@ -13,6 +13,8 @@
 namespace loom {
 namespace lcs {
 
+struct ComputeBindingSite;
+
 struct OperandAccessMetadata {
   std::string read;
   std::string write;
@@ -40,6 +42,10 @@ std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
 mlir::FailureOr<OperandAccessMetadata>
 makeLinalgOperandAccessMetadata(mlir::linalg::LinalgOp op,
                                 mlir::AsmState &asm_state);
+
+mlir::FailureOr<OperandAccessMetadata>
+makeGenericSiteAccessMetadata(const ComputeBindingSite &site,
+                              mlir::AsmState &asm_state);
 
 mlir::FailureOr<OperandAccessMetadata>
 makeDataMoverOperandAccessMetadata(mlir::Operation *data_mover_op,

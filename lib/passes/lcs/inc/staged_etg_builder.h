@@ -34,6 +34,7 @@ class WorkloadStageBody;
 /// dims maps hardware symbol names to operator IR symbolic expressions.
 struct Workload {
   std::string op;
+  std::string processor_array;
   std::map<std::string, Expr> dims;
   std::vector<std::string> resources;
   std::optional<std::string> op_label;
@@ -85,7 +86,8 @@ public:
                     std::map<std::string, Expr> dims,
                     std::vector<std::string> resources,
                     std::optional<std::string> op_label = std::nullopt,
-                    std::string read = {}, std::string write = {});
+                    std::string read = {}, std::string write = {},
+                    std::string processor_array = {});
 
   llvm::json::Object toJSONFragment() const override;
   void dump(llvm::raw_ostream &os, int indent) const override;
@@ -251,7 +253,8 @@ struct ConstraintScope {
 /// modelled as `for_loop_block` stages.
 class VariantETG {
 public:
-  VariantETG(llvm::StringRef name, const HWOpRegistry *registry);
+  VariantETG(llvm::StringRef name, const HWOpRegistry *registry,
+             Target target);
 
   llvm::StringRef getVariantName() const { return variant_name_; }
   const KernelBlock &getKernelBlock() const { return kernel_block_; }
@@ -277,6 +280,7 @@ private:
   KernelBlock kernel_block_;
   ConstraintScope constraint_scope_;
   const HWOpRegistry *hw_registry_;
+  Target target_;
 
   // Recursive scope population. Walks `region`'s direct ops, dispatching
   // each into the given load / compute / store scope according to its kind.
@@ -291,7 +295,8 @@ private:
                                       WorkloadStageBody &target,
                                       mlir::AsmState &asm_state);
   mlir::LogicalResult dispatchGenericOp(mlir::Operation *op,
-                                        WorkloadStageBody &target,
+                                        Scope &target, int first_stage,
+                                        int &ready_stage,
                                         mlir::AsmState &asm_state);
   mlir::LogicalResult dispatchToDataMoverQueues(mlir::Operation *op,
                                                 WorkloadStageBody &target,

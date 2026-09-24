@@ -2,11 +2,13 @@
 
 add_library(loomLCS STATIC
     src/constraint_expr.cpp
+    src/compute_binding.cpp
     src/expr.cpp
     src/hard_constraint_pipeline.cpp
     src/hw_alignment.cpp
     src/memory_footprint_estimator.cpp
     src/staged_etg_builder.cpp
+    src/target.cpp
     src/workload_source_label.cpp
     src/lcs_utils.cpp
     src/hw_op_registry.cpp

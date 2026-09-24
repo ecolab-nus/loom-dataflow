@@ -17,6 +17,7 @@ target_link_libraries(loom-opt PRIVATE
   MLIROptLib
   ADLDialect::IR
   loomDialect
+  loomTritonSharedPasses
 )
 
 mlir_check_all_link_libraries(loom-opt)

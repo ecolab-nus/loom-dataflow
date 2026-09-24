@@ -33,6 +33,7 @@ createMaterializePass(const BlockSizeMap &blockSizes,
                       const CandidateOrder &candidateOrder);
 std::unique_ptr<mlir::Pass> createBridgeToOSBPass();
 std::unique_ptr<mlir::Pass> createMemoryBindingPass();
+std::unique_ptr<mlir::Pass> createSpecializeMemorySpacesPass();
 std::unique_ptr<mlir::Pass> createLinalgDestinationSpecializationPass();
 std::unique_ptr<mlir::Pass> createFoldRedundantExtractSlicePass();
 std::unique_ptr<mlir::Pass> createSinkPreparationOpsPass();

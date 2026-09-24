@@ -27,6 +27,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("skip_etg") = false,
       py::arg("full_occ") = false,
       py::arg("spatial_reuse") = true,
+      py::arg("explicit_memory") = false,
+      py::arg("enumerate_bindings") = false,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -41,6 +43,10 @@ PYBIND11_MODULE(_loom_pipeline, m) {
           full_occ: When True, use only full hardware occupancy.
           spatial_reuse: When True, run reuse analysis and copy/broadcast
               enumeration.
+          explicit_memory: Treat the input as a stage-02 explicit-memory
+              template and skip tensor canonicalization/memory binding.
+          enumerate_bindings: Enumerate semantically compatible processor arrays
+              independently for each static compute operation.
 
       Returns:
           Tuple of (error, output_mlir, etg_json).
@@ -53,6 +59,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       &loom::pipeline::runMaterializationPipeline,
       py::arg("input_mlir_text"),
       py::arg("block_sizes_json"),
+      py::arg("hw_spec_file"),
       R"doc(Run the materialization pipeline (Materialize -> OSB).
 
       Takes explored MLIR and block sizes from the external solver, materializes
@@ -62,6 +69,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
           input_mlir_text: Input MLIR as a string (stage 05).
           block_sizes_json: JSON string mapping variant names to one or more
               block-size assignments.
+          hw_spec_file: Hardware specification used to validate direct movers.
 
       Returns:
           Tuple of (error, output_mlir).

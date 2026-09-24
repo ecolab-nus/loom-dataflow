@@ -232,6 +232,11 @@ findCopyBroadcastCandidates(loom::CopyOp copyOp, ModuleOp /*outerModule*/,
       {SmallVector<int64_t>(numDims, 1),
        SmallVector<SmallVector<unsigned>>(numDims), "n"});
 
+  // Binding enumeration has already selected and costed this mover. Keep its
+  // legal unicast form; changing area here would require a new mover choice.
+  if (copyOp->hasAttr("loom.processor_array"))
+    return candidates;
+
   // Skip broadcast enumeration for copies that write out gather+reduce results.
   // The chain is: copy-src = bufferize_to_memref(linalg.generic(ins=[gather_result]))
   auto isProducedByGather = [](Value v) {
@@ -467,14 +472,15 @@ private:
 
       // Create replacement CopyOp with static area and UL/LR bounds.
       auto newAreaAttr = builder.getDenseI64ArrayAttr(choice.values);
-      loom::CopyOp::create(builder, loc, copyOp.getSource(),
-                           copyOp.getDestination(),
-                           copyOp.getSrcMemSpaceAttr(),
-                           copyOp.getDstMemSpaceAttr(),
-                           copyOp.getSrcMemKindAttr(),
-                           copyOp.getDstMemKindAttr(), ValueRange{},
-                           newAreaAttr, ul_x, ul_y, lr_x, lr_y,
-                           copyOp.getReclaimAttr());
+      auto replacement = loom::CopyOp::create(
+          builder, loc, copyOp.getSource(), copyOp.getDestination(),
+          copyOp.getSrcMemSpaceAttr(), copyOp.getDstMemSpaceAttr(),
+          copyOp.getSrcMemKindAttr(), copyOp.getDstMemKindAttr(), ValueRange{},
+          newAreaAttr, ul_x, ul_y, lr_x, lr_y, copyOp.getReclaimAttr());
+      for (StringRef name : {"loom.processor_array",
+                             "loom.processor_function"})
+        if (Attribute attr = copyOp->getAttr(name))
+          replacement->setAttr(name, attr);
       copyOp.erase();
     }
 

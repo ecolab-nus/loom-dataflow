@@ -2,6 +2,8 @@
 #include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
 #include "hw_op_registry.h"
+#include "hw_op_registry_detail.h"
+#include "compute_binding.h"
 #include "memory_footprint_estimator.h"
 #include "lcs_utils.h"
 #include "ssa_utils.h"
@@ -753,8 +755,11 @@ llvm::json::Value Workload::toJSON() const {
   llvm::json::Object func_envelope;
   func_envelope["func"] = std::move(func_inner);
   func_envelope["scenarios"] = llvm::json::Array{};
-
-  return llvm::json::Object{{"Func", std::move(func_envelope)}};
+  if (processor_array.empty())
+    return llvm::json::Object{{"Func", std::move(func_envelope)}};
+  func_envelope["target"] = llvm::json::Object{
+      {"array", processor_array}, {"selectors", llvm::json::Array{}}};
+  return llvm::json::Object{{"PlacedFunc", std::move(func_envelope)}};
 }
 
 // ==========================================
@@ -788,11 +793,12 @@ void WorkloadStageBody::pushWorkload(const std::string &unit_name,
                                      std::map<std::string, Expr> dims,
                                      std::vector<std::string> resources,
                                      std::optional<std::string> op_label,
-                                     std::string read, std::string write) {
+                                     std::string read, std::string write,
+                                     std::string processor_array) {
   if (queues_.find(unit_name) == queues_.end())
     queues_[unit_name] = HardwareQueue{unit_name, {}};
   queues_[unit_name].workloads.push_back(
-      Workload{op, std::move(dims), std::move(resources),
+      Workload{op, std::move(processor_array), std::move(dims), std::move(resources),
                std::move(op_label), std::move(read), std::move(write)});
 }
 
@@ -997,8 +1003,9 @@ void ConstraintScope::pushHardConstraint(ConstraintExpr constraint) {
 // ==========================================
 // VariantETG — construction
 // ==========================================
-VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry)
-    : variant_name_(name.str()), hw_registry_(registry) {}
+VariantETG::VariantETG(llvm::StringRef name, const HWOpRegistry *registry,
+                       Target target)
+    : variant_name_(name.str()), hw_registry_(registry), target_(target) {}
 
 // ==========================================
 // VariantETG — ETG building
@@ -1029,6 +1036,119 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
                                std::set<std::string> &skipped_ops) {
   assert(hw_registry_ && "HWOpRegistry must be provided");
   bool valid = true;
+  auto bindingSites = analyzeComputeBindingSites(func_op);
+  if (mlir::failed(bindingSites))
+    return mlir::failure();
+  llvm::DenseMap<mlir::Operation *, const ComputeBindingSite *> siteByPayload;
+  for (const ComputeBindingSite &site : *bindingSites)
+    siteByPayload[site.payload_op] = &site;
+
+  struct Residency {
+    std::string memory;
+    int64_t kind;
+  };
+  llvm::DenseMap<mlir::Value, Residency> internalResidency;
+  auto checkResidency = [&](const ComputeBindingSite &site,
+                            const BindingSiteValue &siteValue,
+                            unsigned candidateDpsIndex,
+                            const HWComputeFunc &implementation) {
+    if (candidateDpsIndex >= implementation.operand_mem_spaces.size() ||
+        candidateDpsIndex >=
+            implementation.compute_match.operand_mem_kinds.size())
+      return false;
+    Residency required{
+        implementation.operand_mem_spaces[candidateDpsIndex],
+        implementation.compute_match.operand_mem_kinds[candidateDpsIndex]};
+    auto checkOne = [&](const BindingSiteValue &value) {
+      if (value.kind == BindingSiteValue::Constant)
+        return true;
+      if (value.kind == BindingSiteValue::InternalValue) {
+        auto [it, inserted] =
+            internalResidency.try_emplace(value.value, required);
+        return inserted || (it->second.memory == required.memory &&
+                            it->second.kind == required.kind);
+      }
+      auto linalgOp = mlir::cast<mlir::linalg::LinalgOp>(site.enclosing_op);
+      mlir::SmallVector<mlir::Value> operands =
+          getLinalgCompactOperands(linalgOp);
+      if (value.dps_index >= operands.size())
+        return false;
+      mlir::Value operand = operands[value.dps_index];
+      auto kind = getLocalMemKind(operand.getType(), site.enclosing_op,
+                                  value.dps_index);
+      loom::AllocOp alloc = loom::utils::traceToRootAllocOp(operand);
+      if (mlir::failed(kind) || !alloc)
+        return false;
+      std::string memory =
+          "mem_" + alloc.getMemory().getLeafReference().str();
+      return memory == required.memory && *kind == required.kind;
+    };
+
+    if (!checkOne(siteValue))
+      return false;
+    for (unsigned dpsIndex : siteValue.external_dps_indices) {
+      BindingSiteValue external{BindingSiteValue::ExternalOperand,
+                                siteValue.value, dpsIndex};
+      if (!checkOne(external))
+        return false;
+    }
+    return true;
+  };
+
+  for (const ComputeBindingSite &site : *bindingSites) {
+    auto array = site.payload_op->getAttrOfType<mlir::StringAttr>(
+        "loom.processor_array");
+    auto function = site.payload_op->getAttrOfType<mlir::StringAttr>(
+        "loom.processor_function");
+    if (!array || !function)
+      continue;
+    const HWComputeFunc *implementation =
+        hw_registry_->lookupExact(array.getValue(), function.getValue());
+    if (!implementation)
+      continue;
+    bool residencyMatches = true;
+    if (site.is_named) {
+      unsigned dpsIndex = 0;
+      for (const BindingSiteValue &input : site.inputs)
+        residencyMatches &=
+            checkResidency(site, input, dpsIndex++, *implementation);
+      for (const BindingSiteValue &output : site.outputs)
+        residencyMatches &=
+            checkResidency(site, output, dpsIndex++, *implementation);
+    } else if (implementation->scalar_operand_dps_indices.size() ==
+                   site.inputs.size() &&
+               implementation->scalar_result_dps_indices.size() ==
+                   site.outputs.size()) {
+      for (auto [input, dpsIndex] : llvm::zip(
+               site.inputs, implementation->scalar_operand_dps_indices))
+        residencyMatches &=
+            checkResidency(site, input, dpsIndex, *implementation);
+      for (auto [output, dpsIndex] : llvm::zip(
+               site.outputs, implementation->scalar_result_dps_indices))
+        residencyMatches &=
+            checkResidency(site, output, dpsIndex, *implementation);
+    } else {
+      residencyMatches = false;
+    }
+    if (!residencyMatches) {
+      site.payload_op->emitError()
+          << "staged-etg: selected processor residency requires an implicit "
+             "transfer";
+      valid = false;
+    }
+  }
+  auto selectedImplementation = [&](mlir::Operation *op,
+                                    const HWOpKey &key) {
+    auto array =
+        op->getAttrOfType<mlir::StringAttr>("loom.processor_array");
+    auto function =
+        op->getAttrOfType<mlir::StringAttr>("loom.processor_function");
+    if (array && function)
+      return hw_registry_->lookupExact(array.getValue(), function.getValue());
+    if (array || function)
+      return static_cast<const HWComputeFunc *>(nullptr);
+    return hw_registry_->lookup(key);
+  };
 
   std::function<void(mlir::Block &)> validateBlock =
       [&](mlir::Block &block) {
@@ -1052,22 +1172,43 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
               continue;
             }
             if (llvm::isa<mlir::linalg::GenericOp>(op)) {
-              GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
               for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
                 if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
+                  continue;
+                if (bodyOp.hasTrait<mlir::OpTrait::ConstantLike>())
                   continue;
                 mlir::Dialect *dialect = bodyOp.getDialect();
                 if (!dialect || (dialect->getNamespace() != "arith" &&
                                  dialect->getNamespace() != "math"))
                   continue;
                 std::string bodyOpName = bodyOp.getName().getStringRef().str();
-                if (!hw_registry_->lookup(
-                        HWOpKey::generic(bodyOpName, analysis.generic_class,
-                                         *matchInfo))) {
+                const ComputeBindingSite *site = siteByPayload.lookup(&bodyOp);
+                const HWComputeFunc *implementation = nullptr;
+                auto array = bodyOp.getAttrOfType<mlir::StringAttr>(
+                    "loom.processor_array");
+                auto function = bodyOp.getAttrOfType<mlir::StringAttr>(
+                    "loom.processor_function");
+                if (array && function)
+                  implementation = hw_registry_->lookupExact(
+                      array.getValue(), function.getValue());
+                else if (!array && !function && site) {
+                  for (const HWComputeFunc *candidate :
+                       hw_registry_->lookupComputeCandidates(
+                           site->semantic_key)) {
+                    if (!candidateMatchesSite(*candidate, *site))
+                      continue;
+                    if (implementation) {
+                      implementation = nullptr;
+                      break;
+                    }
+                    implementation = candidate;
+                  }
+                }
+                if (!site || !implementation ||
+                    !candidateMatchesSite(*implementation, *site)) {
                   bodyOp.emitError()
                       << "staged-etg: no hw_spec registration for linalg.generic "
-                      << "body op '" << bodyOpName
-                      << formatComputeOpMatchInfo(*matchInfo) << "'";
+                      << "body op '" << bodyOpName << "'";
                   valid = false;
                 }
               }
@@ -1075,7 +1216,8 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
             }
 
             std::string opName = op->getName().getStringRef().str();
-            if (!hw_registry_->lookup(HWOpKey::named(opName, *matchInfo))) {
+            HWOpKey key = HWOpKey::named(opName, *matchInfo);
+            if (!selectedImplementation(op, key)) {
               op->emitError() << "staged-etg: no hw_spec registration for "
                               << "linalg op '" << opName
                               << formatComputeOpMatchInfo(*matchInfo) << "'";
@@ -1094,9 +1236,21 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
               valid = false;
               continue;
             }
-            if (!hw_registry_->lookupDataMover(
-                    info->kind, info->src_mem_space, info->dst_mem_space,
-                    info->src_mem_kind, info->dst_mem_kind, info->area)) {
+            auto array = op->getAttrOfType<mlir::StringAttr>(
+                "loom.processor_array");
+            auto function = op->getAttrOfType<mlir::StringAttr>(
+                "loom.processor_function");
+            const HWComputeFunc *mover =
+                array && function
+                    ? hw_registry_->lookupExact(array.getValue(),
+                                                function.getValue())
+                    : (!array && !function
+                           ? hw_registry_->lookupDataMover(
+                                 info->kind, info->src_mem_space,
+                                 info->dst_mem_space, info->src_mem_kind,
+                                 info->dst_mem_kind, info->area)
+                           : nullptr);
+            if (!mover) {
               op->emitError() << "staged-etg: no hw_spec registration for "
                               << info->op_name << " ("
                               << dataMoverKeyDescription(*info) << ")";
@@ -1164,6 +1318,7 @@ mlir::LogicalResult VariantETG::populateScopesFromRegion(
 
       bool advances_stage = true; // default: generic ops advance stage by 1
       bool dispatched = false;
+      std::optional<int> genericReadyStage;
 
       if (auto for_op = llvm::dyn_cast<mlir::scf::ForOp>(op)) {
         auto child = std::make_unique<ForLoopBlockStageBody>(
@@ -1213,9 +1368,18 @@ mlir::LogicalResult VariantETG::populateScopesFromRegion(
             llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
 
         if (is_compute && !is_linalg_infra) {
-          if (mlir::failed(dispatchToComputeQueues(
-                  op, compute_scope.getOrCreateWorkloadStage(required_stage),
-                  asm_state))) {
+          mlir::LogicalResult result = mlir::success();
+          if (llvm::isa<mlir::linalg::GenericOp>(op)) {
+            int readyStage = required_stage;
+            result = dispatchGenericOp(op, compute_scope, required_stage,
+                                       readyStage, asm_state);
+            genericReadyStage = readyStage;
+          } else {
+            result = dispatchToComputeQueues(
+                op, compute_scope.getOrCreateWorkloadStage(required_stage),
+                asm_state);
+          }
+          if (mlir::failed(result)) {
             failed = true;
             return;
           }
@@ -1255,7 +1419,8 @@ mlir::LogicalResult VariantETG::populateScopesFromRegion(
         (void)dispatched;
       }
 
-      int ready_time = advances_stage ? required_stage + 1 : required_stage;
+      int ready_time = genericReadyStage.value_or(
+          advances_stage ? required_stage + 1 : required_stage);
       for (mlir::Value result : op->getResults())
         value_ready_stage[result] = ready_time;
     }
@@ -1270,8 +1435,6 @@ mlir::LogicalResult VariantETG::dispatchToComputeQueues(
     mlir::Operation *op, WorkloadStageBody &target,
     mlir::AsmState &asm_state) {
   assert(hw_registry_ && "HWOpRegistry must be provided");
-  if (llvm::isa<mlir::linalg::GenericOp>(op))
-    return dispatchGenericOp(op, target, asm_state);
   return dispatchNamedOp(op, target, asm_state);
 }
 
@@ -1284,12 +1447,40 @@ mlir::LogicalResult VariantETG::dispatchNamedOp(mlir::Operation *op,
       getComputeOpMatchInfo(linalgOp);
   if (mlir::failed(matchInfo))
     return mlir::failure();
-  const HWComputeFunc *hwFunc =
-      hw_registry_->lookup(HWOpKey::named(linalg_op_name, *matchInfo));
+  HWOpKey key = HWOpKey::named(linalg_op_name, *matchInfo);
+  const HWComputeFunc *hwFunc = nullptr;
+  auto selectedArray = op->getAttrOfType<mlir::StringAttr>(
+      "loom.processor_array");
+  auto selectedFunction = op->getAttrOfType<mlir::StringAttr>(
+      "loom.processor_function");
+  if (selectedArray || selectedFunction) {
+    if (!selectedArray || !selectedFunction) {
+      op->emitError() << "staged-etg: processor selection requires both "
+                         "loom.processor_array and loom.processor_function";
+      return mlir::failure();
+    }
+    hwFunc = hw_registry_->lookupExact(selectedArray.getValue(),
+                                       selectedFunction.getValue());
+    if (hwFunc && (hwFunc->linalg_op_name != linalg_op_name ||
+                   hwFunc->compute_match.operand_mem_kinds !=
+                       matchInfo->operand_mem_kinds)) {
+      op->emitError() << "staged-etg: selected implementation does not match "
+                         "the rebound operation signature";
+      return mlir::failure();
+    }
+  } else {
+    hwFunc = hw_registry_->lookup(key);
+  }
   if (!hwFunc) {
-    op->emitError() << "staged-etg: no hw_spec registration for linalg op '"
-                    << linalg_op_name
-                    << formatComputeOpMatchInfo(*matchInfo) << "'";
+    auto candidates = hw_registry_->lookupCandidates(key);
+    auto diagnostic = op->emitError();
+    diagnostic << "staged-etg: "
+               << (candidates.size() > 1 ? "ambiguous" : "no")
+               << " hw_spec registration for linalg op '" << linalg_op_name
+               << formatComputeOpMatchInfo(*matchInfo) << "'";
+    if (selectedArray && selectedFunction)
+      diagnostic << " selected as ('" << selectedArray.getValue() << "', '"
+                 << selectedFunction.getValue() << "')";
     return mlir::failure();
   }
 
@@ -1313,26 +1504,33 @@ mlir::LogicalResult VariantETG::dispatchNamedOp(mlir::Operation *op,
                       std::move(dimMap),
                       resourcesForComputePipelineMode(hwFunc->resources),
                       makeNamedLinalgWorkloadLabel(linalgOp, asm_state),
-                      accessMetadata->read, accessMetadata->write);
+                      accessMetadata->read, accessMetadata->write,
+                      hwFunc->processor_definition.empty()
+                          ? std::string()
+                          : hwFunc->hw_component);
   return mlir::success();
 }
 
 mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
-                                                  WorkloadStageBody &target,
+                                                  Scope &target,
+                                                  int firstStage,
+                                                  int &readyStage,
                                                   mlir::AsmState &asm_state) {
   auto linalgOp = llvm::cast<mlir::linalg::LinalgOp>(op);
-  mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
-      getComputeOpMatchInfo(linalgOp);
-  if (mlir::failed(matchInfo))
+  auto function = op->getParentOfType<mlir::func::FuncOp>();
+  auto bindingSites = analyzeComputeBindingSites(function);
+  if (mlir::failed(bindingSites))
     return mlir::failure();
+  llvm::DenseMap<mlir::Operation *, const ComputeBindingSite *> siteByPayload;
+  for (const ComputeBindingSite &site : *bindingSites)
+    siteByPayload[site.payload_op] = &site;
   GenericDimAnalysis analysis = analyzeGenericDims(linalgOp);
-  mlir::FailureOr<OperandAccessMetadata> accessMetadata =
-      makeLinalgOperandAccessMetadata(linalgOp, asm_state);
-  if (mlir::failed(accessMetadata))
-    return mlir::failure();
+  llvm::DenseMap<mlir::Value, int> internalReady;
 
   for (mlir::Operation &bodyOp : op->getRegion(0).front()) {
     if (llvm::isa<mlir::linalg::YieldOp>(&bodyOp))
+      continue;
+    if (bodyOp.hasTrait<mlir::OpTrait::ConstantLike>())
       continue;
     mlir::Dialect *dialect = bodyOp.getDialect();
     if (!dialect)
@@ -1342,13 +1540,53 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
       continue;
 
     std::string bodyOpName = bodyOp.getName().getStringRef().str();
-    const HWComputeFunc *hwFunc =
-        hw_registry_->lookup(HWOpKey::generic(
-            bodyOpName, analysis.generic_class, *matchInfo));
+    const ComputeBindingSite *site = siteByPayload.lookup(&bodyOp);
+    if (!site) {
+      bodyOp.emitError("staged-etg: missing generic binding site");
+      return mlir::failure();
+    }
+    int siteStage = firstStage;
+    for (mlir::Value input : bodyOp.getOperands())
+      if (auto it = internalReady.find(input); it != internalReady.end())
+        siteStage = std::max(siteStage, it->second);
+    auto accessMetadata = makeGenericSiteAccessMetadata(*site, asm_state);
+    if (mlir::failed(accessMetadata))
+      return mlir::failure();
+    const HWComputeFunc *hwFunc = nullptr;
+    auto selectedArray = bodyOp.getAttrOfType<mlir::StringAttr>(
+        "loom.processor_array");
+    auto selectedFunction = bodyOp.getAttrOfType<mlir::StringAttr>(
+        "loom.processor_function");
+    if (selectedArray || selectedFunction) {
+      if (!selectedArray || !selectedFunction) {
+        op->emitError() << "staged-etg: processor selection requires both "
+                           "loom.processor_array and loom.processor_function";
+        return mlir::failure();
+      }
+      hwFunc = hw_registry_->lookupExact(selectedArray.getValue(),
+                                         selectedFunction.getValue());
+      if (hwFunc && !candidateMatchesSite(*hwFunc, *site)) {
+        bodyOp.emitError() << "staged-etg: selected implementation does not "
+                              "match the rebound generic primitive";
+        return mlir::failure();
+      }
+    } else {
+      for (const HWComputeFunc *candidate :
+           hw_registry_->lookupComputeCandidates(site->semantic_key)) {
+        if (!candidateMatchesSite(*candidate, *site))
+          continue;
+        if (hwFunc) {
+          hwFunc = nullptr;
+          break;
+        }
+        hwFunc = candidate;
+      }
+    }
     if (!hwFunc) {
       bodyOp.emitError()
-          << "staged-etg: no hw_spec registration for linalg.generic body op '"
-          << bodyOpName << formatComputeOpMatchInfo(*matchInfo) << "'";
+          << "staged-etg: no unique hw_spec registration for "
+             "linalg.generic body op '"
+          << bodyOpName << "'";
       return mlir::failure();
     }
 
@@ -1359,12 +1597,19 @@ mlir::LogicalResult VariantETG::dispatchGenericOp(mlir::Operation *op,
         !analysis.reduction_product.isNone())
       dimMap[hwFunc->reduction_symbol] = analysis.reduction_product;
 
-    target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
+    target.getOrCreateWorkloadStage(siteStage).pushWorkload(
+                        hwFunc->hw_component, hwFunc->hw_func_name,
                         std::move(dimMap),
                         resourcesForComputePipelineMode(hwFunc->resources),
                         makeGenericPayloadWorkloadLabel(&bodyOp, linalgOp,
                                                         asm_state),
-                        accessMetadata->read, accessMetadata->write);
+                        accessMetadata->read, accessMetadata->write,
+                        hwFunc->processor_definition.empty()
+                            ? std::string()
+                            : hwFunc->hw_component);
+    readyStage = std::max(readyStage, siteStage + 1);
+    for (mlir::Value result : bodyOp.getResults())
+      internalReady[result] = siteStage + 1;
   }
   return mlir::success();
 }
@@ -1377,9 +1622,40 @@ mlir::LogicalResult VariantETG::dispatchToDataMoverQueues(
   if (!info)
     return mlir::success();
 
-  const HWComputeFunc *hwFunc = hw_registry_->lookupDataMover(
-      info->kind, info->src_mem_space, info->dst_mem_space,
-      info->src_mem_kind, info->dst_mem_kind, info->area);
+  const HWComputeFunc *hwFunc = nullptr;
+  auto selectedArray = op->getAttrOfType<mlir::StringAttr>(
+      "loom.processor_array");
+  auto selectedFunction = op->getAttrOfType<mlir::StringAttr>(
+      "loom.processor_function");
+  if (selectedArray || selectedFunction) {
+    if (!selectedArray || !selectedFunction) {
+      op->emitError() << "staged-etg: data-mover selection requires both "
+                         "loom.processor_array and loom.processor_function";
+      return mlir::failure();
+    }
+    hwFunc = hw_registry_->lookupExact(selectedArray.getValue(),
+                                       selectedFunction.getValue());
+    bool areaMatches = hwFunc && hwFunc->broadcast.size() == info->area.size();
+    if (areaMatches)
+      for (size_t i = 0; i < info->area.size(); ++i)
+        if (!mlir::ShapedType::isDynamic(hwFunc->broadcast[i]) &&
+            hwFunc->broadcast[i] != info->area[i])
+          areaMatches = false;
+    if (hwFunc &&
+        (!hwFunc->is_data_mover || hwFunc->data_mover_kind != info->kind ||
+         hwFunc->src_mem_space != detail::canonicalMemSpace(info->src_mem_space) ||
+         hwFunc->dst_mem_space != detail::canonicalMemSpace(info->dst_mem_space) ||
+         hwFunc->src_mem_kind != info->src_mem_kind ||
+         hwFunc->dst_mem_kind != info->dst_mem_kind || !areaMatches)) {
+      op->emitError() << "staged-etg: selected data mover does not match the "
+                         "rebound transfer endpoints";
+      return mlir::failure();
+    }
+  } else {
+    hwFunc = hw_registry_->lookupDataMover(
+        info->kind, info->src_mem_space, info->dst_mem_space,
+        info->src_mem_kind, info->dst_mem_kind, info->area);
+  }
   if (!hwFunc) {
     op->emitError() << "staged-etg: no hw_spec registration for "
                     << info->op_name << " ("
@@ -1414,7 +1690,10 @@ mlir::LogicalResult VariantETG::dispatchToDataMoverQueues(
   target.pushWorkload(hwFunc->hw_component, hwFunc->hw_func_name,
                       std::move(dimMap), resourcesForDataMover(*hwFunc),
                       makeDataMoverWorkloadLabel(op, asm_state),
-                      accessMetadata->read, accessMetadata->write);
+                      accessMetadata->read, accessMetadata->write,
+                      hwFunc->processor_definition.empty()
+                          ? std::string()
+                          : hwFunc->hw_component);
   return mlir::success();
 }
 
@@ -1476,7 +1755,8 @@ VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   // for (const IterNumInfo &t : constraint_scope_.temp_iter)
   //   addIterDivisibilityConstraints(t.expr);
   auto footprintResult =
-      MemoryFootprintEstimator::estimateFromFunc(func_op, hw_registry_);
+      MemoryFootprintEstimator::estimateFromFunc(func_op, hw_registry_,
+                                                 target_);
   if (mlir::failed(footprintResult))
     return mlir::failure();
   constraint_scope_.memory_footprints =
@@ -1494,6 +1774,7 @@ void VariantETG::dump(llvm::raw_ostream &os) const {
 
 llvm::json::Value VariantETG::toJSON() const {
   return llvm::json::Object{{"variant_name", variant_name_},
+                            {"target", stringifyTarget(target_)},
                             {"constraint_scope", constraint_scope_.toJSON()},
                             {"kernel_block", kernel_block_.toJSON()}};
 }

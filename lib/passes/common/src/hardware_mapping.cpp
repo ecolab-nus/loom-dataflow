@@ -20,6 +20,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <numeric>
 
@@ -403,6 +404,21 @@ static LogicalResult applyMappingToFunction(
 
 namespace loom {
 
+static std::string spatialHardwareKey(const HardwareInfo &hardwareInfo) {
+  std::string key;
+  llvm::raw_string_ostream stream(key);
+  for (const SpatialDimInfo &dim : hardwareInfo.spatialDimInfoVec) {
+    if (!key.empty())
+      stream << ",";
+    stream << dim.name << "=";
+    if (dim.size)
+      stream << *dim.size;
+    else
+      stream << "?";
+  }
+  return key;
+}
+
 static OwningOpRef<ModuleOp>
 enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
                                            const HardwareInfo &hardwareInfo) {
@@ -432,7 +448,15 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
       builder.setInsertionPointToEnd(out.getBody());
       (void)loom::utils::cloneFunc(
           builder, func, func.getName(), moduleAttrs,
-          [](func::FuncOp) { return success(); }, nullptr);
+          [&](func::FuncOp cloned) {
+            cloned->setAttr("loom.spatial_variant",
+                            StringAttr::get(
+                                cloned.getContext(),
+                                spatialHardwareKey(hardwareInfo) +
+                                    ":identity"));
+            return success();
+          },
+          nullptr);
       continue;
     }
 
@@ -467,6 +491,10 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
             }
 
             markLoopsTemporal(cloned);
+            cloned->setAttr("loom.spatial_variant",
+                            StringAttr::get(
+                                cloned.getContext(),
+                                spatialHardwareKey(hardwareInfo) + ":for"));
 
             // Assign memory attributes to copy ops
             cloned.walk([&](Operation *op) {
@@ -574,6 +602,11 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
               for (unsigned idx : orderCopy)
                 finalName += std::to_string(idx);
               clonedFunc.setName(finalName);
+              clonedFunc->setAttr(
+                  "loom.spatial_variant",
+                  StringAttr::get(clonedFunc.getContext(),
+                                  spatialHardwareKey(hardwareInfo) + ":" +
+                                      finalName.substr(newNamePrefix.size())));
             }
 
 #ifndef SKIP_TEMPORAL_EXPLORATION

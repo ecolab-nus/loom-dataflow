@@ -162,20 +162,6 @@ std::vector<Expr> applyBottom2Padding(const AllocInfo &info) {
   return aligned;
 }
 
-bool hasInnermostReductionGeneric(mlir::func::FuncOp funcOp) {
-  bool found = false;
-  funcOp.walk([&](mlir::linalg::GenericOp genericOp) {
-    auto iteratorTypes = genericOp.getIteratorTypesArray();
-    if (!iteratorTypes.empty() &&
-        iteratorTypes.back() == mlir::utils::IteratorType::reduction) {
-      found = true;
-      return mlir::WalkResult::interrupt();
-    }
-    return mlir::WalkResult::advance();
-  });
-  return found;
-}
-
 mlir::LogicalResult
 markAllocClass(llvm::DenseMap<mlir::Operation *, FootprintClass> &classes,
                loom::AllocOp allocOp, FootprintClass nextClass) {
@@ -314,7 +300,8 @@ extractLocalSizeFromPlatform(const HWOpRegistry *registry,
 
 mlir::FailureOr<MemoryFootprintResult>
 MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
-                                           const HWOpRegistry *registry) {
+                                           const HWOpRegistry *registry,
+                                           Target target) {
   auto allocResult = readAllLocalAllocs(funcOp);
   if (mlir::failed(allocResult))
     return mlir::failure();
@@ -325,9 +312,12 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
   for (size_t i = 0; i < allocs.size(); ++i) {
     AllocInfo &info = allocs[i];
     allocIndex[info.alloc_op.getOperation()] = i;
-    if (mlir::failed(validateBottom2Dims(info)))
-      return mlir::failure();
-    std::vector<Expr> aligned = applyBottom2Padding(info);
+    std::vector<Expr> aligned = info.expr_dims;
+    if (target == Target::TT) {
+      if (mlir::failed(validateBottom2Dims(info)))
+        return mlir::failure();
+      aligned = applyBottom2Padding(info);
+    }
     for (const Expr &dim : aligned) {
       if (dim.isNone()) {
         info.alloc_op.emitError()
@@ -365,29 +355,59 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
     pushFootprint(footprints.at(info.memory), cls, info.footprint_bytes);
   }
 
-  if (hasInnermostReductionGeneric(funcOp)) {
-    if (footprints.size() != 1 || allocs.empty()) {
-      funcOp.emitError()
-          << "staged-etg: reduction configuration storage has no explicit "
-             "memory owner when a function uses zero or multiple memories";
-      return mlir::failure();
+  if (target == Target::Generic) {
+    MemoryFootprintResult result;
+    for (auto &[memory, footprint] : footprints)
+      result.memory_footprints.push_back(std::move(footprint));
+    return result;
+  }
+
+  std::map<std::string, std::set<int64_t>> reductionWidths;
+  bool reductionOwnerMissing = false;
+  funcOp.walk([&](mlir::linalg::GenericOp genericOp) {
+    auto iteratorTypes = genericOp.getIteratorTypesArray();
+    if (iteratorTypes.empty() ||
+        iteratorTypes.back() != mlir::utils::IteratorType::reduction)
+      return;
+    auto linalgOp = mlir::cast<mlir::linalg::LinalgOp>(genericOp.getOperation());
+    if (linalgOp.getDpsInits().empty()) {
+      reductionOwnerMissing = true;
+      return;
     }
-    std::set<int64_t> elementWidths;
-    for (const AllocInfo &info : allocs)
-      elementWidths.insert(info.elem_bytes);
-    if (elementWidths.size() != 1) {
+    loom::AllocOp owner =
+        loom::utils::traceToRootAllocOp(linalgOp.getDpsInits().front());
+    if (!owner) {
+      reductionOwnerMissing = true;
+      return;
+    }
+    auto memory = resolveMemoryIdentity(owner);
+    auto type = mlir::cast<mlir::ShapedType>(owner.getResult().getType());
+    auto width = getElementBytes(owner, type.getElementType());
+    if (mlir::failed(memory) || mlir::failed(width)) {
+      reductionOwnerMissing = true;
+      return;
+    }
+    reductionWidths[*memory].insert(*width);
+  });
+  if (reductionOwnerMissing) {
+    funcOp.emitError()
+        << "staged-etg: reduction configuration storage has no explicit "
+           "output allocation";
+    return mlir::failure();
+  }
+  for (const auto &[memory, widths] : reductionWidths) {
+    if (widths.size() != 1) {
       funcOp.emitError()
           << "staged-etg: reduction configuration byte size is ambiguous for "
-             "mixed allocation element widths";
+             "memory '" << memory << "'";
       return mlir::failure();
     }
     auto scratchBytes = checkedProduct(kTenstorrentReductionConfigElements,
-                                       *elementWidths.begin(), funcOp,
+                                       *widths.begin(), funcOp,
                                        "reduction configuration footprint");
     if (mlir::failed(scratchBytes))
       return mlir::failure();
-    footprints.begin()->second.compute_bytes.push_back(
-        Expr::con(*scratchBytes));
+    footprints.at(memory).compute_bytes.push_back(Expr::con(*scratchBytes));
   }
 
   MemoryFootprintResult result;

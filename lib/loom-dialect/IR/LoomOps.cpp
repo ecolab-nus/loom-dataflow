@@ -666,10 +666,8 @@ struct DropUnusedSemaphoreTakeGive : public OpRewritePattern<SemaphoreTakeOp> {
 };
 
 /// Staticize loom.broadcast by peeking through tensor.cast on ins/init and
-/// unwrapping casts on ins/init. Broadcast may intentionally have init/outs
-/// type different from result type, so we never derive result type from init.
-/// Instead, if users apply tensor.cast to a more-static ranked tensor type,
-/// migrate that cast target type onto broadcast's result directly.
+/// unwrapping compatible casts on ins/init. The destination-style interface
+/// requires the init and result types to remain identical.
 struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
   using OpRewritePattern<BroadcastOp>::OpRewritePattern;
 
@@ -679,16 +677,17 @@ struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
     if (auto cast = ins.getDefiningOp<tensor::CastOp>())
       ins = cast.getSource();
 
-    Value init = op.getInit();
-    if (auto cast = init.getDefiningOp<tensor::CastOp>())
-      init = cast.getSource();
-
     if (op->getNumResults() == 0)
       return failure();
 
     auto resultType = llvm::dyn_cast<RankedTensorType>(op->getResultTypes()[0]);
     if (!resultType)
       return failure();
+
+    Value init = op.getInit();
+    if (auto cast = init.getDefiningOp<tensor::CastOp>())
+      if (cast.getSource().getType() == resultType)
+        init = cast.getSource();
 
     RankedTensorType migratedResultType = resultType;
     SmallVector<tensor::CastOp> foldableCasts;
@@ -701,7 +700,7 @@ struct StaticizeBroadcast : public OpRewritePattern<BroadcastOp> {
       auto castType = llvm::dyn_cast<RankedTensorType>(castOp.getType());
       if (!castType)
         continue;
-      if (castType.hasStaticShape()) {
+      if (castType.hasStaticShape() && castType == init.getType()) {
         if (migratedResultType == resultType || migratedResultType == castType) {
           migratedResultType = castType;
           foldableCasts.push_back(castOp);
@@ -807,12 +806,17 @@ struct StaticizeCopy : public OpRewritePattern<CopyOp> {
       return failure();
     }
 
-    rewriter.replaceOpWithNewOp<CopyOp>(
-        op, source, destination, op.getSrcMemSpaceAttr(),
+    auto replacement = rewriter.create<CopyOp>(
+        op.getLoc(), source, destination, op.getSrcMemSpaceAttr(),
         op.getDstMemSpaceAttr(), op.getSrcMemKindAttr(),
         op.getDstMemKindAttr(), op.getArea(), op.getStaticAreaAttr(),
         op.getUlX(), op.getUlY(), op.getLrX(), op.getLrY(),
         op.getReclaimAttr());
+    for (StringRef name : {"loom.processor_array",
+                           "loom.processor_function"})
+      if (Attribute attribute = op->getAttr(name))
+        replacement->setAttr(name, attribute);
+    rewriter.replaceOp(op, replacement);
     return success();
   }
 };

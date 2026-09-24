@@ -9,6 +9,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/LogicalResult.h"
 #include <map>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -34,6 +35,12 @@ struct ComputeOpMatchInfo {
 /// unannotated shaped types have kind zero.
 mlir::FailureOr<int64_t>
 getLocalMemKind(mlir::Type type, mlir::Operation *op, unsigned operand_index);
+
+/// As above, but preserves the distinction between an absent annotation and
+/// an explicit kind zero.
+mlir::FailureOr<std::optional<int64_t>>
+getExplicitLocalMemKind(mlir::Type type, mlir::Operation *op,
+                        unsigned operand_index);
 
 /// Extract and validate the local memory kind of every Linalg DPS operand.
 mlir::FailureOr<ComputeOpMatchInfo>
@@ -82,12 +89,26 @@ struct HWOpKey {
 
 /// A hardware function entry from a platform IR file.
 struct HWComputeFunc {
+  uint64_t registration_order = 0;
   std::string linalg_op_name; // e.g., "linalg.matmul" (empty for data movers)
   std::string hw_func_name;   // e.g., "matmul_f16"
   std::string hw_component;   // e.g., "matrix_lane" (from sub-module name)
+  std::string processor_definition;
+  std::vector<std::string> processor_domain;
+  std::string module_symbol;
   std::string body_op_name;   // inner arith/math op (empty for named/data mover ops)
   GenericClass generic_class = GenericClass::Parallel;
   ComputeOpMatchInfo compute_match;
+  /// Ordered DPS inputs followed by DPS inits, matching compute_match.
+  std::vector<std::string> operand_mem_spaces;
+  std::vector<mlir::Type> operand_types;
+  /// For a primitive generic implementation, map scalar payload operands and
+  /// results to the DPS operands that provide/receive them.
+  std::vector<unsigned> scalar_operand_dps_indices;
+  std::vector<unsigned> scalar_result_dps_indices;
+  std::vector<mlir::Type> scalar_operand_types;
+  std::vector<mlir::Type> scalar_result_types;
+  mlir::DictionaryAttr body_attributes;
   std::string parallel_symbol;  // hw symbol for folded parallel product
   std::string reduction_symbol; // hw symbol for folded reduction product
   std::vector<HWTensorBinding> input_bindings;
@@ -101,6 +122,8 @@ struct HWComputeFunc {
   std::string dst_mem_space;        // e.g., "L1"
   std::optional<int64_t> src_mem_kind;
   std::optional<int64_t> dst_mem_kind;
+  mlir::Type src_type;
+  mlir::Type dst_type;
   // Static entries are constants; dynamic entries use ShapedType::kDynamic and
   // carry the corresponding hardware symbol in area_symbols.
   std::vector<int64_t> broadcast;   // e.g., {1,1} or {?,?}
@@ -119,6 +142,18 @@ public:
   /// Unified lookup: find a registered hw func by key.
   const HWComputeFunc *lookup(const HWOpKey &key) const;
 
+  /// Return every implementation matching a dispatch signature.
+  std::vector<const HWComputeFunc *> lookupCandidates(const HWOpKey &key) const;
+
+  /// Return compute implementations with the same operation semantics while
+  /// ignoring operand residency.
+  std::vector<const HWComputeFunc *>
+  lookupComputeCandidates(const HWOpKey &semantic_key) const;
+
+  /// Select one implementation by its stable architecture identity.
+  const HWComputeFunc *lookupExact(llvm::StringRef processor_array,
+                                   llvm::StringRef function) const;
+
   /// Data-mover lookup with symbolic-area fallback.
   const HWComputeFunc *lookupDataMover(DataMoverKind kind,
                                        llvm::StringRef src_mem_space,
@@ -127,15 +162,32 @@ public:
                                        std::optional<int64_t> dst_mem_kind,
                                        llvm::ArrayRef<int64_t> area) const;
 
+  /// Return movers compatible with physical endpoints and area, without
+  /// conflating their endpoint-local kinds with compute-local kinds.
+  std::vector<const HWComputeFunc *>
+  lookupDataMoverCandidates(DataMoverKind kind,
+                            llvm::StringRef src_mem_space,
+                            llvm::StringRef dst_mem_space,
+                            llvm::ArrayRef<int64_t> area) const;
+
+  /// Return direct unicast movers without assuming an architecture rank.
+  std::vector<const HWComputeFunc *>
+  lookupUnicastDataMoverCandidates(DataMoverKind kind,
+                                   llvm::StringRef src_mem_space,
+                                   llvm::StringRef dst_mem_space) const;
+
   /// Return the parsed platform module (kept alive by this registry).
   mlir::ModuleOp getPlatformModule() const { return *platform_module_; }
 
 private:
   /// Unified registry keyed by HWOpKey.
-  std::map<HWOpKey, HWComputeFunc> registry_;
+  std::map<HWOpKey, std::vector<HWComputeFunc>> registry_;
 
   /// Symbolic-area data movers that cannot be represented by exact static key.
   std::vector<HWComputeFunc> symbolic_data_movers_;
+
+  std::map<std::pair<std::string, std::string>, HWOpKey> identities_;
+  uint64_t next_registration_order_ = 0;
 
   /// Maps processor module name -> resource names. Built once during load.
   std::map<std::string, std::vector<std::string>> module_resource_map_;
@@ -153,7 +205,10 @@ private:
   /// Index all funcs in a module under the given hw_component name.
   /// If is_data_mover is true, routes to data mover extraction.
   mlir::LogicalResult indexModule(mlir::ModuleOp module,
-                                  llvm::StringRef hw_component,
+                                  llvm::StringRef module_symbol,
+                                  llvm::StringRef processor_array,
+                                  llvm::StringRef processor_definition,
+                                  std::vector<std::string> processor_domain,
                                   bool is_data_mover);
 
   /// Find the unique non-infra linalg op in a func; nullptr if none or ambiguous.
@@ -174,12 +229,16 @@ private:
 
   /// Extract HWComputeFunc from a single func.func with a linalg compute op.
   mlir::FailureOr<std::optional<HWComputeFunc>>
-  extractFromFunc(mlir::func::FuncOp func, llvm::StringRef hw_component);
+  extractFromFunc(mlir::func::FuncOp func, llvm::StringRef module_symbol,
+                  llvm::StringRef processor_array,
+                  llvm::StringRef processor_definition);
 
   /// Extract HWComputeFunc from a single func.func with a loom.copy op.
   std::optional<HWComputeFunc>
   extractDataMoverFromFunc(mlir::func::FuncOp func,
-                           llvm::StringRef hw_component);
+                           llvm::StringRef module_symbol,
+                           llvm::StringRef processor_array,
+                           llvm::StringRef processor_definition);
 };
 
 } // namespace lcs

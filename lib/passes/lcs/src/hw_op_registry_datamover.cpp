@@ -13,7 +13,9 @@ namespace lcs {
 
 std::optional<HWComputeFunc>
 HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
-                                       llvm::StringRef hw_component) {
+                                       llvm::StringRef module_symbol,
+                                       llvm::StringRef processor_array,
+                                       llvm::StringRef processor_definition) {
   auto bindingMap = collectBindingMap(func);
 
   loom::CopyOp copyOp = nullptr;
@@ -37,7 +39,9 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
   result.data_mover_kind =
       copyOp ? DataMoverKind::Copy : DataMoverKind::Gather;
   result.hw_func_name = func.getName().str();
-  result.hw_component = hw_component.str();
+  result.hw_component = processor_array.str();
+  result.processor_definition = processor_definition.str();
+  result.module_symbol = module_symbol.str();
 
   mlir::Value source;
   mlir::Value destination;
@@ -64,6 +68,8 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
     if (auto attr = gatherOp.getDstMemSpaceAttr())
       result.dst_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
   }
+  result.src_type = source.getType();
+  result.dst_type = destination.getType();
 
   for (mlir::OpFoldResult area : mixedArea) {
     if (auto attr = area.dyn_cast<mlir::Attribute>()) {

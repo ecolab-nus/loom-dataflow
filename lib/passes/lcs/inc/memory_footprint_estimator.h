@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expr.h"
+#include "target.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Support/LogicalResult.h"
 #include <cstdint>
@@ -31,7 +32,8 @@ struct MemoryFootprintResult {
 class MemoryFootprintEstimator {
 public:
   static mlir::FailureOr<MemoryFootprintResult>
-  estimateFromFunc(mlir::func::FuncOp funcOp, const HWOpRegistry *registry);
+  estimateFromFunc(mlir::func::FuncOp funcOp, const HWOpRegistry *registry,
+                   Target target);
 };
 
 } // namespace lcs

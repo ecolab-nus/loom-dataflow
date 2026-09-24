@@ -118,7 +118,12 @@ bool convertMatmul(LinalgMatmulOp matmulOp, RewriterBase &rewriter) {
     return false;
 
   rewriter.setInsertionPoint(matmulOp);
-  rewriter.create<LoomMatmulOp>(matmulOp.getLoc(), lhs, rhs, output);
+  LoomMatmulOp converted =
+      rewriter.create<LoomMatmulOp>(matmulOp.getLoc(), lhs, rhs, output);
+  for (StringRef name : {"loom.processor_array", "loom.processor_function",
+                         "loom.binding_site"})
+    if (Attribute attribute = matmulOp->getAttr(name))
+      converted->setAttr(name, attribute);
   rewriter.eraseOp(matmulOp);
   return true;
 }

@@ -145,10 +145,13 @@ The in-memory API avoids intermediate files:
 from loom_pipeline import run_exploration, run_materialization
 
 explored_mlir, etg_json = run_exploration(input_mlir, "path/to/arch.mlir")
-final_mlir = run_materialization(explored_mlir, block_sizes_json)
+final_mlir = run_materialization(explored_mlir, block_sizes_json, "path/to/arch.mlir")
 ```
 
-`run_exploration` covers tensor canonicalization through copy-broadcast enumeration and can emit ETG JSON. `run_materialization` applies block-size bindings, bufferization, and TT cleanup.
+`run_exploration` covers tensor canonicalization through copy-broadcast enumeration and can emit ETG JSON. `run_materialization` applies block-size bindings and bufferization. Set `LOOM_TARGET=tt` for TT storage accounting and TT-only cleanup; unset selects generic and any other value is rejected.
+
+For an already explicit-memory stage-02 template, also pass
+`explicit_memory=True`; input stage and binding enumeration are independent.
 
 ### Step-by-step example (mqa_decode)
 

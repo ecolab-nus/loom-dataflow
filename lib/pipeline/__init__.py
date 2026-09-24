@@ -24,11 +24,13 @@ Usage::
     final_mlir = run_materialization(
         input_mlir=output_mlir,
         block_sizes_json='{"variant": {"BM": 64, "BN": 64, "BK": 64}}',
+        hw_spec_file="path/to/arch.mlir",
     )
 
     final_mlir = run_materialization(
         input_mlir=output_mlir,
         block_sizes_json='{"variant": [{"BM": 64}, {"BM": 128}]}',
+        hw_spec_file="path/to/arch.mlir",
     )
 """
 
@@ -62,6 +64,8 @@ def run_exploration(
     skip_etg: bool = False,
     full_occ: bool = False,
     spatial_reuse: bool = True,
+    explicit_memory: bool = False,
+    enumerate_bindings: bool = False,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -78,6 +82,11 @@ def run_exploration(
         full_occ:          When True, use only full hardware occupancy.
         spatial_reuse:     When True, run reuse analysis and copy/broadcast
                            enumeration.
+        explicit_memory:   Input is already an explicit-memory stage-02
+                           template; skip canonicalization and fixed binding.
+        enumerate_bindings: Enumerate semantically compatible processor-array
+                           alternatives independently at each static compute
+                           operation. Works for stage-00 and stage-02 input.
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
@@ -93,6 +102,8 @@ def run_exploration(
         skip_etg,
         full_occ,
         spatial_reuse,
+        explicit_memory,
+        enumerate_bindings,
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
@@ -102,6 +113,7 @@ def run_exploration(
 def run_materialization(
     input_mlir: str,
     block_sizes_json: str,
+    hw_spec_file: str | Path,
 ) -> str:
     """Run the materialization pipeline (stages 5→7).
 
@@ -116,6 +128,7 @@ def run_materialization(
                           or
                           ``{"func_name": [{"BM": 64}, {"BM": 128}], ...}``.
                           Pass empty string to use placeholder solver.
+        hw_spec_file:    Hardware specification used to validate direct movers.
 
     Returns:
         Output MLIR text (final bufferized MLIR).
@@ -124,7 +137,7 @@ def run_materialization(
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir = _loom_pipeline.run_materialization_pipeline(
-        input_mlir, block_sizes_json
+        input_mlir, block_sizes_json, str(hw_spec_file)
     )
     if err:
         raise RuntimeError(f"Materialization pipeline failed: {err}")

@@ -6,11 +6,13 @@
 
 #include "ADL/IR/ADLDialect.h"
 #include "LoomDialect.h.inc"
+#include "Passes.h"
 
 int main(int argc, char **argv) {
   mlir::DialectRegistry registry;
   mlir::registerAllDialects(registry);
   mlir::registerAllPasses();
+  loom::passes::registerSpecializeMemorySpacesPass();
   registry.insert<mlir::adl::ADLDialect, loom::LoomDialect>();
 
   return mlir::asMainReturnCode(

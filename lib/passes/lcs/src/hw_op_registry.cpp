@@ -177,13 +177,35 @@ HWOpRegistry::loadFromPlatformFile(llvm::StringRef file_path,
         subModule.getName().value_or(llvm::StringRef(""));
     if (component.empty())
       continue;
+    llvm::StringRef processorArray = component;
+    llvm::StringRef processorDefinition;
+    std::vector<std::string> processorDomain;
+    if (auto attr = subModule->getAttrOfType<mlir::StringAttr>(
+            "mlar.processor_array"))
+      processorArray = attr.getValue();
+    if (auto attr = subModule->getAttrOfType<mlir::StringAttr>(
+            "mlar.processor_definition"))
+      processorDefinition = attr.getValue();
+    if (auto attr =
+            subModule->getAttrOfType<mlir::ArrayAttr>("mlar.processor_domain"))
+      for (mlir::Attribute axis : attr) {
+        auto name = mlir::dyn_cast<mlir::StringAttr>(axis);
+        if (!name) {
+          subModule.emitError()
+              << "mlar.processor_domain must contain only strings";
+          return mlir::failure();
+        }
+        processorDomain.push_back(name.getValue().str());
+      }
 
     // Detect data mover module: any func containing a loom.copy or loom.gather.
     bool is_data_mover = false;
     subModule.walk([&](loom::CopyOp) { is_data_mover = true; });
     subModule.walk([&](loom::GatherOp) { is_data_mover = true; });
 
-    if (mlir::failed(indexModule(subModule, component, is_data_mover)))
+    if (mlir::failed(indexModule(subModule, component, processorArray,
+                                 processorDefinition,
+                                 std::move(processorDomain), is_data_mover)))
       return mlir::failure();
   }
 
@@ -197,8 +219,61 @@ HWOpRegistry::loadFromPlatformFile(llvm::StringRef file_path,
 
 const HWComputeFunc *HWOpRegistry::lookup(const HWOpKey &key) const {
   auto it = registry_.find(key);
-  if (it != registry_.end())
-    return &it->second;
+  if (it != registry_.end() && it->second.size() == 1)
+    return &it->second.front();
+  return nullptr;
+}
+
+std::vector<const HWComputeFunc *>
+HWOpRegistry::lookupCandidates(const HWOpKey &key) const {
+  std::vector<const HWComputeFunc *> result;
+  auto it = registry_.find(key);
+  if (it == registry_.end())
+    return result;
+  result.reserve(it->second.size());
+  for (const HWComputeFunc &candidate : it->second)
+    result.push_back(&candidate);
+  return result;
+}
+
+std::vector<const HWComputeFunc *>
+HWOpRegistry::lookupComputeCandidates(const HWOpKey &semantic_key) const {
+  std::vector<const HWComputeFunc *> result;
+  if (semantic_key.kind == HWOpKey::DataMover)
+    return result;
+  for (const auto &[key, implementations] : registry_) {
+    bool matches = key.kind == semantic_key.kind;
+    if (matches && key.kind == HWOpKey::Named)
+      matches = key.linalg_op_name == semantic_key.linalg_op_name;
+    if (matches && key.kind == HWOpKey::Generic)
+      matches = key.body_op_name == semantic_key.body_op_name &&
+                key.generic_class == semantic_key.generic_class;
+    if (!matches)
+      continue;
+    for (const HWComputeFunc &implementation : implementations)
+      result.push_back(&implementation);
+  }
+  llvm::sort(result, [](const HWComputeFunc *lhs, const HWComputeFunc *rhs) {
+    return lhs->registration_order < rhs->registration_order;
+  });
+  return result;
+}
+
+const HWComputeFunc *
+HWOpRegistry::lookupExact(llvm::StringRef processor_array,
+                          llvm::StringRef function) const {
+  auto identity = std::make_pair(processor_array.str(), function.str());
+  if (!identities_.count(identity))
+    return nullptr;
+  for (const auto &[key, candidates] : registry_)
+    for (const HWComputeFunc &candidate : candidates)
+      if (candidate.hw_component == processor_array &&
+          candidate.hw_func_name == function)
+        return &candidate;
+  for (const HWComputeFunc &candidate : symbolic_data_movers_)
+    if (candidate.hw_component == processor_array &&
+        candidate.hw_func_name == function)
+      return &candidate;
   return nullptr;
 }
 
@@ -216,6 +291,7 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
   if (kind == DataMoverKind::Copy && detail::isAllOnes(area))
     return nullptr;
 
+  const HWComputeFunc *match = nullptr;
   for (const HWComputeFunc &candidate : symbolic_data_movers_) {
     if (candidate.data_mover_kind != kind ||
         candidate.src_mem_space != src || candidate.dst_mem_space != dst ||
@@ -232,11 +308,63 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
         break;
       }
     }
-    if (matches)
-      return &candidate;
+    if (matches) {
+      if (match)
+        return nullptr;
+      match = &candidate;
+    }
   }
+  return match;
+}
 
-  return nullptr;
+std::vector<const HWComputeFunc *> HWOpRegistry::lookupDataMoverCandidates(
+    DataMoverKind kind, llvm::StringRef src_mem_space,
+    llvm::StringRef dst_mem_space, llvm::ArrayRef<int64_t> area) const {
+  std::string src = detail::canonicalMemSpace(src_mem_space);
+  std::string dst = detail::canonicalMemSpace(dst_mem_space);
+  std::vector<const HWComputeFunc *> result;
+  auto appendIfCompatible = [&](const HWComputeFunc &candidate) {
+    if (!candidate.is_data_mover || candidate.data_mover_kind != kind ||
+        candidate.src_mem_space != src || candidate.dst_mem_space != dst ||
+        candidate.broadcast.size() != area.size())
+      return;
+    for (size_t i = 0; i < area.size(); ++i)
+      if (!mlir::ShapedType::isDynamic(candidate.broadcast[i]) &&
+          candidate.broadcast[i] != area[i])
+        return;
+    result.push_back(&candidate);
+  };
+  for (const auto &[key, implementations] : registry_)
+    for (const HWComputeFunc &candidate : implementations)
+      appendIfCompatible(candidate);
+  for (const HWComputeFunc &candidate : symbolic_data_movers_)
+    appendIfCompatible(candidate);
+  return result;
+}
+
+std::vector<const HWComputeFunc *>
+HWOpRegistry::lookupUnicastDataMoverCandidates(
+    DataMoverKind kind, llvm::StringRef src_mem_space,
+    llvm::StringRef dst_mem_space) const {
+  std::string src = detail::canonicalMemSpace(src_mem_space);
+  std::string dst = detail::canonicalMemSpace(dst_mem_space);
+  std::vector<const HWComputeFunc *> result;
+  auto appendIfCompatible = [&](const HWComputeFunc &candidate) {
+    bool supportsUnicast = llvm::all_of(candidate.broadcast, [](int64_t area) {
+      return area == 1 || mlir::ShapedType::isDynamic(area);
+    });
+    if (!candidate.is_data_mover || candidate.data_mover_kind != kind ||
+        candidate.src_mem_space != src || candidate.dst_mem_space != dst ||
+        !supportsUnicast)
+      return;
+    result.push_back(&candidate);
+  };
+  for (const auto &[key, implementations] : registry_)
+    for (const HWComputeFunc &candidate : implementations)
+      appendIfCompatible(candidate);
+  for (const HWComputeFunc &candidate : symbolic_data_movers_)
+    appendIfCompatible(candidate);
+  return result;
 }
 
 // ============================================================
@@ -244,11 +372,14 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
 // ============================================================
 
 mlir::LogicalResult HWOpRegistry::indexModule(mlir::ModuleOp module,
-                                              llvm::StringRef hw_component,
+                                              llvm::StringRef module_symbol,
+                                              llvm::StringRef processor_array,
+                                              llvm::StringRef processor_definition,
+                                              std::vector<std::string> processor_domain,
                                               bool is_data_mover) {
   // Look up resources for this module.
   std::vector<std::string> resources;
-  auto resIt = module_resource_map_.find(hw_component.str());
+  auto resIt = module_resource_map_.find(module_symbol.str());
   if (resIt != module_resource_map_.end())
     resources = resIt->second;
 
@@ -258,10 +389,12 @@ mlir::LogicalResult HWOpRegistry::indexModule(mlir::ModuleOp module,
       return;
     std::optional<HWComputeFunc> hwFunc;
     if (is_data_mover) {
-      hwFunc = extractDataMoverFromFunc(func, hw_component);
+      hwFunc = extractDataMoverFromFunc(func, module_symbol, processor_array,
+                                        processor_definition);
     } else {
       mlir::FailureOr<std::optional<HWComputeFunc>> extracted =
-          extractFromFunc(func, hw_component);
+          extractFromFunc(func, module_symbol, processor_array,
+                          processor_definition);
       if (mlir::failed(extracted)) {
         failed = true;
         return;
@@ -274,11 +407,29 @@ mlir::LogicalResult HWOpRegistry::indexModule(mlir::ModuleOp module,
 
     // Attach resources from the processor declaration.
     hwFunc->resources = resources;
+    hwFunc->processor_domain = processor_domain;
+    hwFunc->registration_order = next_registration_order_++;
 
     // Build unified key and insert.
     HWOpKey key;
+    auto identity =
+        std::make_pair(hwFunc->hw_component, hwFunc->hw_func_name);
+    if (identities_.count(identity)) {
+      func.emitError() << "duplicate hardware implementation identity ('"
+                       << identity.first << "', '" << identity.second << "')";
+      failed = true;
+      return;
+    }
+
     if (hwFunc->is_data_mover) {
       if (detail::isSymbolicArea(hwFunc->broadcast)) {
+        identities_.emplace(identity, HWOpKey::dataMover(
+                                          hwFunc->data_mover_kind,
+                                          hwFunc->src_mem_space,
+                                          hwFunc->dst_mem_space,
+                                          hwFunc->src_mem_kind,
+                                          hwFunc->dst_mem_kind,
+                                          hwFunc->broadcast));
         symbolic_data_movers_.push_back(std::move(*hwFunc));
         return;
       }
@@ -293,22 +444,8 @@ mlir::LogicalResult HWOpRegistry::indexModule(mlir::ModuleOp module,
       key = HWOpKey::named(hwFunc->linalg_op_name, hwFunc->compute_match);
     }
 
-    auto existing = registry_.find(key);
-    bool exactComputeDuplicate =
-        existing != registry_.end() && key.kind != HWOpKey::DataMover &&
-        existing->second.compute_match.operand_mem_kinds ==
-            hwFunc->compute_match.operand_mem_kinds;
-    if (exactComputeDuplicate) {
-      llvm::errs() << "warning: staged-etg: duplicate hw_spec registration for ";
-      if (key.kind == HWOpKey::Named)
-        llvm::errs() << key.linalg_op_name;
-      else
-        llvm::errs() << key.body_op_name;
-      llvm::errs() << formatComputeOpMatchInfo(key.compute_match)
-                   << "; replacing '" << existing->second.hw_func_name
-                   << "' with '" << hwFunc->hw_func_name << "'\n";
-    }
-    registry_[key] = std::move(*hwFunc);
+    identities_.emplace(std::move(identity), key);
+    registry_[key].push_back(std::move(*hwFunc));
   });
   return failed ? mlir::failure() : mlir::success();
 }
