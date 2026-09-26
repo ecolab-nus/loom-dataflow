@@ -19,19 +19,6 @@
 using namespace mlir;
 
 namespace loom::utils {
-namespace {
-
-std::string canonicalMemSpace(StringRef memSpace) {
-  if (memSpace == "L1" || memSpace == "array_L1" || memSpace == "mem_L1" ||
-      memSpace == "mem_array_L1")
-    return "mem_array_L1";
-  if (memSpace == "DRAM" || memSpace == "mem_DRAM")
-    return "mem_DRAM";
-  return memSpace.str();
-}
-
-} // namespace
-
 bool dependsOn(Value value, Value target) {
   if (!value || value == target)
     return value == target;
@@ -186,17 +173,8 @@ CopyMemoryDirection classifyCopyMemoryDirection(Operation *op) {
     return CopyMemoryDirection::Load;
   if (sourceIsAllocation && !destinationIsAllocation)
     return CopyMemoryDirection::Store;
-
-  std::string srcMem, dstMem;
-  if (auto attr = copyOp.getSrcMemSpaceAttr())
-    srcMem = canonicalMemSpace(attr.getLeafReference());
-  if (auto attr = copyOp.getDstMemSpaceAttr())
-    dstMem = canonicalMemSpace(attr.getLeafReference());
-
-  if (srcMem == "mem_DRAM" && dstMem == "mem_array_L1")
-    return CopyMemoryDirection::Load;
-  if (srcMem == "mem_array_L1" && dstMem == "mem_DRAM")
-    return CopyMemoryDirection::Store;
+  // Direction comes from allocation provenance only; memory names carry no
+  // hierarchy, so an allocation-to-allocation copy stays unclassified.
   return CopyMemoryDirection::Other;
 }
 

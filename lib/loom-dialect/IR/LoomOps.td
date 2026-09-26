@@ -703,8 +703,7 @@ def SymOp : Loom_Op<"sym", [
   let arguments = (ins
     SymbolRefAttr:$symbol_ref,
     OptionalAttr<IndexAttr>:$upper_bound,
-    DefaultValuedAttr<BoolAttr, "false">:$is_reduction,
-    DefaultValuedAttr<BoolAttr, "false">:$asure_divisible
+    DefaultValuedAttr<BoolAttr, "false">:$is_reduction
   );
 
   let results = (outs Index:$result);

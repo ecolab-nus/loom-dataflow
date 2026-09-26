@@ -29,18 +29,17 @@ struct ComputeOpMatchInfo {
   }
 };
 
-/// Extract and validate the local memory kind carried by a shaped operand.
-/// Ranked tensors use the `local_mem_kind` integer in their encoding
-/// dictionary; memrefs use their integer memory space. Other types and
-/// unannotated shaped types have kind zero.
+/// Internal local memory kind of a shaped operand, as assigned by binding:
+/// the `local_mem_kind` tensor encoding entry or the memref memory space.
+/// Other types and unannotated shaped types have kind zero.
 mlir::FailureOr<int64_t>
 getLocalMemKind(mlir::Type type, mlir::Operation *op, unsigned operand_index);
 
-/// As above, but preserves the distinction between an absent annotation and
-/// an explicit kind zero.
-mlir::FailureOr<std::optional<int64_t>>
-getExplicitLocalMemKind(mlir::Type type, mlir::Operation *op,
-                        unsigned operand_index);
+/// Explicit residency carried by a ranked tensor encoding
+/// (`memory = "<platform memory name>"`), as a physical memory symbol.
+/// Returns nullopt when absent; numeric kinds are never user input.
+mlir::FailureOr<std::optional<std::string>>
+getRequiredMemory(mlir::Type type, mlir::Operation *op, unsigned operand_index);
 
 /// Extract and validate the local memory kind of every Linalg DPS operand.
 mlir::FailureOr<ComputeOpMatchInfo>

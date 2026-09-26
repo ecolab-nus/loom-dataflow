@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 from collections import Counter
@@ -170,16 +171,16 @@ def main() -> int:
         if item["func"]["name"] in {"sub", "exp"}
     } == {"vector_sram"}
 
-    explicit_zero = compound.replace(
-        "loom.inferred_residency}",
-        "loom.inferred_residency, loom.explicit_local_mem_kind = 0 : i64}",
+    # An authored allocation names its memory; the kind is not user input.
+    explicit_rram = compound.replace(
+        "on @SRAM {loom.inferred_residency}", "on @RRAM"
     )
-    error, _, zero_etg = run(_loom_pipeline, explicit_zero, hardware)
+    error, _, rram_etg = run(_loom_pipeline, explicit_rram, hardware)
     assert not error, error
-    assert len(json.loads(zero_etg)) == 1
+    assert len(json.loads(rram_etg)) == 1
     assert {
         item["target"]["array"]
-        for item in walk_placed(json.loads(zero_etg))
+        for item in walk_placed(json.loads(rram_etg))
         if item["func"]["name"] in {"sub", "exp"}
     } == {"vector_rram"}
 
@@ -345,6 +346,62 @@ def main() -> int:
         explicit_memory=False, enumerate_bindings=False,
     )
     assert "shared allocation has conflicting" in fixed_flash_error
+
+    # Residency is requested by platform memory name and validated up front.
+    pinned = 'memory = "L1_S"'
+    for replacement, message in (
+        ('memory = "L1_X"', "unknown residency memory 'L1_X'; platform memories: DRAM, L1_R, L1_S"),
+        ('memory = "mem_L1_S"', "must be the platform memory name 'L1_S'"),
+        ("local_mem_kind = 1 : i64", "numeric local_mem_kind is internal"),
+        ('memory = "DRAM"', "satisfies the explicit residency (operand 1 -> DRAM)"),
+    ):
+        error, _, _ = run(
+            _loom_pipeline, flash_source.replace(pinned, replacement), mesh,
+            explicit_memory=False,
+        )
+        assert message in error, error
+
+    def matmul_rhs_memories(source):
+        error, explored, _ = run(_loom_pipeline, source, mesh, explicit_memory=False)
+        assert not error, error
+        text = explored.split('loom.binding_manifest = "', 1)[1].split('"', 1)[0]
+        manifest = json.loads(
+            re.sub(r"\\([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), text)
+        )
+        per_site = {}
+        for entry in manifest:
+            for selection in entry.get("selections", []):
+                if selection["function"].startswith("batch_matmul"):
+                    per_site.setdefault(selection["site"], set()).add(
+                        selection["operand_memories"][1]
+                    )
+        return per_site
+
+    # The global endpoint comes from the platform's DRAM-domain memory.
+    mesh_text = mesh.read_text()
+    with tempfile.TemporaryDirectory() as temp:
+        for name, text, message in (
+            ("no_domain.mlir", mesh_text.replace(' {domain = "DRAM"}', ""),
+             "exactly one DRAM-domain memory"),
+            ("reserved.mlir", mesh_text.replace("@mem_L1_S", "@mem___unbound"),
+             "reserved memory name 'mem___unbound'"),
+        ):
+            platform = Path(temp) / name
+            platform.write_text(text)
+            error, _, _ = run(
+                _loom_pipeline, flash_source.replace(", {" + pinned + "}", ""),
+                platform, explicit_memory=False,
+            )
+            assert message in error, error
+
+    # Pinning K narrows exactly its batch_matmul site; the PV site stays free.
+    free = matmul_rhs_memories(flash_source.replace(", {" + pinned + "}", ""))
+    pinned_sites = matmul_rhs_memories(flash_source)
+    assert free.keys() == pinned_sites.keys() and len(free) == 2, (free, pinned_sites)
+    narrowed = [site for site in free if free[site] != pinned_sites[site]]
+    assert len(narrowed) == 1, (free, pinned_sites)
+    assert free[narrowed[0]] == {"mem_L1_R", "mem_L1_S"}
+    assert pinned_sites[narrowed[0]] == {"mem_L1_S"}
 
     for template, enumerate in ((stage0, False), (flash_source, True)):
         error, explored, etg = run(

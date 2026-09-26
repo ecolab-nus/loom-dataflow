@@ -22,9 +22,7 @@ struct OperandAccessMetadata {
 
 std::string makeWorkloadLabel(mlir::Operation *label_op,
                               llvm::ArrayRef<mlir::Value> operands,
-                              mlir::AsmState &asm_state,
-                              llvm::ArrayRef<std::optional<int64_t>>
-                                  operand_mem_kinds = {});
+                              mlir::AsmState &asm_state);
 
 mlir::SmallVector<mlir::Value>
 getLinalgCompactOperands(mlir::linalg::LinalgOp op);

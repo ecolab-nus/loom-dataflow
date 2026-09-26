@@ -40,7 +40,6 @@ std::unique_ptr<mlir::Pass> createSinkPreparationOpsPass();
 std::unique_ptr<mlir::Pass> createLinalgGuardedElementwiseOpFusionPass();
 std::unique_ptr<mlir::Pass> createCanonicalBufferizationToLoomPass();
 std::unique_ptr<mlir::Pass> createLowerAffineWithAttrPass();
-std::unique_ptr<mlir::Pass> createHandoffSyncInsertionPass();
 std::unique_ptr<mlir::Pass> createLoopHandoffProxyCopyInsertionPass();
 std::unique_ptr<mlir::Pass> createLowerLinalgCopyToLoomCopyPass();
 

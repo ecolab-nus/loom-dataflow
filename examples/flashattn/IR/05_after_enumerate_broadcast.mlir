@@ -1,4 +1,4 @@
-module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
   %0 = adl.memory.bank "mem_DRAM_bank", {bsize = 8192 : i64, nblk = 196608 : i64}
   %1 = adl.spatial_dim "dim_dram_channel", 8
   %2 = adl.memory.array "mem_DRAM", [%1] of %0
@@ -17,7 +17,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
   %15 = adl.processor.dmover @proc_dram_l1_noc0, [(%2, %13)]
   %16 = adl.processor.dmover @proc_dram_l1_noc1, [(%13, %2), (%13, %13)]
   %17 = adl.arch.compose "arch_system", arch[%14, %15, %16], mem[%2]
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x8_y1y8__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc8_dim_x_level0_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -182,7 +182,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x8_y2y4__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc8_dim_y_level0_bc2_dim_x_level0_bc8_dim_y_level0_bc2_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
@@ -351,7 +351,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x8_y4y2__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc8_dim_y_level0_bc4_dim_x_level0_bc8_dim_y_level0_bc4_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c3 = arith.constant 3 : index
       %c7 = arith.constant 7 : index
@@ -520,7 +520,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x8_y8y1__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc8_dim_y_level1_bc8_dim_x_level0_bc8_dim_y_level1_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -685,7 +685,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x1x8_y8__d0i1_d1i1_d2i0__f01__n_dim_y_level0_bc8_dim_y_level0_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index
@@ -850,7 +850,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x2x4_y8__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc2_dim_y_level0_bc8_dim_x_level0_bc2_dim_y_level0_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c2 = arith.constant 2 : index
@@ -1019,7 +1019,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x4x2_y8__d0i1_d1i1_d2i0__f01__n_dim_x_level0_bc4_dim_y_level0_bc8_dim_x_level0_bc4_dim_y_level0_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c3 = arith.constant 3 : index
@@ -1188,7 +1188,7 @@ module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false,
       return
     }
   }
-  module attributes {loom.tile_b = {asure_divisible = false, is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {asure_divisible = false, is_reduction = false, upper_bound = 4096 : index}} {
+  module attributes {loom.tile_b = {is_reduction = false, upper_bound = 32 : index}, loom.tile_m = {is_reduction = false, upper_bound = 4096 : index}, loom.tile_n = {is_reduction = false, upper_bound = 4096 : index}} {
     func.func @attention__x8x1_y8__d0i1_d1i1_d2i0__f01__n_dim_x_level1_bc8_dim_y_level0_bc8_dim_x_level1_bc8_dim_y_level0_bc8_n(%arg0: memref<32x128x4096xf16>, %arg1: memref<32x4096x128xf16>, %arg2: memref<32x4096x128xf16>, %arg3: memref<32x4096x128xf16>) {
       %c7 = arith.constant 7 : index
       %c8 = arith.constant 8 : index

@@ -20,15 +20,6 @@ inline bool isSymbolicArea(llvm::ArrayRef<int64_t> area) {
   });
 }
 
-inline std::string canonicalMemSpace(llvm::StringRef memSpace) {
-  if (memSpace == "L1" || memSpace == "array_L1" || memSpace == "mem_L1" ||
-      memSpace == "mem_array_L1")
-    return "mem_array_L1";
-  if (memSpace == "DRAM" || memSpace == "mem_DRAM")
-    return "mem_DRAM";
-  return memSpace.str();
-}
-
 } // namespace detail
 } // namespace lcs
 } // namespace loom

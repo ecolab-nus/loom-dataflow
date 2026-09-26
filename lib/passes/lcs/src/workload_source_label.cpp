@@ -1,6 +1,8 @@
 #include "workload_source_label.h"
 #include "hw_op_registry.h"
 #include "compute_binding.h"
+#include "ssa_utils.h"
+#include "utils.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -14,9 +16,7 @@ namespace lcs {
 
 std::string makeWorkloadLabel(mlir::Operation *label_op,
                               llvm::ArrayRef<mlir::Value> operands,
-                              mlir::AsmState &asm_state,
-                              llvm::ArrayRef<std::optional<int64_t>>
-                                  operandMemKinds) {
+                              mlir::AsmState &asm_state) {
   std::string label;
   llvm::raw_string_ostream os(label);
   os << label_op->getName().getStringRef() << "(";
@@ -24,17 +24,6 @@ std::string makeWorkloadLabel(mlir::Operation *label_op,
     if (idx != 0)
       os << ", ";
     operand.printAsOperand(os, asm_state);
-    std::optional<int64_t> localMemKind;
-    if (idx < operandMemKinds.size() && operandMemKinds[idx]) {
-      localMemKind = operandMemKinds[idx];
-    } else {
-      mlir::FailureOr<int64_t> typeMemKind =
-          getLocalMemKind(operand.getType(), label_op, idx);
-      if (mlir::succeeded(typeMemKind))
-        localMemKind = *typeMemKind;
-    }
-    if (localMemKind && *localMemKind != 0)
-      os << ": " << *localMemKind;
   }
   os << ")";
   return os.str();
@@ -66,48 +55,40 @@ std::string makeGenericPayloadWorkloadLabel(mlir::Operation *payload_op,
 std::string makeDataMoverWorkloadLabel(mlir::Operation *data_mover_op,
                                        mlir::AsmState &asm_state) {
   mlir::SmallVector<mlir::Value> operands;
-  mlir::SmallVector<std::optional<int64_t>> operandMemKinds;
-  if (auto copyOp = llvm::dyn_cast<loom::CopyOp>(data_mover_op)) {
+  if (auto copyOp = llvm::dyn_cast<loom::CopyOp>(data_mover_op))
     operands = {copyOp.getSource(), copyOp.getDestination()};
-    operandMemKinds = {
-        copyOp.getSrcMemKindAttr()
-            ? std::optional<int64_t>(copyOp.getSrcMemKindAttr().getInt())
-            : std::nullopt,
-        copyOp.getDstMemKindAttr()
-            ? std::optional<int64_t>(copyOp.getDstMemKindAttr().getInt())
-            : std::nullopt,
-    };
-  } else if (auto gatherOp = llvm::dyn_cast<loom::GatherOp>(data_mover_op)) {
+  else if (auto gatherOp = llvm::dyn_cast<loom::GatherOp>(data_mover_op))
     operands = {gatherOp.getSource(), gatherOp.getDestination()};
-    operandMemKinds.resize(operands.size());
-  } else {
+  else
     llvm_unreachable("expected loom.copy or loom.gather");
-  }
-  return makeWorkloadLabel(data_mover_op, operands, asm_state,
-                           operandMemKinds);
+  return makeWorkloadLabel(data_mover_op, operands, asm_state);
 }
 
 namespace {
 
+/// `%ssa: <memory>;...` where the memory is the explicit endpoint if given,
+/// else the memory of the allocation the operand is backed by.
 mlir::FailureOr<std::string> formatOperandAccessList(
     mlir::Operation *op, llvm::ArrayRef<mlir::Value> operands,
     mlir::AsmState &asmState,
-    llvm::ArrayRef<std::optional<int64_t>> operandMemKinds = {}) {
+    llvm::ArrayRef<mlir::SymbolRefAttr> endpoints = {}) {
   std::string result;
   llvm::raw_string_ostream os(result);
   for (auto [index, operand] : llvm::enumerate(operands)) {
     if (index)
       os << ";";
     operand.printAsOperand(os, asmState);
-    mlir::FailureOr<int64_t> typeMemKind =
-        getLocalMemKind(operand.getType(), op, index);
-    if (mlir::failed(typeMemKind))
+    llvm::StringRef memory;
+    if (index < endpoints.size() && endpoints[index])
+      memory = loom::utils::memoryName(endpoints[index].getLeafReference());
+    else if (auto alloc = loom::utils::traceToRootAllocOp(operand))
+      memory = alloc.getMemory().getLeafReference();
+    if (memory.empty()) {
+      op->emitError() << "staged-etg: cannot determine the memory of operand "
+                      << index;
       return mlir::failure();
-    int64_t memKind =
-        index < operandMemKinds.size() && operandMemKinds[index]
-            ? *operandMemKinds[index]
-            : *typeMemKind;
-    os << ": " << memKind;
+    }
+    os << ": " << memory;
   }
   return result;
 }
@@ -152,27 +133,27 @@ makeDataMoverOperandAccessMetadata(mlir::Operation *op,
                                    mlir::AsmState &asmState) {
   mlir::Value source;
   mlir::Value destination;
-  std::optional<int64_t> sourceKind;
-  std::optional<int64_t> destinationKind;
+  mlir::SymbolRefAttr sourceMemory;
+  mlir::SymbolRefAttr destinationMemory;
   if (auto copy = llvm::dyn_cast<loom::CopyOp>(op)) {
     source = copy.getSource();
     destination = copy.getDestination();
-    if (copy.getSrcMemKindAttr())
-      sourceKind = copy.getSrcMemKindAttr().getInt();
-    if (copy.getDstMemKindAttr())
-      destinationKind = copy.getDstMemKindAttr().getInt();
+    sourceMemory = copy.getSrcMemSpaceAttr();
+    destinationMemory = copy.getDstMemSpaceAttr();
   } else if (auto gather = llvm::dyn_cast<loom::GatherOp>(op)) {
     source = gather.getSource();
     destination = gather.getDestination();
+    sourceMemory = gather.getSrcMemSpaceAttr();
+    destinationMemory = gather.getDstMemSpaceAttr();
   } else {
     op->emitError() << "staged-etg: executable data mover has no operand "
                        "access adapter";
     return mlir::failure();
   }
 
-  auto read = formatOperandAccessList(op, {source}, asmState, {sourceKind});
-  auto write =
-      formatOperandAccessList(op, {destination}, asmState, {destinationKind});
+  auto read = formatOperandAccessList(op, {source}, asmState, {sourceMemory});
+  auto write = formatOperandAccessList(op, {destination}, asmState,
+                                       {destinationMemory});
   if (mlir::failed(read) || mlir::failed(write))
     return mlir::failure();
   return OperandAccessMetadata{*read, *write};

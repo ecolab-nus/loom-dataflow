@@ -143,19 +143,6 @@ def LowerAffineWithAttr : Pass<"loom-lower-affine-with-attr", "mlir::ModuleOp"> 
   let constructor = "loom::passes::createLowerAffineWithAttrPass()";
 }
 
-def HandoffSyncInsertionPass : Pass<"loom-handoff-sync-insertion", "mlir::ModuleOp"> {
-  let summary = "Insert tensor.empty + loom.sync around execution-core handoffs";
-  let description = [{
-    Discover execution-core handoff boundaries:
-    - bufferization.to_tensor
-    - tensor-mode loom.gather (single-op chain)
-    - loom.bufferize_to_memref + loom.copy with L1->DRAM attrs (two-op chain)
-    and insert tensor.empty + loom.sync around those boundaries, then rewrite
-    uses of the sync input tensor to the sync result when dominated.
-  }];
-  let constructor = "loom::passes::createHandoffSyncInsertionPass()";
-}
-
 def LoopHandoffProxyCopyInsertionPass : Pass<"loom-loop-handoff-proxy-copy-insertion", "mlir::ModuleOp"> {
   let summary = "Insert post-loop proxy copies for communication handoffs";
   let description = [{

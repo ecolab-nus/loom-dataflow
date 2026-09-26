@@ -55,7 +55,7 @@ struct VirtualBuffer {
   LivenessRange liveness;
   int color = -1;
   mlir::Operation *definingOp = nullptr;
-  std::optional<int64_t> localMemKind;
+  std::optional<std::string> requiredMemory;
 
   VirtualBuffer(int id, VBType t) : id(id), type(t) {}
 
@@ -110,13 +110,14 @@ struct TensorNode {
   mlir::Operation *definingOp;
   int linearIndex;     // Definition time
   int deathIndex = -1; // Last use time
-  std::optional<int64_t> localMemKind;
+  std::optional<std::string> requiredMemory;
 
   std::optional<int> mappedVBId;
 
   TensorNode(mlir::Value v, mlir::Operation *op, int idx,
-             std::optional<int64_t> kind)
-      : value(v), definingOp(op), linearIndex(idx), localMemKind(kind) {}
+             std::optional<std::string> memory)
+      : value(v), definingOp(op), linearIndex(idx),
+        requiredMemory(std::move(memory)) {}
 };
 
 struct Bucket {
@@ -190,14 +191,14 @@ public:
     int colorId;            ///< Color ID (0, 1, 2...)
     ShapeSignature shape;   ///< Physical shape (for loom.alloc)
     mlir::Type elementType; ///< Element type
-    std::optional<int64_t> localMemKind; ///< Explicit local memory kind, if any
+    std::optional<std::string> requiredMemory; ///< Explicit residency, if any
   };
 
   /// Maps an SSA tensor value to its assigned physical buffer.
   struct Assignment {
     ShapeSignature bucketKey; ///< Which bucket this belongs to
     int colorId;              ///< Which color within the bucket
-    std::optional<int64_t> localMemKind; ///< Explicit local memory kind, if any
+    std::optional<std::string> requiredMemory; ///< Explicit residency, if any
   };
 
   /// Per-bucket slot allocations: BucketKey -> list of PhysicalBufferSlots
@@ -250,7 +251,7 @@ public:
   // --- Analysis Entry Points ---
   void setOpIndex(mlir::Operation *op, int idx);
   void addTensor(mlir::Value v, ShapeSignature sig, mlir::Operation *defOp,
-                 int idx, std::optional<int64_t> localMemKind);
+                 int idx, std::optional<std::string> requiredMemory);
   void computeDeathIndices();
   void collectExclusiveHandoffTargets(mlir::func::FuncOp func);
   void buildVirtualBuffers();
@@ -277,7 +278,7 @@ private:
                            llvm::StringRef reason);
   bool isExclusiveTarget(mlir::Value value) const;
   void assignExclusiveTargetAttributes(Bucket &bucket);
-  void applyNonDefaultLocalMemoryKindAxiom(Bucket &bucket);
+  void applyExplicitResidencyAxiom(Bucket &bucket);
   void applyPhiFusionAxiom(Bucket &bucket, const LoopContext &loop);
   void applyExternalEternityAxiom(Bucket &bucket, const LoopContext &loop);
   void applyStandardAxiom(Bucket &bucket);

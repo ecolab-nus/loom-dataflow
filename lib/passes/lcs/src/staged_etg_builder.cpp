@@ -1,3 +1,4 @@
+#include "utils.h"
 #include "staged_etg_builder.h"
 #include "hard_constraint_pipeline.h"
 #include "hw_alignment.h"
@@ -47,56 +48,6 @@ namespace lcs {
 // File-local helpers
 // ==========================================
 namespace {
-
-/// Walk the Expr tree to find the first Div node.
-/// Returns {numerator, denominator}; both Expr::none() if no Div is found.
-std::pair<Expr, Expr> findDivNode(const Expr &e) {
-  if (e.isNone())
-    return {Expr::none(), Expr::none()};
-  if (e.kind() == Expr::Kind::Div)
-    return {e.lhs(), e.rhs()};
-  auto fromLhs = findDivNode(e.lhs());
-  if (!fromLhs.first.isNone())
-    return fromLhs;
-  return findDivNode(e.rhs());
-}
-
-void collectSymbols(const Expr &expr, std::set<std::string> &symbols) {
-  if (expr.isNone())
-    return;
-  if (expr.kind() == Expr::Kind::Sym) {
-    symbols.insert(expr.symbolName());
-    return;
-  }
-  switch (expr.kind()) {
-  case Expr::Kind::Add:
-  case Expr::Kind::Sub:
-  case Expr::Kind::Mul:
-  case Expr::Kind::Div:
-  case Expr::Kind::Min:
-  case Expr::Kind::Max:
-    collectSymbols(expr.lhs(), symbols);
-    collectSymbols(expr.rhs(), symbols);
-    return;
-  case Expr::Kind::None:
-  case Expr::Kind::Const:
-  case Expr::Kind::Sym:
-  case Expr::Kind::IfElse:
-    return;
-  }
-}
-
-bool hasAsureDivisibleTile(
-    const Expr &expr, const std::map<std::string, SymbolInfo> &symbols) {
-  std::set<std::string> participatingSymbols;
-  collectSymbols(expr, participatingSymbols);
-  for (const std::string &name : participatingSymbols) {
-    auto it = symbols.find(name);
-    if (it != symbols.end() && it->second.asure_divisible)
-      return true;
-  }
-  return false;
-}
 
 /// A group of workloads that must execute sequentially (they share resources).
 struct ResourceGroup {
@@ -277,12 +228,6 @@ std::optional<int64_t> getLogicalLevel(mlir::Operation *op) {
   return std::nullopt;
 }
 
-std::optional<std::string> getBlockSymName(mlir::Operation *op) {
-  if (auto attr = op->getAttrOfType<mlir::SymbolRefAttr>("loom.block_sym"))
-    return attr.getLeafReference().str();
-  return std::nullopt;
-}
-
 std::optional<int64_t>
 getSingleConstantUpperBound(mlir::affine::AffineParallelOp parOp) {
   mlir::AffineMap ubMap = parOp.getUpperBoundsMap();
@@ -330,125 +275,6 @@ SubmeshSize2D getCurrentSubmeshSize2D(mlir::Operation *op) {
   }
 
   return submesh;
-}
-
-std::optional<int64_t> getSpatialTilingFactor(mlir::scf::ForOp forOp) {
-  std::optional<std::string> loopBlockSym = getBlockSymName(forOp);
-  if (!loopBlockSym)
-    return std::nullopt;
-
-  int64_t factor = 1;
-  std::set<std::pair<std::string, int64_t>> seenLevels;
-
-  for (mlir::Operation *parent = forOp->getParentOp(); parent;
-       parent = parent->getParentOp()) {
-    auto parOp = mlir::dyn_cast<mlir::affine::AffineParallelOp>(parent);
-    if (!parOp)
-      continue;
-
-    std::optional<std::string> parBlockSym = getBlockSymName(parent);
-    if (!parBlockSym || *parBlockSym != *loopBlockSym)
-      continue;
-
-    if (auto iterAttr =
-            parent->getAttrOfType<loom::IterTypeAttr>("loom.iter_type"))
-      if (iterAttr.getValue() != loom::IterType::Spatial)
-        continue;
-
-    std::optional<llvm::StringRef> dimName = getPhysicalDimName(parent);
-    std::optional<int64_t> level = getLogicalLevel(parent);
-    std::optional<int64_t> ub = getSingleConstantUpperBound(parOp);
-    if (!dimName || !level || !ub || *ub <= 0)
-      continue;
-
-    std::pair<std::string, int64_t> key{dimName->str(), *level};
-    if (seenLevels.insert(key).second)
-      factor *= *ub;
-  }
-
-  if (seenLevels.empty())
-    return std::nullopt;
-  return factor;
-}
-
-Expr rebuildBinaryExpr(Expr::Kind kind, Expr lhs, Expr rhs) {
-  switch (kind) {
-  case Expr::Kind::Add:
-    return std::move(lhs) + std::move(rhs);
-  case Expr::Kind::Sub:
-    return std::move(lhs) - std::move(rhs);
-  case Expr::Kind::Mul:
-    return std::move(lhs) * std::move(rhs);
-  case Expr::Kind::Div:
-    return std::move(lhs) / std::move(rhs);
-  case Expr::Kind::Min:
-    return min_expr(std::move(lhs), std::move(rhs));
-  case Expr::Kind::Max:
-    return max_expr(std::move(lhs), std::move(rhs));
-  default:
-    return Expr::none();
-  }
-}
-
-Expr replaceFirstConstPreferDivDenom(const Expr &expr, int64_t oldValue,
-                                     int64_t newValue, bool &replaced) {
-  if (expr.isNone() || replaced)
-    return expr;
-
-  if (expr.kind() == Expr::Kind::Const) {
-    if (expr.constValue() == oldValue) {
-      replaced = true;
-      return Expr::con(newValue);
-    }
-    return expr;
-  }
-
-  switch (expr.kind()) {
-  case Expr::Kind::Add:
-  case Expr::Kind::Sub:
-  case Expr::Kind::Mul:
-  case Expr::Kind::Div:
-  case Expr::Kind::Min:
-  case Expr::Kind::Max: {
-    Expr lhs = expr.lhs();
-    Expr rhs = expr.rhs();
-    if (expr.kind() == Expr::Kind::Div) {
-      rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
-      if (!replaced)
-        lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
-    } else {
-      lhs = replaceFirstConstPreferDivDenom(lhs, oldValue, newValue, replaced);
-      if (!replaced)
-        rhs = replaceFirstConstPreferDivDenom(rhs, oldValue, newValue, replaced);
-    }
-    return rebuildBinaryExpr(expr.kind(), std::move(lhs), std::move(rhs));
-  }
-  case Expr::Kind::IfElse:
-    return expr;
-  case Expr::Kind::None:
-  case Expr::Kind::Const:
-  case Expr::Kind::Sym:
-    return expr;
-  }
-  return expr;
-}
-
-Expr relaxTripCountForConstraints(mlir::scf::ForOp forOp,
-                                  const Expr &tripCount) {
-  std::optional<int64_t> meshFactor = getSpatialTilingFactor(forOp);
-  if (!meshFactor)
-    return tripCount;
-  if (*meshFactor <= 1)
-    return tripCount;
-
-  bool replaced = false;
-  Expr relaxed = replaceFirstConstPreferDivDenom(
-      tripCount, *meshFactor, *meshFactor - 1, replaced);
-  if (!replaced)
-    forOp.emitWarning() << "could not find temporal mesh divisor "
-                        << *meshFactor
-                        << " in trip-count expression for relaxed iter_num";
-  return replaced ? relaxed : tripCount;
 }
 
 int64_t computeEffectiveBandwidthBase(std::array<int64_t, 2> area,
@@ -952,10 +778,12 @@ llvm::json::Value ConstraintScope::toJSON() const {
     symbols_json[name] = std::move(sym_obj);
   }
 
-  llvm::json::Array temp_iter_json;
-  for (const auto &t : temp_iter)
-    temp_iter_json.push_back(
-        llvm::json::Array{t.expr.toJSON(), t.asure_divisible});
+  auto exprArray = [](const std::vector<Expr> &exprs) {
+    llvm::json::Array arr;
+    for (const Expr &e : exprs)
+      arr.push_back(e.toJSON());
+    return arr;
+  };
 
   auto footprintArray = [](const std::vector<Expr> &terms) {
     llvm::json::Array arr;
@@ -982,9 +810,7 @@ llvm::json::Value ConstraintScope::toJSON() const {
   metadata_json["symbols"] = std::move(symbols_json);
   metadata_json["memory_footprints"] = std::move(memory_footprints_json);
   metadata_json["iter_num"] = llvm::json::Object{
-      {"seq_iter",
-       llvm::json::Array{seq_iter.expr.toJSON(), seq_iter.asure_divisible}},
-      {"temp_iter", std::move(temp_iter_json)}};
+      {"seq_iter", exprArray(seq_iter)}, {"temp_iter", exprArray(temp_iter)}};
   metadata_json["booleans"] = std::move(booleans_json);
 
   llvm::json::Array hard_constraints_json;
@@ -1080,7 +906,7 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
       if (mlir::failed(kind) || !alloc)
         return false;
       std::string memory =
-          "mem_" + alloc.getMemory().getLeafReference().str();
+          loom::utils::physicalMemorySymbol(alloc.getMemory().getLeafReference());
       return memory == required.memory && *kind == required.kind;
     };
 
@@ -1643,8 +1469,8 @@ mlir::LogicalResult VariantETG::dispatchToDataMoverQueues(
           areaMatches = false;
     if (hwFunc &&
         (!hwFunc->is_data_mover || hwFunc->data_mover_kind != info->kind ||
-         hwFunc->src_mem_space != detail::canonicalMemSpace(info->src_mem_space) ||
-         hwFunc->dst_mem_space != detail::canonicalMemSpace(info->dst_mem_space) ||
+         hwFunc->src_mem_space != info->src_mem_space ||
+         hwFunc->dst_mem_space != info->dst_mem_space ||
          hwFunc->src_mem_kind != info->src_mem_kind ||
          hwFunc->dst_mem_kind != info->dst_mem_kind || !areaMatches)) {
       op->emitError() << "staged-etg: selected data mover does not match the "
@@ -1707,7 +1533,6 @@ void VariantETG::collectSymbols(mlir::func::FuncOp func_op) {
     info.type = "int";
     if (auto ubAttr = op.getUpperBound())
       info.natural_ub = ubAttr->getSExtValue();
-    info.asure_divisible = op.getAsureDivisible();
     constraint_scope_.symbols[name] = std::move(info);
   });
 }
@@ -1721,39 +1546,20 @@ void VariantETG::analyzeLoopIterations(mlir::func::FuncOp func_op) {
     Expr tripCount = extractLoopTripCount(forOp);
     if (tripCount.isNone())
       return;
-    bool asureDivisible =
-        hasAsureDivisibleTile(tripCount, constraint_scope_.symbols);
-    Expr constraintTripCount =
-        asureDivisible ? tripCount
-                       : relaxTripCountForConstraints(forOp, tripCount);
-    if (iterAttr.getValue() == loom::IterType::Sequential) {
-      constraint_scope_.seq_iter = {std::move(constraintTripCount),
-                                    asureDivisible};
-    } else if (iterAttr.getValue() == loom::IterType::Temporal) {
-      constraint_scope_.temp_iter.push_back(
-          {std::move(constraintTripCount), asureDivisible});
-    }
+    if (iterAttr.getValue() == loom::IterType::Sequential)
+      constraint_scope_.seq_iter.push_back(std::move(tripCount));
+    else if (iterAttr.getValue() == loom::IterType::Temporal)
+      constraint_scope_.temp_iter.push_back(std::move(tripCount));
   });
-}
-
-void VariantETG::addIterDivisibilityConstraints(const Expr &iter) {
-  if (iter.isNone())
-    return;
-  constraint_scope_.pushHardConstraint(ConstraintExpr::ge(iter, Expr::con(1)));
-  auto [num, den] = findDivNode(iter);
-  if (!num.isNone())
-    constraint_scope_.pushHardConstraint(ConstraintExpr::divisible(num, den));
 }
 
 mlir::LogicalResult
 VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
   collectSymbols(func_op);
-  applyHardwareAlignments(func_op, constraint_scope_.symbols);
+  if (target_ == Target::TT)
+    applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
   analyzeLoopIterations(func_op);
-  // addIterDivisibilityConstraints(constraint_scope_.seq_iter.expr);
-  // for (const IterNumInfo &t : constraint_scope_.temp_iter)
-  //   addIterDivisibilityConstraints(t.expr);
   auto footprintResult =
       MemoryFootprintEstimator::estimateFromFunc(func_op, hw_registry_,
                                                  target_);

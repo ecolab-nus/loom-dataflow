@@ -12,7 +12,7 @@
 namespace loom {
 namespace lcs {
 
-mlir::FailureOr<std::optional<int64_t>>
+static mlir::FailureOr<std::optional<int64_t>>
 getExplicitLocalMemKind(mlir::Type type, mlir::Operation *op,
                         unsigned operandIndex) {
   mlir::Attribute attr;
@@ -46,6 +46,27 @@ getExplicitLocalMemKind(mlir::Type type, mlir::Operation *op,
   }
 
   return std::optional<int64_t>{integer.getInt()};
+}
+
+mlir::FailureOr<std::optional<std::string>>
+getRequiredMemory(mlir::Type type, mlir::Operation *op, unsigned operandIndex) {
+  auto tensorType = mlir::dyn_cast<mlir::RankedTensorType>(type);
+  if (!tensorType)
+    return std::optional<std::string>{};
+  auto dictionary =
+      mlir::dyn_cast_or_null<mlir::DictionaryAttr>(tensorType.getEncoding());
+  if (!dictionary)
+    return std::optional<std::string>{};
+  mlir::Attribute attr = dictionary.get("memory");
+  if (!attr)
+    return std::optional<std::string>{};
+  auto name = mlir::dyn_cast<mlir::StringAttr>(attr);
+  if (!name) {
+    op->emitError() << "operand " << operandIndex
+                    << " residency 'memory' must be a string memory name";
+    return mlir::failure();
+  }
+  return std::optional<std::string>{loom::utils::physicalMemorySymbol(name.getValue())};
 }
 
 mlir::FailureOr<int64_t> getLocalMemKind(mlir::Type type,

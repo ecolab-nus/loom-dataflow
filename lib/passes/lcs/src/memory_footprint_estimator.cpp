@@ -1,3 +1,4 @@
+#include "utils.h"
 #include "memory_footprint_estimator.h"
 #include "ADL/IR/ADLDialect.h"
 #include "ADL/IR/ADLOps.h"
@@ -263,7 +264,7 @@ extractLocalSizeFromPlatform(const HWOpRegistry *registry,
     return mlir::failure();
   }
 
-  std::string target = "mem_" + memory.str();
+  std::string target = loom::utils::physicalMemorySymbol(memory);
   mlir::adl::MemoryArrayOp matched;
   bool duplicate = false;
   registry->getPlatformModule().walk([&](mlir::adl::MemoryArrayOp arrayOp) {

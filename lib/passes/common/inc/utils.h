@@ -21,6 +21,23 @@
 namespace loom {
 namespace utils {
 
+/// Reserved memory placeholders created before processor binding; platforms
+/// may not declare these names. Binding replaces the unbound ones and the
+/// pipeline resolves the global one to the platform's DRAM-domain memory.
+inline constexpr llvm::StringLiteral kUnboundMemory = "__unbound";
+inline constexpr llvm::StringLiteral kUnboundMemorySpace = "mem___unbound";
+inline constexpr llvm::StringLiteral kGlobalMemorySpace = "mem___global";
+
+/// Platform memories are symbols `mem_<name>`; allocations, residency pins and
+/// diagnostics use the bare `<name>`.
+inline std::string physicalMemorySymbol(llvm::StringRef memory) {
+  return ("mem_" + memory).str();
+}
+inline llvm::StringRef memoryName(llvm::StringRef physicalMemory) {
+  physicalMemory.consume_front("mem_");
+  return physicalMemory;
+}
+
 /**
  * @brief Get the parent module operation that directly contains a function.
  */
@@ -44,16 +61,6 @@ mlir::func::FuncOp cloneFunc(
     mlir::DictionaryAttr moduleAttrs = nullptr,
     std::function<mlir::LogicalResult(mlir::func::FuncOp)> modifier = nullptr,
     mlir::Operation *insertAfter = nullptr);
-
-struct AllocInfo {
-  llvm::SmallVector<llvm::StringRef> dims;
-  int64_t elemSize;
-};
-
-/**
- * @brief Collect all loom.alloc operations on @L1 and analyze their dimensions.
- */
-llvm::SmallVector<AllocInfo> collectL1AllocInfos(mlir::func::FuncOp func);
 
 /**
  * @brief Trace an SSA value back to a symbolic block size name.

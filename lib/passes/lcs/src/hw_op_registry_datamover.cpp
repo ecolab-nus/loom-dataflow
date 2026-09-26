@@ -52,9 +52,9 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
     destination = copyOp.getDestination();
     mixedArea = copyOp.getMixedArea();
     if (auto attr = copyOp.getSrcMemSpaceAttr())
-      result.src_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
+      result.src_mem_space = attr.getLeafReference().str();
     if (auto attr = copyOp.getDstMemSpaceAttr())
-      result.dst_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
+      result.dst_mem_space = attr.getLeafReference().str();
     if (auto attr = copyOp.getSrcMemKindAttr())
       result.src_mem_kind = attr.getInt();
     if (auto attr = copyOp.getDstMemKindAttr())
@@ -64,9 +64,9 @@ HWOpRegistry::extractDataMoverFromFunc(mlir::func::FuncOp func,
     destination = gatherOp.getDestination();
     mixedArea = gatherOp.getMixedArea();
     if (auto attr = gatherOp.getSrcMemSpaceAttr())
-      result.src_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
+      result.src_mem_space = attr.getLeafReference().str();
     if (auto attr = gatherOp.getDstMemSpaceAttr())
-      result.dst_mem_space = detail::canonicalMemSpace(attr.getLeafReference());
+      result.dst_mem_space = attr.getLeafReference().str();
   }
   result.src_type = source.getType();
   result.dst_type = destination.getType();

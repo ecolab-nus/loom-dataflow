@@ -386,10 +386,11 @@ static LogicalResult applyMappingToFunction(
         Value lr_y = meshCoords.emitLinearIndexWithMultiOverride(
             gBuilder, gatherLoc, meshCoords.yAxis, lrYOverrides);
         auto staticAreaAttr = gBuilder.getDenseI64ArrayAttr(gatherArea);
-        auto l1Symbol = SymbolRefAttr::get(gBuilder.getContext(), "mem_array_L1");
 
         loom::GatherOp::create(gBuilder, gatherLoc, gatherOp.getSource(),
-                               gatherOp.getDestination(), l1Symbol, l1Symbol,
+                               gatherOp.getDestination(),
+                               gatherOp.getSrcMemSpaceAttr(),
+                               gatherOp.getDstMemSpaceAttr(),
                                gatherOp.getAcross(), ValueRange{},
                                staticAreaAttr, ul_x, ul_y, lr_x, lr_y);
         gatherOp.erase();
@@ -496,15 +497,6 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
                                 cloned.getContext(),
                                 spatialHardwareKey(hardwareInfo) + ":for"));
 
-            // Assign memory attributes to copy ops
-            cloned.walk([&](Operation *op) {
-              if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
-                copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
-              } else if (auto copyFrom = dyn_cast<loom::CopyFromTensorOp>(op)) {
-                copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
-              }
-            });
-
             return success();
           },
           nullptr);
@@ -577,16 +569,6 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
                   }
 
                   markLoopsTemporal(cloned);
-
-                  // Assign memory attributes to copy ops
-                  cloned.walk([&](Operation *op) {
-                    if (auto copyTo = dyn_cast<loom::CopyToTensorOp>(op)) {
-                      copyTo.setMemoryAttr(SymbolRefAttr::get(ctx, "L1"));
-                    } else if (auto copyFrom =
-                                   dyn_cast<loom::CopyFromTensorOp>(op)) {
-                      copyFrom.setMemoryAttr(SymbolRefAttr::get(ctx, "DRAM"));
-                    }
-                  });
 
                   loom::utils::composeAndCanonicalizeAffineApplies(cloned);
 

@@ -107,6 +107,9 @@ def main() -> int:
         tt_bytes = tt_padded["constraint_scope"]["metadata"]["memory_footprints"][1]["load_bytes"]
         assert generic_bytes[0]["Mul"][0]["Mul"][0] == {"Const": 1}
         assert tt_bytes[0]["Mul"][0]["Mul"][0] == {"Const": 32}
+        # The 32-alignment of bottom-2 allocation dims is a TT storage rule.
+        assert generic_padded["constraint_scope"]["metadata"]["symbols"]["K"]["alignment"] == 1
+        assert tt_padded["constraint_scope"]["metadata"]["symbols"]["K"]["alignment"] == 32
 
         invalid_target = os.environ.copy()
         invalid_target["LOOM_TARGET"] = "generic"
@@ -127,6 +130,7 @@ def main() -> int:
     metadata = variants[0]["constraint_scope"]["metadata"]
     assert "L1_footprint" not in metadata
     assert "datatype" not in metadata
+    assert metadata["iter_num"] == {"seq_iter": [], "temp_iter": []}
     footprints = metadata["memory_footprints"]
     assert [record["memory"] for record in footprints] == ["RRAM", "SRAM"]
     assert [record["capacity_bytes"] for record in footprints] == [4096, 8192]

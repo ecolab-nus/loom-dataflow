@@ -89,31 +89,4 @@ private:
   llvm::SmallVector<ComputeUnitBinding, 4> bindings;
 };
 
-/**
- * @brief Hardware timing information for constraint generation.
- * @details
- * Aggregates all hardware parameters needed to compute the compute-memory
- * bound constraint: BW_B*sizeA + BW_A*sizeB - BW_A*BW_B*compute/T <= 0
- */
-struct HardwareTiming {
-  int64_t fpuThroughput = 0; ///< From df.mat "FPU" throughput attribute
-  int64_t l1Bandwidth = 0;   ///< From df.memory "L1" bandwidth attribute
-  int64_t dramBandwidth = 0; ///< From df.memory "DRAM" bandwidth attribute
-  int64_t totalCores = 0;    ///< Product of spatial_dim sizes (e.g., 8*8=64)
-
-  /// @brief Calculate effective bandwidth for a copy with given broadcast
-  /// @param broadcastX Broadcast factor in X dimension
-  /// @param broadcastY Broadcast factor in Y dimension
-  /// @return min(L1_bandwidth, DRAM_bandwidth / competing_cores)
-  int64_t getEffectiveBandwidth(int64_t broadcastX, int64_t broadcastY) const {
-    int64_t broadcastMultiplier = broadcastX * broadcastY;
-    int64_t competingCores = totalCores / broadcastMultiplier;
-    if (competingCores <= 0)
-      competingCores = 1;
-
-    int64_t effectiveDramBw = dramBandwidth / competingCores;
-    return std::min(l1Bandwidth, effectiveDramBw);
-  }
-};
-
 } // namespace loom

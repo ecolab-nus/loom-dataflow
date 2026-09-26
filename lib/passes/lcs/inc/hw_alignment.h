@@ -8,7 +8,8 @@
 namespace loom {
 namespace lcs {
 
-/// Apply hardware-specific alignment metadata to registered constraint symbols.
+/// TT storage layout: tile symbols sizing an allocation's bottom-2 dims must
+/// be multiples of 32. Applied only for Target::TT.
 void applyHardwareAlignments(mlir::func::FuncOp func_op,
                              std::map<std::string, SymbolInfo> &symbols);
 

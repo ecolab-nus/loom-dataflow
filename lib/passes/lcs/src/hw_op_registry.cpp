@@ -281,8 +281,8 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
     DataMoverKind kind, llvm::StringRef src_mem_space,
     llvm::StringRef dst_mem_space, std::optional<int64_t> src_mem_kind,
     std::optional<int64_t> dst_mem_kind, llvm::ArrayRef<int64_t> area) const {
-  std::string src = detail::canonicalMemSpace(src_mem_space);
-  std::string dst = detail::canonicalMemSpace(dst_mem_space);
+  std::string src = src_mem_space.str();
+  std::string dst = dst_mem_space.str();
   HWOpKey exact = HWOpKey::dataMover(kind, src, dst, src_mem_kind, dst_mem_kind,
                          std::vector<int64_t>(area.begin(), area.end()));
   if (const HWComputeFunc *hwFunc = lookup(exact))
@@ -320,8 +320,8 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
 std::vector<const HWComputeFunc *> HWOpRegistry::lookupDataMoverCandidates(
     DataMoverKind kind, llvm::StringRef src_mem_space,
     llvm::StringRef dst_mem_space, llvm::ArrayRef<int64_t> area) const {
-  std::string src = detail::canonicalMemSpace(src_mem_space);
-  std::string dst = detail::canonicalMemSpace(dst_mem_space);
+  std::string src = src_mem_space.str();
+  std::string dst = dst_mem_space.str();
   std::vector<const HWComputeFunc *> result;
   auto appendIfCompatible = [&](const HWComputeFunc &candidate) {
     if (!candidate.is_data_mover || candidate.data_mover_kind != kind ||
@@ -346,8 +346,8 @@ std::vector<const HWComputeFunc *>
 HWOpRegistry::lookupUnicastDataMoverCandidates(
     DataMoverKind kind, llvm::StringRef src_mem_space,
     llvm::StringRef dst_mem_space) const {
-  std::string src = detail::canonicalMemSpace(src_mem_space);
-  std::string dst = detail::canonicalMemSpace(dst_mem_space);
+  std::string src = src_mem_space.str();
+  std::string dst = dst_mem_space.str();
   std::vector<const HWComputeFunc *> result;
   auto appendIfCompatible = [&](const HWComputeFunc &candidate) {
     bool supportsUnicast = llvm::all_of(candidate.broadcast, [](int64_t area) {

@@ -1,3 +1,4 @@
+#include "utils.h"
 #include "Passes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -82,7 +83,7 @@ struct LowerLinalgCopyToLoomCopyPass
       auto physicalMemory = [&](loom::AllocOp alloc) {
         return SymbolRefAttr::get(
             copyOp.getContext(),
-            ("mem_" + alloc.getMemory().getLeafReference().getValue()).str());
+            loom::utils::physicalMemorySymbol(alloc.getMemory().getLeafReference()));
       };
       auto reclaimAttr = builder.getBoolAttr(
           hasPriorOutsUse(destination, copyOp.getOperation(), dominance));

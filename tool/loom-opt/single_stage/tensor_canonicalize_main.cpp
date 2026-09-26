@@ -50,7 +50,6 @@ int main(int argc, char **argv) {
   pm.addPass(loom::passes::createSinkPreparationOpsPass());
   pm.addPass(loom::passes::createLoopHandoffProxyCopyInsertionPass());
   pm.addPass(loom::passes::createCanonicalBufferizationToLoomPass());
-  // pm.addPass(loom::passes::createHandoffSyncInsertionPass());
 
   if (failed(pm.run(*module))) {
     llvm::errs() << "LOOM tensor canonicalization pipeline failed\n";

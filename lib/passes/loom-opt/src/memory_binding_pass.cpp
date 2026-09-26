@@ -30,13 +30,6 @@ using namespace loom;
 
 namespace {
 
-static IntegerAttr getLocalMemKind(RankedTensorType tensorType) {
-  auto encoding = dyn_cast_or_null<DictionaryAttr>(tensorType.getEncoding());
-  if (!encoding)
-    return {};
-  return encoding.getAs<IntegerAttr>("local_mem_kind");
-}
-
 /// Pattern 1: Lower memref.subview + loom.bufferize_to_tensor
 /// to loom.subview + loom.copy (DRAM→L1) + loom.bufferize_to_tensor
 struct ReadBlockLoadingLowering
@@ -101,12 +94,13 @@ struct ReadBlockLoadingLowering
     }
 
     // 3. loom.copy: physically move data DRAM→L1 into the semaphore buffer.
-    auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "mem_DRAM");
-    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
-    auto dstMemKind = getLocalMemKind(cast<RankedTensorType>(op.getType()));
+    auto dramSymbol =
+        SymbolRefAttr::get(rewriter.getContext(), loom::utils::kGlobalMemorySpace);
+    auto l1Symbol =
+        SymbolRefAttr::get(rewriter.getContext(), loom::utils::kUnboundMemorySpace);
     auto defaultArea = rewriter.getDenseI64ArrayAttr({1, 1});
     loom::CopyOp::create(rewriter, loc, loomSubviewOp.getResult(), semaphore,
-                         dramSymbol, l1Symbol, IntegerAttr{}, dstMemKind,
+                         dramSymbol, l1Symbol, IntegerAttr{}, IntegerAttr{},
                          ValueRange{}, defaultArea, Value{}, Value{}, Value{},
                          Value{}, rewriter.getBoolAttr(false));
 
@@ -164,12 +158,13 @@ struct WriteBackLowering : public OpRewritePattern<memref::CopyOp> {
         rewriter, loc, l1MemrefType, srcTensor);
 
     // 3. loom.copy: physically move data L1→DRAM.
-    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_L1");
-    auto dramSymbol = SymbolRefAttr::get(rewriter.getContext(), "mem_DRAM");
-    auto srcMemKind = getLocalMemKind(srcTensorType);
+    auto l1Symbol =
+        SymbolRefAttr::get(rewriter.getContext(), loom::utils::kUnboundMemorySpace);
+    auto dramSymbol =
+        SymbolRefAttr::get(rewriter.getContext(), loom::utils::kGlobalMemorySpace);
     auto loomCopyOp = loom::CopyOp::create(
         rewriter, loc, bufToMemref.getResult(), loomSubviewOp.getResult(),
-        l1Symbol, dramSymbol, srcMemKind, IntegerAttr{}, ValueRange{},
+        l1Symbol, dramSymbol, IntegerAttr{}, IntegerAttr{}, ValueRange{},
         rewriter.getDenseI64ArrayAttr({1, 1}),
         Value{}, Value{}, Value{}, Value{}, rewriter.getBoolAttr(false));
 
@@ -261,7 +256,8 @@ struct GatherPlaceholderLowering
     }
 
     rewriter.setInsertionPoint(op);
-    auto l1Symbol = SymbolRefAttr::get(rewriter.getContext(), "mem_array_L1");
+    auto l1Symbol =
+        SymbolRefAttr::get(rewriter.getContext(), loom::utils::kUnboundMemorySpace);
     auto newGather = loom::GatherOp::create(
         rewriter, gatherOp.getLoc(), gatherOp.getSource(), semaphore,
         l1Symbol, l1Symbol, gatherOp.getAcross(), gatherOp.getArea(),
@@ -611,7 +607,8 @@ private:
         auto allocOp = loom::AllocOp::create(
             builder, bucket.scopeOp->getLoc(), allocType, dynamicSizes,
             builder.getDenseI64ArrayAttr(allocAttrSizes), nullptr,
-            builder.getI64IntegerAttr(1), SymbolRefAttr::get(context, "L1"));
+            builder.getI64IntegerAttr(1),
+            SymbolRefAttr::get(context, loom::utils::kUnboundMemory));
         allocOp->setAttr("loom.inferred_residency", builder.getUnitAttr());
         colorToAlloc[{sig, c}] = allocOp.getResult();
       }

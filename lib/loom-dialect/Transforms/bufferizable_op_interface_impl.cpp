@@ -24,14 +24,6 @@ using namespace loom;
 
 namespace {
 
-static DenseI64ArrayAttr toDenseI64ArrayAttr(OpBuilder &builder,
-                                             ArrayAttr attr) {
-  SmallVector<int64_t> values;
-  for (Attribute value : attr)
-    values.push_back(cast<IntegerAttr>(value).getInt());
-  return builder.getDenseI64ArrayAttr(values);
-}
-
 struct InitTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<InitTensorOpInterface,
                                                     loom::InitTensorOp> {
@@ -60,94 +52,6 @@ struct InitTensorOpInterface
   }
 };
 
-struct CopyToTensorOpInterface
-    : public BufferizableOpInterface::ExternalModel<CopyToTensorOpInterface,
-                                                    loom::CopyToTensorOp> {
-  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
-                              const AnalysisState & /*state*/) const {
-    return false;
-  }
-
-  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
-                               const AnalysisState & /*state*/) const {
-    return false;
-  }
-
-  AliasingValueList getAliasingValues(Operation *op, OpOperand & /*opOperand*/,
-                                      const AnalysisState & /*state*/) const {
-    return {AliasingValue(op->getOpResult(0), BufferRelation::Equivalent,
-                          /*isDefinite=*/true)};
-  }
-
-  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions & /*options*/,
-                          BufferizationState & /*state*/) const {
-    auto copyOp = cast<loom::CopyToTensorOp>(op);
-    auto loc = op->getLoc();
-
-    auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
-    auto l1Symbol = SymbolRefAttr::get(op->getContext(), "L1");
-
-    loom::CopyOp::create(
-        rewriter, loc, copyOp.getSourceView(), copyOp.getBuffer(),
-        dramSymbol, l1Symbol, IntegerAttr{}, IntegerAttr{}, ValueRange{},
-        toDenseI64ArrayAttr(rewriter, copyOp.getBroadcastAttr()),
-        mlir::Value{}, mlir::Value{}, mlir::Value{}, mlir::Value{},
-        rewriter.getBoolAttr(false));
-
-    replaceOpWithBufferizedValues(rewriter, op, copyOp.getBuffer());
-    return success();
-  }
-};
-
-struct CopyFromTensorOpInterface
-    : public BufferizableOpInterface::ExternalModel<CopyFromTensorOpInterface,
-                                                    loom::CopyFromTensorOp> {
-  bool bufferizesToMemoryRead(Operation * /*op*/, OpOperand & /*opOperand*/,
-                              const AnalysisState & /*state*/) const {
-    return true; // reads from source_tensor
-  }
-
-  bool bufferizesToMemoryWrite(Operation * /*op*/, OpOperand & /*opOperand*/,
-                               const AnalysisState & /*state*/) const {
-    return false;
-  }
-
-  AliasingValueList getAliasingValues(Operation * /*op*/,
-                                      OpOperand & /*opOperand*/,
-                                      const AnalysisState & /*state*/) const {
-    return {};
-  }
-
-  LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions &options,
-                          BufferizationState &state) const {
-    auto copyOp = cast<loom::CopyFromTensorOp>(op);
-    auto loc = op->getLoc();
-
-    FailureOr<Value> srcBuffer =
-        getBuffer(rewriter, copyOp.getSourceTensor(), options, state);
-    if (failed(srcBuffer))
-      return failure();
-
-    auto l1Symbol = SymbolRefAttr::get(op->getContext(), "L1");
-    auto dramSymbol = SymbolRefAttr::get(op->getContext(), "DRAM");
-
-    loom::CopyOp::create(rewriter, loc, *srcBuffer, copyOp.getTargetView(),
-                         l1Symbol, dramSymbol, IntegerAttr{}, IntegerAttr{},
-                         ValueRange{},
-                         /*staticArea=*/rewriter.getDenseI64ArrayAttr({1, 1}),
-                         mlir::Value{}, mlir::Value{},
-                         mlir::Value{}, mlir::Value{},
-                         rewriter.getBoolAttr(false));
-
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
-/// loom.bufferize_to_tensor is a pure alias from a memref to a tensor.
-/// OSB can eliminate it by substituting the source buffer for the result.
 struct BufferizeToTensorOpInterface
     : public BufferizableOpInterface::ExternalModel<
           BufferizeToTensorOpInterface, loom::BufferizeToTensorOp> {
@@ -353,8 +257,6 @@ struct SyncOpInterface
 
 void loom::registerBufferizableOpInterfaceExternalModels(MLIRContext *ctx) {
   loom::InitTensorOp::attachInterface<InitTensorOpInterface>(*ctx);
-  loom::CopyToTensorOp::attachInterface<CopyToTensorOpInterface>(*ctx);
-  loom::CopyFromTensorOp::attachInterface<CopyFromTensorOpInterface>(*ctx);
   loom::BufferizeToTensorOp::attachInterface<BufferizeToTensorOpInterface>(
       *ctx);
   loom::BufferizeToMemrefOp::attachInterface<BufferizeToMemrefOpInterface>(

@@ -51,6 +51,8 @@
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+
+#include <set>
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -202,11 +204,6 @@ struct BindingRequirement {
   int64_t kind;
 };
 
-StringRef allocationMemoryName(StringRef physicalMemory) {
-  physicalMemory.consume_front("mem_");
-  return physicalMemory;
-}
-
 Type withLocalMemoryKind(Type type, int64_t kind) {
   MLIRContext *context = type.getContext();
   if (auto memref = dyn_cast<MemRefType>(type)) {
@@ -269,23 +266,19 @@ FailureOr<bool> matchesExplicitResidency(
     auto matchesDpsIndex = [&](unsigned dpsIndex) -> FailureOr<bool> {
       if (dpsIndex >= operands.size())
         return false;
-      auto explicitKind = loom::lcs::getExplicitLocalMemKind(
+      auto required = loom::lcs::getRequiredMemory(
           operands[dpsIndex].getType(), site.enclosing_op, dpsIndex);
-      if (failed(explicitKind))
+      if (failed(required))
         return failure();
-      if (*explicitKind &&
-          **explicitKind != candidate.compute_match.operand_mem_kinds[candidateIndex])
+      if (*required &&
+          **required != candidate.operand_mem_spaces[candidateIndex])
         return false;
       Value root = loom::utils::traceToRootAlloc(operands[dpsIndex]);
       if (auto alloc = root.getDefiningOp<loom::AllocOp>()) {
-        if (auto kind = alloc->getAttrOfType<IntegerAttr>(
-                "loom.explicit_local_mem_kind"))
-          if (kind.getInt() !=
-              candidate.compute_match.operand_mem_kinds[candidateIndex])
-            return false;
         if (!alloc->hasAttr("loom.inferred_residency")) {
           std::string memory =
-              "mem_" + alloc.getMemory().getLeafReference().str();
+              loom::utils::physicalMemorySymbol(
+              alloc.getMemory().getLeafReference());
           if (memory != candidate.operand_mem_spaces[candidateIndex])
             return false;
         }
@@ -343,6 +336,23 @@ void collectValues(func::FuncOp function, SmallVectorImpl<Value> &values) {
   });
 }
 
+/// Reject a fully bound function that still holds pre-binding placeholders.
+LogicalResult rejectUnboundMemories(func::FuncOp function, std::string &reason) {
+  bool unbound = false;
+  function.walk([&](Operation *op) {
+    if (auto alloc = dyn_cast<loom::AllocOp>(op))
+      unbound |= alloc.getMemory().getLeafReference() ==
+                 loom::utils::kUnboundMemory;
+    for (StringRef name : {"src_mem_space", "dst_mem_space"})
+      if (auto space = op->getAttrOfType<SymbolRefAttr>(name))
+        unbound |= space.getLeafReference() == loom::utils::kUnboundMemorySpace;
+  });
+  if (unbound)
+    reason = "a buffer is not reached by any bound processor, so its memory "
+             "is undetermined";
+  return failure(unbound);
+}
+
 LogicalResult applyBindingChoice(
     func::FuncOp function, ArrayRef<BindingSite> sites,
     ArrayRef<const loom::lcs::HWComputeFunc *> choice,
@@ -391,12 +401,14 @@ LogicalResult applyBindingChoice(
       return failure();
     }
     Value operand = dpsOperands[siteValue.dps_index];
-    auto explicitKind = loom::lcs::getExplicitLocalMemKind(
+    auto required = loom::lcs::getRequiredMemory(
         operand.getType(), diagnosticOp, siteValue.dps_index);
-    if (failed(explicitKind))
+    if (failed(required))
       return failure();
-    if (*explicitKind && **explicitKind != requirement.kind) {
-      reason = "explicit operand residency conflicts with selected processor";
+    if (*required && **required != requirement.memory) {
+      reason = "explicit operand residency " + **required +
+               " conflicts with selected processor memory " +
+               requirement.memory;
       return failure();
     }
     Value root = loom::utils::traceToRootAlloc(operand);
@@ -405,15 +417,9 @@ LogicalResult applyBindingChoice(
       return failure();
     }
     if (auto alloc = root.getDefiningOp<loom::AllocOp>()) {
-      if (auto kind = alloc->getAttrOfType<IntegerAttr>(
-              "loom.explicit_local_mem_kind")) {
-        if (kind.getInt() != requirement.kind) {
-          reason = "explicit allocation kind conflicts with selected processor";
-          return failure();
-        }
-      }
       if (!alloc->hasAttr("loom.inferred_residency")) {
-        std::string allocated = "mem_" + alloc.getMemory().getLeafReference().str();
+        std::string allocated = loom::utils::physicalMemorySymbol(
+              alloc.getMemory().getLeafReference());
         if (allocated != requirement.memory) {
           reason = "explicit allocation memory conflicts with selected processor";
           return failure();
@@ -564,7 +570,7 @@ LogicalResult applyBindingChoice(
         aliases.push_back(value);
     alloc->setAttr("memory",
                    FlatSymbolRefAttr::get(function.getContext(),
-                                          allocationMemoryName(
+                                          loom::utils::memoryName(
                                               requirement.memory)));
     for (Value alias : aliases)
       alias.setType(withLocalMemoryKind(alias.getType(), requirement.kind));
@@ -604,6 +610,21 @@ LogicalResult applyBindingChoice(
     copy->removeAttr("loom.processor_array");
     copy->removeAttr("loom.processor_function");
   });
+  // Gathers carry physical endpoints but no kinds; bind them like copies.
+  function.walk([&](loom::GatherOp gather) {
+    auto bind = [&](Value value, StringRef spaceAttr) {
+      auto it = requirements.find(loom::utils::traceToRootAlloc(value));
+      if (it != requirements.end())
+        gather->setAttr(spaceAttr, FlatSymbolRefAttr::get(
+                                       function.getContext(), it->second.memory));
+    };
+    bind(gather.getSource(), "src_mem_space");
+    bind(gather.getDestination(), "dst_mem_space");
+  });
+  // Enumeration probes bind a prefix of the sites; only a complete choice
+  // must leave no placeholder behind.
+  if (choice.size() == sites.size())
+    return rejectUnboundMemories(function, reason);
   return success();
 }
 
@@ -793,6 +814,141 @@ LogicalResult finalizeDataMoverVariants(
   return success();
 }
 
+std::string describeUnsatisfiedResidency(
+    const loom::lcs::ComputeBindingSite &site,
+    ArrayRef<const loom::lcs::HWComputeFunc *> candidates) {
+  auto linalgOp = cast<linalg::LinalgOp>(site.enclosing_op);
+  SmallVector<Value> operands;
+  llvm::append_range(operands, linalgOp.getDpsInputs());
+  llvm::append_range(operands, linalgOp.getDpsInits());
+  std::string text;
+  llvm::raw_string_ostream os(text);
+  os << "no implementation of '" << site.payload_op->getName()
+     << "' satisfies the explicit residency (";
+  bool first = true;
+  for (auto [index, operand] : llvm::enumerate(operands)) {
+    auto required = loom::lcs::getRequiredMemory(operand.getType(),
+                                                 site.enclosing_op, index);
+    if (failed(required) || !*required)
+      continue;
+    os << (first ? "" : ", ") << "operand " << index << " -> "
+       << loom::utils::memoryName(**required);
+    first = false;
+  }
+  os << "); candidates place operands in:";
+  for (const auto *candidate : candidates) {
+    os << " " << candidate->hw_component << "/" << candidate->hw_func_name
+       << "[";
+    for (auto [i, memory] : llvm::enumerate(candidate->operand_mem_spaces))
+      os << (i ? "," : "") << loom::utils::memoryName(memory);
+    os << "]";
+  }
+  return os.str();
+}
+
+/// Kernel arguments live in the platform's DRAM-domain memory, as classified
+/// by the architecture model (`domain` on the memory's ADL op).
+LogicalResult resolveGlobalMemory(ModuleOp input, ModuleOp platform,
+                                  std::string &error) {
+  SmallVector<loom::CopyOp> copies;
+  input.walk([&](loom::CopyOp copy) {
+    auto isGlobal = [](SymbolRefAttr space) {
+      return space && space.getLeafReference() == loom::utils::kGlobalMemorySpace;
+    };
+    if (isGlobal(copy.getSrcMemSpaceAttr()) ||
+        isGlobal(copy.getDstMemSpaceAttr()))
+      copies.push_back(copy);
+  });
+  if (copies.empty())
+    return success();
+
+  SmallVector<std::string> globals;
+  platform.walk([&](Operation *op) {
+    if (auto array = dyn_cast<mlir::adl::MemoryArrayOp>(op)) {
+      if (array.getDomain() == "DRAM")
+        globals.push_back(array.getSymName().str());
+    } else if (auto bank = dyn_cast<mlir::adl::MemoryBankOp>(op)) {
+      if (bank.getDomain() == "DRAM")
+        globals.push_back(bank.getName().str());
+    }
+  });
+  if (globals.size() != 1) {
+    error = "platform must declare exactly one DRAM-domain memory to hold "
+            "kernel arguments; found " + std::to_string(globals.size()) +
+            " (re-export the platform with an MLAR that emits memory domains)";
+    return failure();
+  }
+  auto global = FlatSymbolRefAttr::get(input.getContext(), globals.front());
+  for (loom::CopyOp copy : copies) {
+    if (auto src = copy.getSrcMemSpaceAttr();
+        src && src.getLeafReference() == loom::utils::kGlobalMemorySpace)
+      copy.setSrcMemSpaceAttr(global);
+    if (auto dst = copy.getDstMemSpaceAttr();
+        dst && dst.getLeafReference() == loom::utils::kGlobalMemorySpace)
+      copy.setDstMemSpaceAttr(global);
+  }
+  return success();
+}
+
+/// Residency is requested by platform memory name. Reject numeric kinds and
+/// names the platform does not bind before any lowering runs.
+LogicalResult validateResidencyInput(ModuleOp input, ModuleOp platform,
+                                     std::string &error) {
+  std::set<std::string> memories;
+  platform.walk([&](loom::BindMemOp bind) {
+    memories.insert(bind.getMemory().str());
+  });
+  for (StringRef reserved : {loom::utils::kUnboundMemorySpace,
+                             loom::utils::kGlobalMemorySpace})
+    if (memories.count(reserved.str())) {
+      error = "platform declares reserved memory name '" + reserved.str() + "'";
+      return failure();
+    }
+  std::string known;
+  for (const std::string &memory : memories)
+    known += (known.empty() ? "" : ", ") + loom::utils::memoryName(memory).str();
+
+  auto check = [&](Type type) -> LogicalResult {
+    auto tensor = dyn_cast<RankedTensorType>(type);
+    auto encoding =
+        tensor ? dyn_cast_or_null<DictionaryAttr>(tensor.getEncoding()) : nullptr;
+    if (!encoding)
+      return success();
+    if (encoding.get("local_mem_kind")) {
+      error = "numeric local_mem_kind is internal to Loom; request residency "
+              "by memory name (platform memories: " + known + ")";
+      return failure();
+    }
+    auto memory = encoding.getAs<StringAttr>("memory");
+    if (!memory)
+      return success();
+    StringRef name = memory.getValue();
+    if (loom::utils::memoryName(name) != name) {
+      error = "residency memory '" + name.str() + "' must be the platform "
+              "memory name '" + loom::utils::memoryName(name).str() + "'";
+      return failure();
+    }
+    if (!memories.count(loom::utils::physicalMemorySymbol(name))) {
+      error = "unknown residency memory '" + name.str() +
+              "'; platform memories: " + known;
+      return failure();
+    }
+    return success();
+  };
+  WalkResult result = input.walk([&](Operation *op) {
+    for (Type type : op->getResultTypes())
+      if (failed(check(type)))
+        return WalkResult::interrupt();
+    for (Region &region : op->getRegions())
+      for (Block &block : region)
+        for (BlockArgument argument : block.getArguments())
+          if (failed(check(argument.getType())))
+            return WalkResult::interrupt();
+    return WalkResult::advance();
+  });
+  return failure(result.wasInterrupted());
+}
+
 LogicalResult enumerateBindingVariants(
     ModuleOp module, const loom::lcs::HWOpRegistry &registry, bool enumerate,
     std::string &error) {
@@ -813,6 +969,7 @@ LogicalResult enumerateBindingVariants(
       return failure();
     }
     bool collectionFailed = false;
+    std::string siteError;
     for (auto &site : *analysis) {
       auto candidates = registry.lookupComputeCandidates(site.semantic_key);
       candidates.erase(
@@ -843,7 +1000,8 @@ LogicalResult enumerateBindingVariants(
                            }),
             candidates.end());
       }
-      if (!enumerate) {
+      {
+        auto beforeResidency = candidates;
         bool residencyReadFailed = false;
         candidates.erase(
             std::remove_if(candidates.begin(), candidates.end(),
@@ -858,6 +1016,11 @@ LogicalResult enumerateBindingVariants(
                            }),
             candidates.end());
         if (residencyReadFailed) {
+          collectionFailed = true;
+          break;
+        }
+        if (candidates.empty() && !beforeResidency.empty()) {
+          siteError = describeUnsatisfiedResidency(site, beforeResidency);
           collectionFailed = true;
           break;
         }
@@ -883,6 +1046,8 @@ LogicalResult enumerateBindingVariants(
     if (collectionFailed) {
       error = "failed to resolve processor bindings for function '" +
               original.getName().str() + "'";
+      if (!siteError.empty())
+        error += ": " + siteError;
       return failure();
     }
     if (sites.empty()) {
@@ -1083,6 +1248,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
   loom::lcs::HWOpRegistry computeRegistry;
   if (mlir::failed(computeRegistry.loadFromPlatformFile(hw_spec_file, context)))
     return {"Failed to load platform IR from: " + hw_spec_file, "", ""};
+  {
+    std::string residencyError;
+    if (failed(validateResidencyInput(*inputModule, *dfModule, residencyError)))
+      return {residencyError, "", ""};
+  }
 
   // ================================================================
   // Phase A1: tensor_canonicalize (stage 0→1)
@@ -1124,6 +1294,9 @@ runExplorationPipeline(const std::string &input_mlir_text,
     pm.addPass(loom::passes::createMemoryBindingPass());
     if (failed(pm.run(*inputModule)))
       return {"Phase A2 (memory_binding) failed", "", ""};
+    std::string globalError;
+    if (failed(resolveGlobalMemory(*inputModule, *dfModule, globalError)))
+      return {globalError, "", ""};
   }
 
   {
