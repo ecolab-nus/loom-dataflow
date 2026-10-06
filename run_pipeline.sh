@@ -11,6 +11,9 @@ if [ -z "$EXAMPLE" ]; then
     exit 1
 fi
 
+# Hardware spec: LOOM_ARCH selects loom-mlar/tests/<arch>/ (default wormhole).
+HW_SPEC="${HW_SPEC:-../loom-mlar/tests/${LOOM_ARCH:-wormhole}/2d_mesh_torus.mlir}"
+
 # Default to all steps if not provided
 if [ -z "$RUN_STEPS" ]; then
     RUN_STEPS="[1,2,3,4,5,6,7,8,9]"
@@ -59,7 +62,7 @@ if should_run 3; then
     echo "3) Enumerate spatial mappings and merge DF declarations..."
     if ! build/tool/loom-opt/single_stage/enumerate_hw_mapping \
       --input examples/$EXAMPLE/IR/02_explicit_memory_access.mlir \
-      --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+      --hw_spec "$HW_SPEC" \
       > examples/$EXAMPLE/IR/03_after_hardware_mapping.mlir; then
         echo "Error: Step 3 failed."
         exit 1
@@ -90,7 +93,7 @@ if should_run 6; then
     echo "6) Dump ETG..."
     if ! build/tool/loom-opt/single_stage/staged_etg \
       --input examples/$EXAMPLE/IR/05_after_enumerate_broadcast.mlir \
-      --hw_spec ../loom-mlar/tests/2d_mesh/2d_mesh_torus.mlir \
+      --hw_spec "$HW_SPEC" \
       --output examples/$EXAMPLE/constraint_space/staged_etg_dump.json; then
         echo "Error: Step 6 failed."
         exit 1

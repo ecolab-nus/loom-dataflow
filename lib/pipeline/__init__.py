@@ -18,7 +18,7 @@ Usage::
 
     output_mlir, etg_json = run_exploration(
         input_mlir=mlir_text,
-        hw_spec_file="../loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir",
+        hw_spec_file="../loom-mlar/tests/wormhole/2d_mesh_torus.mlir",
     )
 
     final_mlir = run_materialization(
