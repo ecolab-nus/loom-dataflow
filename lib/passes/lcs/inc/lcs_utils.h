@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include "constraint_expr.h"
 #include "expr.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
@@ -77,6 +78,14 @@ std::string formatElementType(mlir::Type elemType);
 /// Traces arith constants, loom.sym refs, and simple arithmetic (ceildivui,
 /// muli, addi) into Expr nodes. Assumes lb=0 and step=1.
 Expr extractLoopTripCount(mlir::scf::ForOp forOp);
+
+/// For an scf.for whose upper bound is ceildiv(N, D) with N depending on
+/// enclosing loop IVs (e.g. a causal loop over (m_id + 1) * tile_m), return
+/// constraints requiring D | N for every IV value. Helion masks the partial
+/// last tile of such a loop; Loom lowers it unmasked, so it only matches
+/// Helion when no partial tile exists. Empty if N does not depend on an IV.
+std::vector<ConstraintExpr>
+ivDependentTripCountDivisibility(mlir::scf::ForOp forOp);
 
 // ==========================================
 // Generic Op Classification & Shape Analysis

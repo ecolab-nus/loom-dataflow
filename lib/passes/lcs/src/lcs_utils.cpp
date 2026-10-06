@@ -9,15 +9,23 @@
 #include "LoomInterfaces.h.inc"
 #define GET_OP_CLASSES
 #include "LoomOps.h.inc"
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/AffineExpr.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
 namespace loom {
 namespace lcs {
 
-static Expr traceIndexValueToExpr(mlir::Value val);
+/// Optional per-IV values used instead of the default IV upper bound.
+using IVSubstitution = llvm::DenseMap<mlir::Value, Expr>;
+
+static Expr traceIndexValueToExpr(mlir::Value val,
+                                  const IVSubstitution *subst = nullptr);
 
 // ==========================================
 // Tracing — thin wrappers over loom::utils canonical SSA walk
@@ -78,10 +86,86 @@ std::string formatElementType(mlir::Type elemType) {
   return typeStr;
 }
 
+/// Trace an affine expression whose dims/symbols are bound to `operands`
+/// (dims first, then symbols) into a symbolic Expr.
+static Expr traceAffineExprToExpr(mlir::AffineExpr affineExpr,
+                                  mlir::ValueRange operands, unsigned numDims,
+                                  const IVSubstitution *subst) {
+  if (auto dim = llvm::dyn_cast<mlir::AffineDimExpr>(affineExpr)) {
+    unsigned pos = dim.getPosition();
+    if (pos >= numDims || pos >= operands.size())
+      return Expr::none();
+    return traceIndexValueToExpr(operands[pos], subst);
+  }
+
+  if (auto sym = llvm::dyn_cast<mlir::AffineSymbolExpr>(affineExpr)) {
+    unsigned pos = numDims + sym.getPosition();
+    if (pos >= operands.size())
+      return Expr::none();
+    return traceIndexValueToExpr(operands[pos], subst);
+  }
+
+  if (auto cst = llvm::dyn_cast<mlir::AffineConstantExpr>(affineExpr))
+    return Expr::con(cst.getValue());
+
+  if (auto bin = llvm::dyn_cast<mlir::AffineBinaryOpExpr>(affineExpr)) {
+    Expr lhs = traceAffineExprToExpr(bin.getLHS(), operands, numDims, subst);
+    Expr rhs = traceAffineExprToExpr(bin.getRHS(), operands, numDims, subst);
+    switch (bin.getKind()) {
+    case mlir::AffineExprKind::Add:
+      return lhs + rhs;
+    case mlir::AffineExprKind::Mul:
+      return lhs * rhs;
+    case mlir::AffineExprKind::FloorDiv:
+    case mlir::AffineExprKind::CeilDiv:
+      return lhs / rhs;
+    default:
+      return Expr::none();
+    }
+  }
+
+  return Expr::none();
+}
+
+/// Upper-bound (worst-case) value of a loop induction variable, assuming
+/// lb = 0 and step = 1: max(iv) = ub - 1 (emitted as ub + (-1): the Python
+/// solver AST has no Sub node). Used for loops whose trip count
+/// depends on an enclosing IV (e.g. causal/triangular loops), so the ETG
+/// models the largest iteration.
+static Expr traceInductionVarUpperBound(mlir::BlockArgument arg,
+                                        const IVSubstitution *subst) {
+  using namespace mlir;
+  Operation *owner = arg.getOwner()->getParentOp();
+
+  if (auto forOp = dyn_cast<scf::ForOp>(owner)) {
+    if (arg != forOp.getInductionVar())
+      return Expr::none();
+    return traceIndexValueToExpr(forOp.getUpperBound(), subst) +
+           Expr::con(-1);
+  }
+
+  if (auto parOp = dyn_cast<affine::AffineParallelOp>(owner)) {
+    unsigned pos = arg.getArgNumber();
+    AffineMap ubMap = parOp.getUpperBoundMap(pos);
+    if (ubMap.getNumResults() != 1)
+      return Expr::none();
+    Expr ub = traceAffineExprToExpr(ubMap.getResult(0),
+                                    parOp.getUpperBoundsOperands(),
+                                    ubMap.getNumDims(), subst);
+    return ub + Expr::con(-1);
+  }
+
+  return Expr::none();
+}
+
 /// Recursively trace an SSA index value to a symbolic Expr.
 /// Handles: loom.sym → Sym, arith.constant → Const,
-///          arith.ceildivui/si → Div, arith.muli → Mul, arith.addi → Add.
-static Expr traceIndexValueToExpr(mlir::Value val) {
+///          arith.ceildivui/si → Div, arith.muli → Mul, arith.addi → Add,
+///          affine.apply → its affine expression,
+///          scf.for / affine.parallel IV → `subst` value if given, else its
+///          upper bound (ub - 1).
+static Expr traceIndexValueToExpr(mlir::Value val,
+                                  const IVSubstitution *subst) {
   using namespace mlir;
   if (!val)
     return Expr::none();
@@ -91,9 +175,24 @@ static Expr traceIndexValueToExpr(mlir::Value val) {
   if (!symName.empty())
     return Expr::sym(symName.str());
 
+  if (auto arg = dyn_cast<BlockArgument>(val)) {
+    if (subst) {
+      auto it = subst->find(val);
+      if (it != subst->end())
+        return it->second;
+    }
+    return traceInductionVarUpperBound(arg, subst);
+  }
+
   Operation *op = val.getDefiningOp();
   if (!op)
     return Expr::none();
+
+  // affine.apply → trace its (single-result) affine map
+  if (auto apply = dyn_cast<affine::AffineApplyOp>(op))
+    return traceAffineExprToExpr(apply.getAffineMap().getResult(0),
+                                 apply.getMapOperands(),
+                                 apply.getAffineMap().getNumDims(), subst);
 
   // arith.constant
   if (auto constOp = dyn_cast<arith::ConstantOp>(op))
@@ -102,21 +201,21 @@ static Expr traceIndexValueToExpr(mlir::Value val) {
 
   // arith.ceildivui / arith.ceildivsi → Div (same semantics for trip counts)
   if (auto cdiv = dyn_cast<arith::CeilDivUIOp>(op))
-    return traceIndexValueToExpr(cdiv.getLhs()) /
-           traceIndexValueToExpr(cdiv.getRhs());
+    return traceIndexValueToExpr(cdiv.getLhs(), subst) /
+           traceIndexValueToExpr(cdiv.getRhs(), subst);
   if (auto cdiv = dyn_cast<arith::CeilDivSIOp>(op))
-    return traceIndexValueToExpr(cdiv.getLhs()) /
-           traceIndexValueToExpr(cdiv.getRhs());
+    return traceIndexValueToExpr(cdiv.getLhs(), subst) /
+           traceIndexValueToExpr(cdiv.getRhs(), subst);
 
   // arith.muli → Mul
   if (auto mul = dyn_cast<arith::MulIOp>(op))
-    return traceIndexValueToExpr(mul.getLhs()) *
-           traceIndexValueToExpr(mul.getRhs());
+    return traceIndexValueToExpr(mul.getLhs(), subst) *
+           traceIndexValueToExpr(mul.getRhs(), subst);
 
   // arith.addi → Add
   if (auto add = dyn_cast<arith::AddIOp>(op))
-    return traceIndexValueToExpr(add.getLhs()) +
-           traceIndexValueToExpr(add.getRhs());
+    return traceIndexValueToExpr(add.getLhs(), subst) +
+           traceIndexValueToExpr(add.getRhs(), subst);
 
   // Type-conversion ops in the trip-count def-use chain are explicitly
   // unsupported.  Canonicalize/CSE should have removed them before ETG
@@ -148,6 +247,71 @@ Expr extractLoopTripCount(mlir::scf::ForOp forOp) {
     return Expr::none();
   // Assumes lb=0 and step=1, so trip count == upper bound.
   return traceIndexValueToExpr(forOp.getUpperBound());
+}
+
+/// Collect the loop induction variables (scf.for / affine.parallel) that `val`
+/// depends on through its index def-use chain.
+static void collectInductionVars(mlir::Value val,
+                                 llvm::SetVector<mlir::Value> &ivs) {
+  using namespace mlir;
+  if (!val || !loom::utils::traceToSymbolicVar(val).empty())
+    return;
+  if (auto arg = dyn_cast<BlockArgument>(val)) {
+    Operation *owner = arg.getOwner()->getParentOp();
+    if (auto forOp = dyn_cast<scf::ForOp>(owner)) {
+      if (arg == forOp.getInductionVar())
+        ivs.insert(val);
+    } else if (isa<affine::AffineParallelOp>(owner)) {
+      ivs.insert(val);
+    }
+    return;
+  }
+  if (Operation *op = val.getDefiningOp())
+    for (Value operand : op->getOperands())
+      collectInductionVars(operand, ivs);
+}
+
+std::vector<ConstraintExpr>
+ivDependentTripCountDivisibility(mlir::scf::ForOp forOp) {
+  using namespace mlir;
+  std::vector<ConstraintExpr> constraints;
+  Value num, den;
+  Operation *ubDef = forOp.getUpperBound().getDefiningOp();
+  if (auto cdiv = dyn_cast_or_null<arith::CeilDivUIOp>(ubDef)) {
+    num = cdiv.getLhs();
+    den = cdiv.getRhs();
+  } else if (auto cdiv = dyn_cast_or_null<arith::CeilDivSIOp>(ubDef)) {
+    num = cdiv.getLhs();
+    den = cdiv.getRhs();
+  } else {
+    return constraints;
+  }
+
+  llvm::SetVector<Value> ivs;
+  collectInductionVars(num, ivs);
+  if (ivs.empty())
+    return constraints;
+  Expr denominator = traceIndexValueToExpr(den);
+  if (denominator.isNone())
+    return constraints;
+
+  // For a numerator affine in the IVs, divisibility at all-zero and at each
+  // unit vector implies divisibility at every iteration.
+  IVSubstitution subst;
+  for (Value iv : ivs)
+    subst[iv] = Expr::con(0);
+  auto pushSample = [&]() {
+    Expr numerator = traceIndexValueToExpr(num, &subst);
+    if (!numerator.isNone())
+      constraints.push_back(ConstraintExpr::divisible(numerator, denominator));
+  };
+  pushSample();
+  for (Value iv : ivs) {
+    subst[iv] = Expr::con(1);
+    pushSample();
+    subst[iv] = Expr::con(0);
+  }
+  return constraints;
 }
 
 // ==========================================

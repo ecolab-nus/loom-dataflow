@@ -82,6 +82,20 @@ std::vector<AllocInfo> readAllL1Allocs(mlir::func::FuncOp funcOp) {
   return allocs;
 }
 
+bool isScalarAlloc(loom::AllocOp allocOp) {
+  auto memrefType = mlir::cast<mlir::MemRefType>(allocOp.getResult().getType());
+  return memrefType.getRank() == 0;
+}
+
+// The TT backend places a rank-1 [N] vector in row 0 of 32x32 tiles, so it is
+// accounted for as a [1, N] plane (padded to [32, N] below).
+void promoteRank1ToRowVector(AllocInfo &info) {
+  if (info.static_sizes.size() != 1)
+    return;
+  info.static_sizes.insert(info.static_sizes.begin(), 1);
+  info.expr_dims.insert(info.expr_dims.begin(), Expr::con(1));
+}
+
 void validateBottom2Dims(const AllocInfo &info) {
   const size_t rank = info.static_sizes.size();
   if (rank < 2)
@@ -244,6 +258,12 @@ L1FootprintResult L1FootprintEstimator::estimateFromFunc(
       assert(info.elem_type == expectedElemType &&
              "All L1 allocations must have the same element type");
     }
+
+    // Scalars are forwarded as runtime args by the TT backend and never
+    // occupy L1; leave their footprint as none so it is not counted.
+    if (isScalarAlloc(info.alloc_op))
+      continue;
+    promoteRank1ToRowVector(info);
 
     validateBottom2Dims(info);
     std::vector<Expr> aligned = applyBottom2Padding(info);
