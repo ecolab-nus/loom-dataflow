@@ -50,8 +50,28 @@ mlir::LogicalResult GetHardwareInfoForExploration(mlir::ModuleOp hwModule,
  * as declared. When false (the default), also enumerate partial occupancy
  * variants for every hardware dimension.
  */
+///
+/// When a parallel dimension has more iterations than the cores mapped to it,
+/// the remainder becomes a wave loop. \p blockedWaves selects how iterations
+/// are distributed: false (cyclic, the default) gives core c the iterations
+/// c, c + C, c + 2C, ...; true (blocked) gives it the contiguous range
+/// [c * W, (c + 1) * W) with W the wave count, so consecutive waves on one core
+/// visit consecutive iterations.
 mlir::OwningOpRef<mlir::ModuleOp>
 EnumerateSpatialMappings(mlir::ModuleOp affineModule,
                          const HardwareInfo &hardwareInfo,
-                         bool fullOccupancy = false);
+                         bool fullOccupancy = false,
+                         bool blockedWaves = false);
+
+/**
+ * \brief Add function variants that run a different set of loops spatially.
+ *
+ * For each function whose outermost affine.parallel directly contains a
+ * perfectly nested chain of independent scf.for loops, clone the function once
+ * per pruned spatial set: chain loops are promoted into the parallel loop and
+ * parallel dimensions demoted to sequential loops. Clones are inserted after
+ * the original, which stays unchanged.
+ */
+void ExploreParallelSets(mlir::ModuleOp module,
+                         const HardwareInfo &hardwareInfo);
 } // namespace loom

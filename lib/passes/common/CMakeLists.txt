@@ -7,6 +7,7 @@ add_library(LoomPassesCommon
   src/block_loading_pattern.cpp
   src/hardware_discovery.cpp
   src/hardware_mapping.cpp
+  src/parallel_set_exploration.cpp
   src/affine_utils.cpp
   src/index_mapping.cpp
   src/driver_utils.cpp

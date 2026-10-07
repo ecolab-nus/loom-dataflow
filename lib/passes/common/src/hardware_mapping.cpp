@@ -155,7 +155,7 @@ static LogicalResult applyMappingToFunction(
     const llvm::SmallVector<loom::SpatialDimInfo> &dims,
     affine::AffineParallelOp &tar_forOp, std::string &suffix,
     llvm::SmallVector<loom::ParallelToHWMapping> &mappingInfo,
-    std::optional<ReductionAxisInfo> reductionInfo) {
+    std::optional<ReductionAxisInfo> reductionInfo, bool blockedWaves) {
   suffix.clear();
   mappingInfo.clear();
 
@@ -258,7 +258,35 @@ static LogicalResult applyMappingToFunction(
           nonUnitHWMappings.push_back(&hwm);
       }
 
-      if (nonUnitHWMappings.size() >= 2) {
+      if (blockedWaves && !nonUnitHWMappings.empty()) {
+        // Blocked: core c (row-major over the mapped HW levels, as in
+        // emitGlobalIndex2d) owns iterations [c * W, (c + 1) * W), W = the
+        // wave count, i.e. this dimension's upper bound in the wave loop.
+        AffineMap ubMap = tar_forOp.getUpperBoundMap(i);
+        if (ubMap.getNumResults() != 1)
+          return tar_forOp.emitError("expected single-result UB map"),
+                 failure();
+        OpBuilder::InsertionGuard guard(builder);
+        builder.setInsertionPoint(tar_forOp);
+        Value waves = affine::AffineApplyOp::create(
+            builder, loc, ubMap, tar_forOp.getUpperBoundsOperands());
+        builder.setInsertionPointToStart(tar_forOp.getBody());
+        SmallVector<Value> operands;
+        AffineExpr coreExpr = builder.getAffineConstantExpr(0);
+        for (const HWDimMapping *hwm : nonUnitHWMappings) {
+          coreExpr = coreExpr * hwm->hwDimSize +
+                     builder.getAffineDimExpr(operands.size());
+          operands.push_back(hwm->iv);
+        }
+        AffineExpr waveExpr = builder.getAffineDimExpr(operands.size());
+        operands.push_back(waveIV);
+        operands.push_back(waves);
+        AffineMap map = AffineMap::get(
+            operands.size() - 1, 1,
+            coreExpr * builder.getAffineSymbolExpr(0) + waveExpr, ctx);
+        reconstructedIV =
+            affine::AffineApplyOp::create(builder, loc, map, operands);
+      } else if (nonUnitHWMappings.size() >= 2) {
         reconstructedIV = loom::emitGlobalIndex2d(
             builder, loc, nonUnitHWMappings[0]->iv, nonUnitHWMappings[1]->iv,
             nonUnitHWMappings[1]->hwDimSize, waveIV, 1,
@@ -403,9 +431,16 @@ static LogicalResult applyMappingToFunction(
 
 namespace loom {
 
+/// Functions carrying this unit attribute (variants whose parallel work
+/// already covers every core) are mapped at full occupancy only.
+static constexpr llvm::StringLiteral kFullOccupancyOnlyAttr =
+    "loom.full_occupancy_only";
+
 static OwningOpRef<ModuleOp>
 enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
-                                           const HardwareInfo &hardwareInfo) {
+                                           const HardwareInfo &hardwareInfo,
+                                           bool blockedWaves,
+                                           bool skipFullOccupancyOnly) {
   MLIRContext *ctx = affineModule.getContext();
   OpBuilder builder(ctx);
   auto out = ModuleOp::create(affineModule.getLoc());
@@ -417,6 +452,8 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
       loom::utils::collectFunctions(affineModule);
 
   for (func::FuncOp func : allFuncs) {
+    if (skipFullOccupancyOnly && func->hasAttr(kFullOccupancyOnlyAttr))
+      continue;
     ModuleOp parentModule = loom::utils::getParentModule(func);
     DictionaryAttr moduleAttrs = nullptr;
     if (parentModule) {
@@ -538,7 +575,8 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
                   llvm::SmallVector<loom::ParallelToHWMapping> hwMappingInfo;
                   if (failed(applyMappingToFunction(
                           cloned, mapping, logicalDimInfos, tar_forOp,
-                          mappingSuffix, hwMappingInfo, reductionInfoCloned))) {
+                          mappingSuffix, hwMappingInfo, reductionInfoCloned,
+                          blockedWaves))) {
                     return failure();
                   }
 
@@ -615,31 +653,45 @@ enumerateSpatialMappingsForOneHardwareInfo(ModuleOp affineModule,
 OwningOpRef<ModuleOp>
 EnumerateSpatialMappings(ModuleOp affineModule,
                          const HardwareInfo &hardwareInfo,
-                         bool fullOccupancy) {
+                         bool fullOccupancy, bool blockedWaves) {
   auto out = ModuleOp::create(affineModule.getLoc());
   if (!affineModule->getAttrs().empty())
     out->setAttrs(affineModule->getAttrs());
 
   OpBuilder builder(out.getBodyRegion());
+  auto stripMarker = [&]() {
+    out.walk([](func::FuncOp f) { f->removeAttr(kFullOccupancyOnlyAttr); });
+  };
   if (fullOccupancy) {
     OwningOpRef<ModuleOp> fullOccupancyModule =
-        enumerateSpatialMappingsForOneHardwareInfo(affineModule, hardwareInfo);
+        enumerateSpatialMappingsForOneHardwareInfo(
+            affineModule, hardwareInfo, blockedWaves,
+            /*skipFullOccupancyOnly=*/false);
     IRMapping mapping;
     for (Operation &op : *fullOccupancyModule->getBody())
       builder.clone(op, mapping);
+    stripMarker();
     return out;
   }
 
   for (const HardwareInfo &variant :
        loom::utils::generateHardwareOccupancyVariants(hardwareInfo)) {
+    bool isFull = variant.spatialDimInfoVec.size() ==
+                  hardwareInfo.spatialDimInfoVec.size();
+    for (unsigned d = 0; isFull && d < variant.spatialDimInfoVec.size(); ++d)
+      isFull = variant.spatialDimInfoVec[d].size ==
+               hardwareInfo.spatialDimInfoVec[d].size;
     OwningOpRef<ModuleOp> variantModule =
-        enumerateSpatialMappingsForOneHardwareInfo(affineModule, variant);
+        enumerateSpatialMappingsForOneHardwareInfo(
+            affineModule, variant, blockedWaves,
+            /*skipFullOccupancyOnly=*/!isFull);
 
     IRMapping mapping;
     for (Operation &op : *variantModule->getBody())
       builder.clone(op, mapping);
   }
 
+  stripMarker();
   return out;
 }
 

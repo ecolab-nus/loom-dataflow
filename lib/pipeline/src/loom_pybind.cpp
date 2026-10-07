@@ -27,6 +27,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("skip_etg") = false,
       py::arg("full_occ") = false,
       py::arg("spatial_reuse") = true,
+      py::arg("blocked_waves") = false,
+      py::arg("explore_parallel_sets") = false,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -41,6 +43,10 @@ PYBIND11_MODULE(_loom_pipeline, m) {
           full_occ: When True, use only full hardware occupancy.
           spatial_reuse: When True, run reuse analysis and copy/broadcast
               enumeration.
+          blocked_waves: When True, give each core a contiguous block of
+              wave-loop iterations instead of a cyclic stride.
+          explore_parallel_sets: When True, also explore which loops run
+              spatially (promote inner sequential loops / demote parallel dims).
 
       Returns:
           Tuple of (error, output_mlir, etg_json).

@@ -185,7 +185,9 @@ runExplorationPipeline(const std::string &input_mlir_text,
                        bool produce_etg,
                        bool skip_etg,
                        bool full_occ,
-                       bool spatial_reuse) {
+                       bool spatial_reuse,
+                       bool blocked_waves,
+                       bool explore_parallel_sets) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -277,9 +279,15 @@ runExplorationPipeline(const std::string &input_mlir_text,
   if (failed(loom::GetHardwareInfoForExploration(*dfModule, hardwareInfo)))
     return {"Failed to collect hardware information from DF module", "", ""};
 
+  // Optionally add variants with other spatial loop sets; the mapping
+  // enumeration below then maps every variant.
+  if (explore_parallel_sets)
+    loom::ExploreParallelSets(*inputModule, hardwareInfo);
+
   // Enumerate spatial mappings — returns a brand new ModuleOp.
   OwningOpRef<ModuleOp> enumerated =
-      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo, full_occ);
+      loom::EnumerateSpatialMappings(*inputModule, hardwareInfo, full_occ,
+                                     blocked_waves);
 
   // Merge DF declarations and enumerated clones into a single module.
   OwningOpRef<ModuleOp> merged =

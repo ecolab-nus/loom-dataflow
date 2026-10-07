@@ -207,6 +207,15 @@ static Expr traceIndexValueToExpr(mlir::Value val,
     return traceIndexValueToExpr(cdiv.getLhs(), subst) /
            traceIndexValueToExpr(cdiv.getRhs(), subst);
 
+  // arith.divui / arith.divsi → Div (e.g. tile.id = (lb + iv * bs) / bs in a
+  // bound that depends on an enclosing tile index)
+  if (auto div = dyn_cast<arith::DivUIOp>(op))
+    return traceIndexValueToExpr(div.getLhs(), subst) /
+           traceIndexValueToExpr(div.getRhs(), subst);
+  if (auto div = dyn_cast<arith::DivSIOp>(op))
+    return traceIndexValueToExpr(div.getLhs(), subst) /
+           traceIndexValueToExpr(div.getRhs(), subst);
+
   // arith.muli → Mul
   if (auto mul = dyn_cast<arith::MulIOp>(op))
     return traceIndexValueToExpr(mul.getLhs(), subst) *

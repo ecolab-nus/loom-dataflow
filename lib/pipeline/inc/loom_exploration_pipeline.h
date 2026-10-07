@@ -23,6 +23,12 @@ namespace pipeline {
 ///                          than enumerating partial occupancies.
 /// @param spatial_reuse     When true, run reuse analysis and copy/broadcast
 ///                          enumeration (stages 3→5).
+/// @param blocked_waves     When true, distribute wave-loop iterations to
+///                          cores in contiguous blocks instead of cyclically.
+/// @param explore_parallel_sets When true, also explore which loops run
+///                          spatially: perfectly nested inner sequential loops
+///                          are promoted into the outer affine.parallel and
+///                          its dimensions demoted to inner loops.
 /// @return tuple of (error, output_mlir, etg_json).
 ///         error is empty on success; etg_json is empty when produce_etg
 ///         is false or skip_etg is true.
@@ -32,7 +38,9 @@ runExplorationPipeline(const std::string &input_mlir_text,
                        bool produce_etg = true,
                        bool skip_etg = false,
                        bool full_occ = false,
-                       bool spatial_reuse = true);
+                       bool spatial_reuse = true,
+                       bool blocked_waves = false,
+                       bool explore_parallel_sets = false);
 
 } // namespace pipeline
 } // namespace loom

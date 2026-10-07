@@ -62,6 +62,8 @@ def run_exploration(
     skip_etg: bool = False,
     full_occ: bool = False,
     spatial_reuse: bool = True,
+    blocked_waves: bool = False,
+    explore_parallel_sets: bool = False,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -78,6 +80,11 @@ def run_exploration(
         full_occ:          When True, use only full hardware occupancy.
         spatial_reuse:     When True, run reuse analysis and copy/broadcast
                            enumeration.
+        blocked_waves:     When True, give each core a contiguous block of
+                           wave-loop iterations instead of a cyclic stride.
+        explore_parallel_sets: When True, also explore which loops run spatially
+                           (promote inner sequential loops into the outer
+                           parallel loop / demote parallel dims to inner loops).
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
@@ -93,6 +100,8 @@ def run_exploration(
         skip_etg,
         full_occ,
         spatial_reuse,
+        blocked_waves,
+        explore_parallel_sets,
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
