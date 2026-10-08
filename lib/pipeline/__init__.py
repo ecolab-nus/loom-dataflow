@@ -64,6 +64,7 @@ def run_exploration(
     spatial_reuse: bool = True,
     blocked_waves: bool = False,
     explore_parallel_sets: bool = False,
+    split_floordiv: bool = False,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -85,6 +86,9 @@ def run_exploration(
         explore_parallel_sets: When True, also explore which loops run spatially
                            (promote inner sequential loops into the outer
                            parallel loop / demote parallel dims to inner loops).
+        split_floordiv:    With explore_parallel_sets, also explore loops split
+                           at index / K boundaries (group / member loops), so
+                           group-indexed loads can be shared.
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
@@ -102,6 +106,7 @@ def run_exploration(
         spatial_reuse,
         blocked_waves,
         explore_parallel_sets,
+        split_floordiv,
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
@@ -111,6 +116,7 @@ def run_exploration(
 def run_materialization(
     input_mlir: str,
     block_sizes_json: str,
+    hoist_invariant_loads: bool = False,
 ) -> str:
     """Run the materialization pipeline (stages 5→7).
 
@@ -125,6 +131,8 @@ def run_materialization(
                           or
                           ``{"func_name": [{"BM": 64}, {"BM": 128}], ...}``.
                           Pass empty string to use placeholder solver.
+        hoist_invariant_loads: When True, read loop-invariant DRAM tiles once
+                          per independent loop nest instead of every iteration.
 
     Returns:
         Output MLIR text (final bufferized MLIR).
@@ -133,7 +141,7 @@ def run_materialization(
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir = _loom_pipeline.run_materialization_pipeline(
-        input_mlir, block_sizes_json
+        input_mlir, block_sizes_json, hoist_invariant_loads
     )
     if err:
         raise RuntimeError(f"Materialization pipeline failed: {err}")

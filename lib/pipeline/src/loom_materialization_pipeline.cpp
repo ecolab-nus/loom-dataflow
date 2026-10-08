@@ -194,7 +194,8 @@ bool parseBlockSizesJson(const char *json_str,
 /// Core materialization pipeline logic.
 std::pair<std::string, std::string>
 runMaterializationCore(const char *input_mlir_text,
-                       const char *block_sizes_json) {
+                       const char *block_sizes_json,
+                       bool hoist_invariant_loads) {
   // --- Parse block sizes JSON ---
   loom::passes::BlockSizeMap blockSizeMap;
   loom::passes::CandidateOrder candidateOrder;
@@ -313,6 +314,10 @@ runMaterializationCore(const char *input_mlir_text,
   pm.addPass(loom::passes::createSplitBinaryScalarChainPass());
   pm.addPass(mlir::createCanonicalizerPass());
 
+  // Stage 7: Read loop-invariant DRAM tiles once per independent loop nest.
+  if (hoist_invariant_loads)
+    pm.addPass(loom::passes::createHoistInvariantLoadsPass());
+
   // --- Run pipeline ---
   if (failed(pm.run(*module)))
     return {"Pipeline execution failed", ""};
@@ -340,9 +345,11 @@ namespace pipeline {
 
 std::pair<std::string, std::string>
 runMaterializationPipeline(const std::string &input_mlir_text,
-                           const std::string &block_sizes_json) {
+                           const std::string &block_sizes_json,
+                           bool hoist_invariant_loads) {
   return runMaterializationCore(input_mlir_text.c_str(),
-                                block_sizes_json.c_str());
+                                block_sizes_json.c_str(),
+                                hoist_invariant_loads);
 }
 
 } // namespace pipeline

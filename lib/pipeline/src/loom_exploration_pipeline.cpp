@@ -187,7 +187,8 @@ runExplorationPipeline(const std::string &input_mlir_text,
                        bool full_occ,
                        bool spatial_reuse,
                        bool blocked_waves,
-                       bool explore_parallel_sets) {
+                       bool explore_parallel_sets,
+                       bool split_floordiv) {
   // --- Set up MLIRContext with all required dialects ---
   DialectRegistry registry;
   registry.insert<BuiltinDialect, func::FuncDialect, affine::AffineDialect,
@@ -281,8 +282,11 @@ runExplorationPipeline(const std::string &input_mlir_text,
 
   // Optionally add variants with other spatial loop sets; the mapping
   // enumeration below then maps every variant.
-  if (explore_parallel_sets)
+  if (explore_parallel_sets) {
+    if (split_floordiv)
+      loom::SplitFloorDivLoops(*inputModule);
     loom::ExploreParallelSets(*inputModule, hardwareInfo);
+  }
 
   // Enumerate spatial mappings — returns a brand new ModuleOp.
   OwningOpRef<ModuleOp> enumerated =

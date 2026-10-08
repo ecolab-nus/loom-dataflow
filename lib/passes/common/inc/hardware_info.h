@@ -74,4 +74,18 @@ EnumerateSpatialMappings(mlir::ModuleOp affineModule,
  */
 void ExploreParallelSets(mlir::ModuleOp module,
                          const HardwareInfo &hardwareInfo);
+
+/**
+ * \brief Add function variants that split loops at floor-division boundaries.
+ *
+ * For each loop of a function's promotable scf.for chain whose index is used
+ * as `index / K` (K a constant proper divisor of its static trip count), clone
+ * the function with the loop split into a loop over the trip/K groups and a
+ * loop over the K members (index = g * K + i, index / K = g, index % K = i).
+ * Loads indexed by the group then no longer depend on the member loop, so
+ * reuse analysis can share them. The clones are marked for
+ * ExploreParallelSets, which keeps only their variants that run a split loop
+ * spatially and then erases them; run it before ExploreParallelSets.
+ */
+void SplitFloorDivLoops(mlir::ModuleOp module);
 } // namespace loom

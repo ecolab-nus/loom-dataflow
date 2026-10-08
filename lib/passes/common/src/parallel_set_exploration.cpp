@@ -246,6 +246,12 @@ static Value rootDimBoundValue(affine::AffineParallelOp root, unsigned d) {
   return nullptr;
 }
 
+/// Name of a loop produced by SplitFloorDivLoops (see kLoopNameAttr).
+static constexpr llvm::StringLiteral kLoopNameAttr = "loom.loop_name";
+/// Marks a function created by SplitFloorDivLoops; ExploreParallelSets only
+/// keeps its variants that run a split loop spatially and then erases it.
+static constexpr llvm::StringLiteral kSplitBaseAttr = "loom.floordiv_split";
+
 static std::string loopName(Value ub, unsigned fallbackIdx) {
   if (ub) {
     if (auto sym = loom_affine::traceToLoomSymRef(ub)) {
@@ -257,12 +263,118 @@ static std::string loopName(Value ub, unsigned fallbackIdx) {
   return "d" + std::to_string(fallbackIdx);
 }
 
+/// A block size that can only be 1: the constant 1 or a loom.sym bounded by 1.
+static bool isUnitBlock(Value v) {
+  if (isConstantIndex(v, 1))
+    return true;
+  if (auto sym = v.getDefiningOp<loom::SymOp>())
+    return sym.getUpperBound() && sym.getUpperBound()->getSExtValue() == 1;
+  return false;
+}
+
+/// Whether `v` is the loop index `iv`, possibly scaled by a unit block size
+/// (the frontend's tile.begin = iv * block_size).
+static bool isLoopIndex(Value v, Value iv) {
+  if (v == iv)
+    return true;
+  if (auto mul = v.getDefiningOp<arith::MulIOp>())
+    return (mul.getLhs() == iv && isUnitBlock(mul.getRhs())) ||
+           (mul.getRhs() == iv && isUnitBlock(mul.getLhs()));
+  return false;
+}
+
+/// Trip count of a chain loop when it is static: a constant, or
+/// ceildiv(constant, unit block size).
+static std::optional<int64_t> staticTripCount(scf::ForOp loop) {
+  Value ub = loop.getUpperBound();
+  if (auto c = ub.getDefiningOp<arith::ConstantIndexOp>())
+    return c.value();
+  if (auto cdiv = ub.getDefiningOp<arith::CeilDivUIOp>()) {
+    auto extent = cdiv.getLhs().getDefiningOp<arith::ConstantIndexOp>();
+    if (extent && isUnitBlock(cdiv.getRhs()))
+      return extent.value();
+  }
+  return std::nullopt;
+}
+
+/// Constants K with `index / K` in the loop body, K a proper divisor of the
+/// trip count (so the split loops have static, exact trip counts).
+static SmallVector<int64_t> floorDivisors(scf::ForOp loop, int64_t trip) {
+  SmallVector<int64_t> divisors;
+  Value iv = loop.getInductionVar();
+  loop.getBody()->walk([&](arith::DivUIOp div) {
+    auto k = div.getRhs().getDefiningOp<arith::ConstantIndexOp>();
+    if (!k || !isLoopIndex(div.getLhs(), iv))
+      return;
+    int64_t K = k.value();
+    if (K > 1 && K < trip && trip % K == 0 && !llvm::is_contained(divisors, K))
+      divisors.push_back(K);
+  });
+  llvm::sort(divisors);
+  return divisors;
+}
+
+/// Replace `loop` (lb 0, step 1, `trip` iterations) by an outer loop over
+/// groups and an inner loop over the K members of a group: index = g * K + i.
+/// `index / K` becomes g and `index % K` becomes i, so loads indexed by the
+/// group no longer depend on the inner loop at all.
+static void splitLoop(scf::ForOp loop, int64_t trip, int64_t K,
+                      StringRef name) {
+  OpBuilder b(loop);
+  Location loc = loop.getLoc();
+  Value c0 = arith::ConstantIndexOp::create(b, loc, 0);
+  Value c1 = arith::ConstantIndexOp::create(b, loc, 1);
+  Value cK = arith::ConstantIndexOp::create(b, loc, K);
+  Value cGroups = arith::ConstantIndexOp::create(b, loc, trip / K);
+  auto outer = scf::ForOp::create(b, loc, c0, cGroups, c1);
+  b.setInsertionPointToStart(outer.getBody());
+  auto inner = scf::ForOp::create(b, loc, c0, cK, c1);
+  for (NamedAttribute attr : loop->getDiscardableAttrs()) {
+    outer->setAttr(attr.getName(), attr.getValue());
+    inner->setAttr(attr.getName(), attr.getValue());
+  }
+  outer->setAttr(kLoopNameAttr, b.getStringAttr(name.str() + "o"));
+  inner->setAttr(kLoopNameAttr, b.getStringAttr(name.str() + "i"));
+
+  Value g = outer.getInductionVar();
+  Value i = inner.getInductionVar();
+  b.setInsertionPointToStart(inner.getBody());
+  Value index = arith::AddIOp::create(
+      b, loc, arith::MulIOp::create(b, loc, g, cK), i);
+  Operation *term = inner.getBody()->getTerminator();
+  for (Operation &op :
+       llvm::make_early_inc_range(loop.getBody()->without_terminator()))
+    op.moveBefore(term);
+
+  Value iv = loop.getInductionVar();
+  auto isK = [&](Value v) { return isConstantIndex(v, K); };
+  SmallVector<Operation *> folded;
+  inner.getBody()->walk([&](Operation *op) {
+    if (auto div = dyn_cast<arith::DivUIOp>(op)) {
+      if (isLoopIndex(div.getLhs(), iv) && isK(div.getRhs())) {
+        div.replaceAllUsesWith(g);
+        folded.push_back(op);
+      }
+    } else if (auto rem = dyn_cast<arith::RemUIOp>(op)) {
+      if (isLoopIndex(rem.getLhs(), iv) && isK(rem.getRhs())) {
+        rem.replaceAllUsesWith(i);
+        folded.push_back(op);
+      }
+    }
+  });
+  for (Operation *op : folded)
+    op->erase();
+  iv.replaceAllUsesWith(index);
+  loop.erase();
+}
+
 /// One loop of the nest: a root dimension (parDim >= 0) or a chain loop.
 struct Item {
   int parDim = -1;
   int chainIdx = -1;
   int64_t minTrip = 1;
   std::string name;
+  bool fromSplit = false; // a loop created by SplitFloorDivLoops
 };
 
 /// Rebuild `func`'s nest with `spatial` (indices into `items`, in nest order)
@@ -343,6 +455,10 @@ static LogicalResult rebuildNest(func::FuncOp func, ArrayRef<Item> items,
       ub = boundOf(it);
     }
     auto forOp = scf::ForOp::create(b, loc, c0, ub, c1);
+    // Every loop of the nest has independent iterations (parallel dimensions,
+    // or chain loops that write disjoint outputs and read none of them), so
+    // later passes may reorder these loops.
+    forOp->setAttr("loom.independent", b.getUnitAttr());
     newIV[idx] = forOp.getInductionVar();
     innermost = forOp.getBody();
     b.setInsertionPoint(innermost->getTerminator());
@@ -377,8 +493,11 @@ void ExploreParallelSets(ModuleOp module, const HardwareInfo &hardwareInfo) {
   OpBuilder builder(module.getContext());
   for (func::FuncOp func : loom::utils::collectFunctions(module)) {
     std::optional<LoopNest> nest = analyzeLoopNest(func);
-    if (!nest || nest->chain.empty())
+    if (!nest || nest->chain.empty()) {
+      if (func->hasAttr(kSplitBaseAttr))
+        func.erase();
       continue;
+    }
 
     affine::AffineParallelOp root = nest->root;
     const unsigned P = root.getNumDims();
@@ -396,15 +515,25 @@ void ExploreParallelSets(ModuleOp module, const HardwareInfo &hardwareInfo) {
       it.chainIdx = j;
       Value ub = nest->chain[j].getUpperBound();
       it.minTrip = minTripCount(ub);
-      it.name = loopName(ub, P + j);
+      if (auto nameAttr =
+              nest->chain[j]->getAttrOfType<StringAttr>(kLoopNameAttr)) {
+        it.name = nameAttr.str();
+        it.fromSplit = true;
+      } else {
+        it.name = loopName(ub, P + j);
+      }
       items.push_back(it);
     }
 
     const unsigned n = items.size();
     const unsigned maxDims = std::max(3u, P);
     const unsigned identity = (1u << P) - 1;
-    if (n > 16)
+    const bool isSplitBase = func->hasAttr(kSplitBaseAttr);
+    if (n > 16) {
+      if (isSplitBase)
+        func.erase();
       continue;
+    }
     Operation *insertAfter = func;
     for (unsigned mask = 1; mask < (1u << n); ++mask) {
       if (mask == identity)
@@ -425,6 +554,12 @@ void ExploreParallelSets(ModuleOp module, const HardwareInfo &hardwareInfo) {
         continue;
       if (spatial.size() > maxDims || work < cores)
         continue;
+      // Sets of a split function that keep every split loop sequential
+      // duplicate the unsplit function's sets.
+      if (isSplitBase && llvm::none_of(spatial, [&](unsigned i) {
+            return items[i].fromSplit;
+          }))
+        continue;
 
       std::string name = func.getName().str() + "__par";
       for (unsigned i : spatial)
@@ -439,8 +574,50 @@ void ExploreParallelSets(ModuleOp module, const HardwareInfo &hardwareInfo) {
       if (clone) {
         // Work covers every core: partial-occupancy mappings are not useful.
         clone->setAttr("loom.full_occupancy_only", builder.getUnitAttr());
+        clone->removeAttr(kSplitBaseAttr);
         insertAfter = clone;
         LLVM_DEBUG(llvm::dbgs() << "parallel set variant: " << name << "\n");
+      }
+    }
+    // The split function only exists to seed these variants; kept as is it
+    // would duplicate the unsplit function.
+    if (isSplitBase)
+      func.erase();
+  }
+}
+
+void SplitFloorDivLoops(ModuleOp module) {
+  OpBuilder builder(module.getContext());
+  for (func::FuncOp func : loom::utils::collectFunctions(module)) {
+    std::optional<LoopNest> nest = analyzeLoopNest(func);
+    if (!nest)
+      continue;
+    Operation *insertAfter = func;
+    for (unsigned j = 0; j < nest->chain.size(); ++j) {
+      scf::ForOp loop = nest->chain[j];
+      std::optional<int64_t> trip = staticTripCount(loop);
+      if (!trip)
+        continue;
+      std::string base =
+          loopName(loop.getUpperBound(), nest->root.getNumDims() + j);
+      for (int64_t K : floorDivisors(loop, *trip)) {
+        std::string name = func.getName().str() + "__split_" + base +
+                           std::to_string(K);
+        func::FuncOp clone = loom::utils::cloneFunc(
+            builder, func, name, /*moduleAttrs=*/nullptr,
+            [&](func::FuncOp f) -> LogicalResult {
+              std::optional<LoopNest> cloned = analyzeLoopNest(f);
+              if (!cloned || cloned->chain.size() <= j)
+                return failure();
+              splitLoop(cloned->chain[j], *trip, K, base);
+              f->setAttr(kSplitBaseAttr, UnitAttr::get(f.getContext()));
+              return success();
+            },
+            insertAfter);
+        if (clone) {
+          insertAfter = clone;
+          LLVM_DEBUG(llvm::dbgs() << "floordiv split: " << name << "\n");
+        }
       }
     }
   }

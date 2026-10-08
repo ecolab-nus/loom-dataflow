@@ -13,6 +13,7 @@ add_public_tablegen_target(LoomTritonSharedPassesIncGen)
 add_library(loomTritonSharedPasses STATIC
     ${CMAKE_CURRENT_LIST_DIR}/src/enumerate_copy_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/hoist_block_loading.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/hoist_invariant_loads.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/materialize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/analyze_reuse.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/triton_shared_spatial_mapping_pass.cpp

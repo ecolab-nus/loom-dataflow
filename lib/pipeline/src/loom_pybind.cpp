@@ -29,6 +29,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       py::arg("spatial_reuse") = true,
       py::arg("blocked_waves") = false,
       py::arg("explore_parallel_sets") = false,
+      py::arg("split_floordiv") = false,
       R"doc(Run the exploration pipeline (stages 0-5).
 
       Consolidates tensor_canonicalize, memory_binding, enumerate_hw_mapping,
@@ -47,6 +48,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
               wave-loop iterations instead of a cyclic stride.
           explore_parallel_sets: When True, also explore which loops run
               spatially (promote inner sequential loops / demote parallel dims).
+          split_floordiv: With explore_parallel_sets, also explore loops split
+              at index / K boundaries so group-indexed loads can be shared.
 
       Returns:
           Tuple of (error, output_mlir, etg_json).
@@ -59,6 +62,7 @@ PYBIND11_MODULE(_loom_pipeline, m) {
       &loom::pipeline::runMaterializationPipeline,
       py::arg("input_mlir_text"),
       py::arg("block_sizes_json"),
+      py::arg("hoist_invariant_loads") = false,
       R"doc(Run the materialization pipeline (Materialize -> OSB).
 
       Takes explored MLIR and block sizes from the external solver, materializes
@@ -68,6 +72,8 @@ PYBIND11_MODULE(_loom_pipeline, m) {
           input_mlir_text: Input MLIR as a string (stage 05).
           block_sizes_json: JSON string mapping variant names to one or more
               block-size assignments.
+          hoist_invariant_loads: When True, read loop-invariant DRAM tiles once
+              per independent loop nest instead of every iteration.
 
       Returns:
           Tuple of (error, output_mlir).
