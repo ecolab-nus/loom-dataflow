@@ -194,6 +194,12 @@ static Expr traceIndexValueToExpr(mlir::Value val,
                                  apply.getMapOperands(),
                                  apply.getAffineMap().getNumDims(), subst);
 
+  // Wave clamp from spatial mapping: min(iv, N - 1) only changes the
+  // iterations past N, so trip counts follow the unclamped IV.
+  if (auto sel = dyn_cast<arith::SelectOp>(op))
+    if (sel->hasAttr("loom.wave_clamp"))
+      return traceIndexValueToExpr(sel.getTrueValue(), subst);
+
   // arith.constant
   if (auto constOp = dyn_cast<arith::ConstantOp>(op))
     if (auto intAttr = dyn_cast<IntegerAttr>(constOp.getValue()))
