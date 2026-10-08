@@ -37,6 +37,7 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 #include "mlir/Dialect/Tensor/IR/TensorTilingInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/BufferizableOpInterfaceImpl.h"
 #include "mlir/Dialect/Tensor/Transforms/SubsetInsertionOpInterfaceImpl.h"
+#include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Parser/Parser.h"
@@ -66,6 +67,36 @@ std::unique_ptr<mlir::Pass> createSplitBinaryScalarChainPass();
 using namespace mlir;
 
 namespace {
+
+/// Drop the spatial-mapping wave clamps (select(iv < N, iv, N - 1) tagged
+/// loom.wave_clamp = cores, see applyMappingToFunction) whose extent N became
+/// a constant divisible by the core count: there cores * waves == N, so the
+/// clamp never fires.
+struct FoldDivisibleWaveClampsPass
+    : public PassWrapper<FoldDivisibleWaveClampsPass, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(FoldDivisibleWaveClampsPass)
+
+  StringRef getArgument() const override {
+    return "loom-fold-divisible-wave-clamps";
+  }
+
+  void runOnOperation() override {
+    SmallVector<arith::SelectOp> divisible;
+    getOperation().walk([&](arith::SelectOp sel) {
+      auto cores = sel->getAttrOfType<IntegerAttr>("loom.wave_clamp");
+      auto cmp = sel.getCondition().getDefiningOp<arith::CmpIOp>();
+      if (!cores || !cmp)
+        return;
+      std::optional<int64_t> extent = getConstantIntValue(cmp.getRhs());
+      if (extent && *extent % cores.getInt() == 0)
+        divisible.push_back(sel);
+    });
+    for (arith::SelectOp sel : divisible) {
+      sel.getResult().replaceAllUsesWith(sel.getTrueValue());
+      sel.erase();
+    }
+  }
+};
 
 std::vector<llvm::StringMap<int64_t>> cloneBindingList(
     const std::vector<llvm::StringMap<int64_t>> &bindings) {
@@ -282,6 +313,8 @@ runMaterializationCore(const char *input_mlir_text,
   }
 
   // Stage 2: Canonicalize, remove dead symbols, bridge to OSB
+  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(std::make_unique<FoldDivisibleWaveClampsPass>());
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createSymbolDCEPass());
   pm.addPass(loom::passes::createBridgeToOSBPass());
