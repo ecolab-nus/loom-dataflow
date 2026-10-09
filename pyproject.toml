@@ -16,6 +16,8 @@ dev = [
 
 [tool.scikit-build]
 cmake.build-type = "Release"
+# Persistent build tree so reinstalls only recompile changed sources.
+build-dir = "build-py/{wheel_tag}"
 # Let cmake install() rules handle all packaging — __init__.py and
 # _loom_pipeline.so are both installed into the loom_pipeline/ directory.
 wheel.packages = []
@@ -29,3 +31,18 @@ LLVM_USE_LINKER = "lld"
 provider = "scikit_build_core.metadata.regex"
 input = "VERSION"
 regex = "(?P<value>.+)"
+
+# Rebuild the extension on `uv sync` / `uv run` whenever its sources change,
+# not only when VERSION does.
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "VERSION" },
+    { file = "CMakeLists.txt" },
+    { file = "lib/**/*.cpp" },
+    { file = "lib/**/*.h" },
+    { file = "lib/**/*.td" },
+    { file = "lib/**/*.in" },
+    { file = "lib/**/*.py" },
+    { file = "lib/**/CMakeLists.txt" },
+]
