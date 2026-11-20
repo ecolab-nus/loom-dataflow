@@ -93,3 +93,5 @@ dist/
 
 # Some temporal files
 test/Passes/mm_2Dmesh/constraint_space/temp.json
+# scikit-build-core build tree (pyproject build-dir)
+build-py/

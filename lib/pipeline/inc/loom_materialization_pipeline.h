@@ -20,11 +20,15 @@ namespace pipeline {
 ///                          Pass empty string to use placeholder solver.
 /// @param hw_spec_file      Hardware specification used to validate and bind
 ///                          direct movers after materialization.
+/// @param hoist_invariant_loads When true, hoist kernel-argument loads that do
+///                          not depend on a loop of an independent loop nest
+///                          out of it (swapping that loop innermost first).
 /// @return pair of (error, output_mlir). error is empty on success.
 std::pair<std::string, std::string>
 runMaterializationPipeline(const std::string &input_mlir_text,
                            const std::string &block_sizes_json,
-                           const std::string &hw_spec_file);
+                           const std::string &hw_spec_file,
+                           bool hoist_invariant_loads = false);
 
 } // namespace pipeline
 } // namespace loom

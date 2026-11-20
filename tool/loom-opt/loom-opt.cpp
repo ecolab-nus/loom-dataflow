@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
   mlir::registerAllDialects(registry);
   mlir::registerAllPasses();
   loom::passes::registerSpecializeMemorySpacesPass();
+  mlir::registerPass([] { return loom::passes::createHoistInvariantLoadsPass(); });
   registry.insert<mlir::adl::ADLDialect, loom::LoomDialect>();
 
   return mlir::asMainReturnCode(

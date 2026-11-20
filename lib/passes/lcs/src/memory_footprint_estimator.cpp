@@ -313,6 +313,16 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
   for (size_t i = 0; i < allocs.size(); ++i) {
     AllocInfo &info = allocs[i];
     allocIndex[info.alloc_op.getOperation()] = i;
+    if (target == Target::TT) {
+      // The TT backend forwards scalars as runtime args (no storage) and places
+      // a rank-1 [N] vector in row 0 of 32x32 tiles, i.e. a [1, N] plane.
+      if (info.static_sizes.empty())
+        continue;
+      if (info.static_sizes.size() == 1) {
+        info.static_sizes.insert(info.static_sizes.begin(), 1);
+        info.expr_dims.insert(info.expr_dims.begin(), Expr::con(1));
+      }
+    }
     std::vector<Expr> aligned = info.expr_dims;
     if (target == Target::TT) {
       if (mlir::failed(validateBottom2Dims(info)))
@@ -337,18 +347,13 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
     footprints.try_emplace(info.memory, MemoryFootprint{info.memory});
   }
 
-  for (auto &[memory, footprint] : footprints) {
-    auto capacity = extractLocalSizeFromPlatform(registry, funcOp, memory);
-    if (mlir::failed(capacity))
-      return mlir::failure();
-    footprint.capacity_bytes = *capacity;
-  }
-
   llvm::DenseMap<mlir::Operation *, FootprintClass> classes;
   if (mlir::failed(classifyCopyEndpoints(funcOp, allocIndex, classes)))
     return mlir::failure();
 
   for (AllocInfo &info : allocs) {
+    if (info.footprint_bytes.isNone())
+      continue; // no storage (TT scalar)
     FootprintClass cls = FootprintClass::Compute;
     auto it = classes.find(info.alloc_op.getOperation());
     if (it != classes.end())
@@ -356,12 +361,19 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
     pushFootprint(footprints.at(info.memory), cls, info.footprint_bytes);
   }
 
-  if (target == Target::Generic) {
+  auto finish = [&]() -> mlir::FailureOr<MemoryFootprintResult> {
     MemoryFootprintResult result;
-    for (auto &[memory, footprint] : footprints)
+    for (auto &[memory, footprint] : footprints) {
+      auto capacity = extractLocalSizeFromPlatform(registry, funcOp, memory);
+      if (mlir::failed(capacity))
+        return mlir::failure();
+      footprint.capacity_bytes = *capacity;
       result.memory_footprints.push_back(std::move(footprint));
+    }
     return result;
-  }
+  };
+  if (target == Target::Generic)
+    return finish();
 
   std::map<std::string, std::set<int64_t>> reductionWidths;
   bool reductionOwnerMissing = false;
@@ -408,13 +420,10 @@ MemoryFootprintEstimator::estimateFromFunc(mlir::func::FuncOp funcOp,
                                        "reduction configuration footprint");
     if (mlir::failed(scratchBytes))
       return mlir::failure();
-    footprints.at(memory).compute_bytes.push_back(Expr::con(*scratchBytes));
+    footprints.try_emplace(memory, MemoryFootprint{memory})
+        .first->second.compute_bytes.push_back(Expr::con(*scratchBytes));
   }
-
-  MemoryFootprintResult result;
-  for (auto &[memory, footprint] : footprints)
-    result.memory_footprints.push_back(std::move(footprint));
-  return result;
+  return finish();
 }
 
 } // namespace lcs

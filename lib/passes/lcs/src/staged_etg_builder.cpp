@@ -163,6 +163,13 @@ bool isNonExecutableLoomOp(llvm::StringRef opName) {
   return kNonExecutableOps.count(opName.str()) != 0;
 }
 
+/// Linalg ops that are not modelled by ETG. Must match processor binding
+/// (compute_binding.cpp): any other op, linalg.transpose included, is bound to
+/// a platform primitive and costed by it.
+bool isNonExecutableLinalgOp(mlir::Operation *op) {
+  return llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
+}
+
 int64_t ceilDivNonNegative(int64_t numerator, int64_t denominator) {
   assert(numerator >= 0 && denominator > 0);
   return numerator == 0 ? 0 : (numerator + denominator - 1) / denominator;
@@ -462,6 +469,10 @@ void addBindingDimsFromValue(mlir::Value value, const HWTensorBinding &binding,
     foldedDims.push_back(opDims.back());
 
     opDims = std::move(foldedDims);
+  } else if (opDims.size() < bindingRank) {
+    // Lower-rank operands (rank-1 vectors, scalars) bind as leading-1 shapes,
+    // e.g. [N] -> [1, N] against an [M, N] binding, so no symbol is left free.
+    opDims.insert(opDims.begin(), bindingRank - opDims.size(), Expr::con(1));
   }
   for (size_t d = 0; d < binding.dim_symbols.size() && d < opDims.size(); ++d)
     if (dimMap.count(binding.dim_symbols[d]) == 0)
@@ -989,7 +1000,7 @@ VariantETG::validateDispatches(mlir::func::FuncOp func_op,
           }
 
           if (auto linalgOp = llvm::dyn_cast<mlir::linalg::LinalgOp>(op)) {
-            if (llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op))
+            if (isNonExecutableLinalgOp(op))
               continue;
             mlir::FailureOr<ComputeOpMatchInfo> matchInfo =
                 getComputeOpMatchInfo(linalgOp);
@@ -1189,9 +1200,7 @@ mlir::LogicalResult VariantETG::populateScopesFromRegion(
         bool is_copy = llvm::isa<loom::CopyOp>(op);
         bool is_gather = llvm::isa<loom::GatherOp>(op);
         bool is_data_mover = is_copy || is_gather;
-        bool is_linalg_infra =
-            is_compute &&
-            llvm::isa<mlir::linalg::FillOp, mlir::linalg::CopyOp>(op);
+        bool is_linalg_infra = is_compute && isNonExecutableLinalgOp(op);
 
         if (is_compute && !is_linalg_infra) {
           mlir::LogicalResult result = mlir::success();
@@ -1240,7 +1249,7 @@ mlir::LogicalResult VariantETG::populateScopesFromRegion(
           dispatched = true;
           advances_stage = false; // data-mover ops are non-blocking
         } else if (is_linalg_infra) {
-          advances_stage = false; // matches legacy: linalg.fill/copy don't bump
+          advances_stage = false; // linalg.fill/copy don't bump
         }
         (void)dispatched;
       }
@@ -1560,6 +1569,12 @@ VariantETG::buildConstraintScope(mlir::func::FuncOp func_op) {
     applyHardwareAlignments(func_op, constraint_scope_.symbols);
   constraint_scope_.booleans.push_back("is_double_buffer");
   analyzeLoopIterations(func_op);
+  // IV-dependent (causal) loops: the trip count must divide at every IV value,
+  // not only at the largest one recorded in iter_num.
+  func_op.walk([&](mlir::scf::ForOp forOp) {
+    for (ConstraintExpr &c : ivDependentTripCountDivisibility(forOp))
+      constraint_scope_.pushHardConstraint(std::move(c));
+  });
   auto footprintResult =
       MemoryFootprintEstimator::estimateFromFunc(func_op, hw_registry_,
                                                  target_);

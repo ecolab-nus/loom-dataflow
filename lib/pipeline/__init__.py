@@ -18,7 +18,7 @@ Usage::
 
     output_mlir, etg_json = run_exploration(
         input_mlir=mlir_text,
-        hw_spec_file="../loom-mlar/tests/2d_mesh/2d_mesh_torus_ref.mlir",
+        hw_spec_file="../loom-mlar/tests/wormhole/2d_mesh_torus.mlir",
     )
 
     final_mlir = run_materialization(
@@ -66,6 +66,9 @@ def run_exploration(
     spatial_reuse: bool = True,
     explicit_memory: bool = False,
     enumerate_bindings: bool = False,
+    blocked_waves: bool = False,
+    explore_parallel_sets: bool = False,
+    split_floordiv: bool = False,
 ) -> tuple[str, str]:
     """Run the exploration pipeline (stages 0→5).
 
@@ -87,6 +90,14 @@ def run_exploration(
         enumerate_bindings: Enumerate semantically compatible processor-array
                            alternatives independently at each static compute
                            operation. Works for stage-00 and stage-02 input.
+        blocked_waves:     When True, give each core a contiguous block of
+                           wave-loop iterations instead of a cyclic stride.
+        explore_parallel_sets: When True, also explore which loops run spatially
+                           (promote inner sequential loops into the outer
+                           parallel loop / demote parallel dims to inner loops).
+        split_floordiv:    With explore_parallel_sets, also explore loops split
+                           at index / K boundaries (group / member loops), so
+                           group-indexed loads can be shared.
 
     Returns:
         Tuple of (output_mlir, etg_json).  etg_json is empty when
@@ -104,6 +115,9 @@ def run_exploration(
         spatial_reuse,
         explicit_memory,
         enumerate_bindings,
+        blocked_waves,
+        explore_parallel_sets,
+        split_floordiv,
     )
     if err:
         raise RuntimeError(f"Exploration pipeline failed: {err}")
@@ -114,6 +128,7 @@ def run_materialization(
     input_mlir: str,
     block_sizes_json: str,
     hw_spec_file: str | Path,
+    hoist_invariant_loads: bool = False,
 ) -> str:
     """Run the materialization pipeline (stages 5→7).
 
@@ -129,6 +144,8 @@ def run_materialization(
                           ``{"func_name": [{"BM": 64}, {"BM": 128}], ...}``.
                           Pass empty string to use placeholder solver.
         hw_spec_file:    Hardware specification used to validate direct movers.
+        hoist_invariant_loads: When True, read loop-invariant kernel-argument tiles once
+                          per independent loop nest instead of every iteration.
 
     Returns:
         Output MLIR text (final bufferized MLIR).
@@ -137,7 +154,7 @@ def run_materialization(
         RuntimeError: If the C++ pipeline fails.
     """
     err, output_mlir = _loom_pipeline.run_materialization_pipeline(
-        input_mlir, block_sizes_json, str(hw_spec_file)
+        input_mlir, block_sizes_json, str(hw_spec_file), hoist_invariant_loads
     )
     if err:
         raise RuntimeError(f"Materialization pipeline failed: {err}")
