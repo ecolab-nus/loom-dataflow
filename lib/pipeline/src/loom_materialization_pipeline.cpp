@@ -268,7 +268,7 @@ LogicalResult bindAndValidateCopies(
         return;
       }
     } else if (!candidates.empty()) {
-      selected = candidates.back();
+      selected = loom::lcs::HWOpRegistry::defaultDataMover(candidates);
     }
     if (!selected) {
       error = "no architect-declared direct mover implements materialized "

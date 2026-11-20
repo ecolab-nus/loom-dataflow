@@ -317,6 +317,14 @@ const HWComputeFunc *HWOpRegistry::lookupDataMover(
   return match;
 }
 
+const HWComputeFunc *HWOpRegistry::defaultDataMover(
+    llvm::ArrayRef<const HWComputeFunc *> candidates) {
+  for (const HWComputeFunc *candidate : llvm::reverse(candidates))
+    if (llvm::none_of(candidate->broadcast, mlir::ShapedType::isDynamic))
+      return candidate;
+  return candidates.empty() ? nullptr : candidates.back();
+}
+
 std::vector<const HWComputeFunc *> HWOpRegistry::lookupDataMoverCandidates(
     DataMoverKind kind, llvm::StringRef src_mem_space,
     llvm::StringRef dst_mem_space, llvm::ArrayRef<int64_t> area) const {

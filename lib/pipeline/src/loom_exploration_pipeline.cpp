@@ -725,7 +725,8 @@ LogicalResult finalizeDataMoverVariants(
         break;
       }
       if (!enumerate)
-        candidates.assign(1, candidates.back());
+        candidates.assign(
+            1, loom::lcs::HWOpRegistry::defaultDataMover(candidates));
       alternatives.push_back(std::move(candidates));
     }
 

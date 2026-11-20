@@ -175,6 +175,12 @@ public:
                                    llvm::StringRef src_mem_space,
                                    llvm::StringRef dst_mem_space) const;
 
+  /// Default choice among registration-ordered mover candidates when not
+  /// enumerating: as in lookupDataMover, a static-area (exact) mover beats a
+  /// symbolic-area (broadcast) one; ties keep the last registered.
+  static const HWComputeFunc *
+  defaultDataMover(llvm::ArrayRef<const HWComputeFunc *> candidates);
+
   /// Return the parsed platform module (kept alive by this registry).
   mlir::ModuleOp getPlatformModule() const { return *platform_module_; }
 
